@@ -30,10 +30,11 @@ export default function ActivitiesPage() {
     fetch(`/api/activities?slug=${slug}`)
       .then((r) => r.json())
       .then((d) => {
-        setActivities(Array.isArray(d) ? d : [])
-        // Pull event_id from first activity, or fetch events
-        if (d?.[0]?.event_id) setEventId(d[0].event_id)
+        const list = Array.isArray(d) ? d : []
+        setActivities(list)
+        if (list[0]?.event_id) setEventId(list[0].event_id)
       })
+      .catch(() => setActivities([]))
   }
 
   function loadAnnouncements(eid) {

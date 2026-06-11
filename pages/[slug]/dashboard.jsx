@@ -33,13 +33,15 @@ export default function Dashboard() {
 
     fetch(`/api/activities?slug=${slug}`)
       .then((r) => r.json())
-      .then(setActivities)
+      .then((d) => setActivities(Array.isArray(d) ? d : []))
+      .catch(() => setActivities([]))
 
     fetch(`/api/tasks?slug=${slug}`)
       .then((r) => r.json())
       .then((tasks) => {
+        const list = Array.isArray(tasks) ? tasks : []
         setMyTasks(
-          (tasks ?? []).filter(
+          list.filter(
             (t) =>
               t.assignee_1_id === session.user.id ||
               t.assignee_2_id === session.user.id

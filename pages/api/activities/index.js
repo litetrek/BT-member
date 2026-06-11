@@ -9,27 +9,56 @@ export default async function handler(req, res) {
     const { slug } = req.query
     if (!slug) return res.status(400).json({ error: 'slug is required' })
 
-    const { data: event } = await supabase
+    const { data: event, error: eventError } = await supabase
       .from('events')
       .select('id')
       .eq('slug', slug)
       .single()
 
-    if (!event) return res.status(404).json({ error: 'Event not found' })
+    if (eventError || !event) return res.status(404).json({ error: 'Event not found' })
 
-    const { data, error } = await supabase
+    // Fetch activities + tasks separately to avoid PostgREST join issues
+    const { data: activities, error: actError } = await supabase
       .from('activities')
-      .select(`
-        *,
-        lead:lead_id (id, name, email, avatar_url),
-        co_lead:co_lead_id (id, name, email, avatar_url),
-        tasks (id, status)
-      `)
+      .select('*')
       .eq('event_id', event.id)
       .order('sort_order')
 
-    if (error) return res.status(500).json({ error: error.message })
-    return res.status(200).json(data)
+    if (actError) return res.status(500).json({ error: actError.message })
+
+    if (!activities.length) return res.status(200).json([])
+
+    // Fetch tasks for these activities
+    const activityIds = activities.map((a) => a.id)
+    const { data: tasks } = await supabase
+      .from('tasks')
+      .select('id, activity_id, status')
+      .in('activity_id', activityIds)
+
+    // Fetch user info for leads / co-leads
+    const userIds = [...new Set(
+      activities.flatMap((a) => [a.lead_id, a.co_lead_id].filter(Boolean))
+    )]
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, name, email, avatar_url')
+      .in('id', userIds)
+
+    const userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u]))
+    const tasksByActivity = (tasks ?? []).reduce((acc, t) => {
+      if (!acc[t.activity_id]) acc[t.activity_id] = []
+      acc[t.activity_id].push(t)
+      return acc
+    }, {})
+
+    const result = activities.map((a) => ({
+      ...a,
+      lead:    userMap[a.lead_id]    ?? null,
+      co_lead: userMap[a.co_lead_id] ?? null,
+      tasks:   tasksByActivity[a.id] ?? [],
+    }))
+
+    return res.status(200).json(result)
   }
 
   if (req.method === 'POST') {
