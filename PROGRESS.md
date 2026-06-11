@@ -8,13 +8,14 @@
 - Next.js 14 (pages router), Tailwind CSS, ESLint
 - Dependencies: `next-auth`, `@auth/supabase-adapter`, `@supabase/supabase-js`, `resend`
 - `.env.local.example` with all required keys
-- `next.config.js`, `tailwind.config.js`, `postcss.config.js`
+- `next.config.js`, `tailwind.config.js`, `postcss.config.js`, `jsconfig.json`
 - Tabler Icons loaded via CDN in `globals.css`
 
 **Supabase**
 - `supabase/schema.sql` — 7 tables with RLS:
   - `events`, `users`, `event_members`, `activities`, `tasks`, `announcements`, `email_log`
 - `supabase/seed.sql` — seed event: BT Annual Event 2026 (slug: 2026-annual-event)
+- Schema deployed live to Supabase via `scripts/run-schema.js`
 
 **Lib Files**
 - `lib/supabase/server.js` — server-side Supabase client
@@ -45,7 +46,22 @@
 - `/[slug]/activities` — Activity grid + Announcements section with admin post form
 - `/[slug]/tasks` — Full task list for event
 
+### Deployment Fixes Applied
+- Added `jsconfig.json` — `@/` path alias was not resolving, causing build failure
+- Fixed RLS policy on `events` — changed from `authenticated` to `true` so home page can list events without login
+- Rewrote activities API — replaced broken Supabase embedded-resource join syntax with separate queries merged in JS
+- Added `Array.isArray()` guards in dashboard and activities pages to prevent crashes on bad API responses
+- Deployed to Vercel at bt.cyber-tech.com — site is live and serving
+
+### Current State
+- bt.cyber-tech.com is live and loading
+- Home page shows BT Annual Event 2026 card
+- Google sign-in flow wired up
+- Dashboard and activities pages load without errors
+- Supabase has all 7 tables with RLS active
+
 ### Next Steps (Day 2)
+- Add first user to `event_members` as admin (required before any protected actions work)
 - Task create/edit modal and full task management
 - Users page (admin: manage members, assign roles)
 - Email digest via Resend (daily + overdue reminders)
