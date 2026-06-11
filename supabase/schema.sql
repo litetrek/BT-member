@@ -89,7 +89,7 @@ ALTER TABLE email_log     ENABLE ROW LEVEL SECURITY;
 
 -- events
 CREATE POLICY "events_select" ON events
-  FOR SELECT USING (auth.role() = 'authenticated');
+  FOR SELECT USING (true);  -- public: home page lists events without auth
 
 CREATE POLICY "events_insert" ON events
   FOR INSERT WITH CHECK (
