@@ -48,20 +48,25 @@
 
 ### Deployment Fixes Applied
 - Added `jsconfig.json` — `@/` path alias was not resolving, causing build failure
-- Fixed RLS policy on `events` — changed from `authenticated` to `true` so home page can list events without login
-- Rewrote activities API — replaced broken Supabase embedded-resource join syntax with separate queries merged in JS
-- Added `Array.isArray()` guards in dashboard and activities pages to prevent crashes on bad API responses
-- Deployed to Vercel at bt.cyber-tech.com — site is live and serving
+- Fixed RLS policy on `events` — changed to `USING (true)` so home page lists events without auth
+- Rewrote activities API — replaced broken Supabase embedded-resource join syntax with separate queries
+- Added `Array.isArray()` guards in dashboard and activities pages to prevent JS crashes on bad API responses
+- Switched `lib/auth.js` to use `SUPABASE_SERVICE_ROLE_KEY` — anon key was silently failing the user upsert on sign-in
+- Added `SUPABASE_SERVICE_ROLE_KEY` to `.env.local.example` and Vercel env vars
 
 ### Current State
-- bt.cyber-tech.com is live and loading
+- bt.cyber-tech.com is live and building cleanly
 - Home page shows BT Annual Event 2026 card
-- Google sign-in flow wired up
-- Dashboard and activities pages load without errors
+- Google OAuth wired up; user upsert fix deployed and awaiting verification
 - Supabase has all 7 tables with RLS active
+- All required env vars set in Vercel
+
+### Pending — Before Day 2
+- Verify Google sign-in writes user to `public.users`
+- Run script to add first user (Vincent) to `event_members` as admin
+- Seed the 3 activities (Wiser Game, Booths, Seminars) with real lead user ID
 
 ### Next Steps (Day 2)
-- Add first user to `event_members` as admin (required before any protected actions work)
 - Task create/edit modal and full task management
 - Users page (admin: manage members, assign roles)
 - Email digest via Resend (daily + overdue reminders)
