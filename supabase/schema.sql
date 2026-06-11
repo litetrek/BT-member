@@ -1,10 +1,13 @@
 -- BT-Member Event Management Schema
--- Run this in Supabase SQL editor
+-- Run this in Supabase SQL editor (or via scripts/run-schema.js)
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- ── events ──────────────────────────────────────────────
+-- ══════════════════════════════════════════════
+-- TABLE DEFINITIONS (all tables first)
+-- ══════════════════════════════════════════════
+
 CREATE TABLE IF NOT EXISTS events (
   id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   name        text NOT NULL,
@@ -14,28 +17,6 @@ CREATE TABLE IF NOT EXISTS events (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE events ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Authenticated users can read events"
-  ON events FOR SELECT USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Admins can insert events"
-  ON events FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM event_members em
-      WHERE em.user_id = auth.uid() AND em.role = 'admin'
-    )
-  );
-
-CREATE POLICY "Admins can update events"
-  ON events FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM event_members em
-      WHERE em.user_id = auth.uid() AND em.role = 'admin'
-    )
-  );
-
--- ── users ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
   id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   name        text,
@@ -44,18 +25,6 @@ CREATE TABLE IF NOT EXISTS users (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Authenticated users can read users"
-  ON users FOR SELECT USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Users can upsert their own record"
-  ON users FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Users can update their own record"
-  ON users FOR UPDATE USING (id = auth.uid());
-
--- ── event_members ────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS event_members (
   id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   event_id    uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -65,20 +34,6 @@ CREATE TABLE IF NOT EXISTS event_members (
   UNIQUE (event_id, user_id)
 );
 
-ALTER TABLE event_members ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can see their own memberships"
-  ON event_members FOR SELECT USING (user_id = auth.uid());
-
-CREATE POLICY "Admins can manage memberships"
-  ON event_members FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM event_members em
-      WHERE em.user_id = auth.uid() AND em.role = 'admin'
-    )
-  );
-
--- ── activities ───────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS activities (
   id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   event_id    uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -89,36 +44,6 @@ CREATE TABLE IF NOT EXISTS activities (
   sort_order  integer NOT NULL DEFAULT 0
 );
 
-ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Authenticated users can read activities"
-  ON activities FOR SELECT USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Admins can insert activities"
-  ON activities FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM event_members em
-      WHERE em.user_id = auth.uid() AND em.role = 'admin'
-    )
-  );
-
-CREATE POLICY "Admins can update activities"
-  ON activities FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM event_members em
-      WHERE em.user_id = auth.uid() AND em.role = 'admin'
-    )
-  );
-
-CREATE POLICY "Admins can delete activities"
-  ON activities FOR DELETE USING (
-    EXISTS (
-      SELECT 1 FROM event_members em
-      WHERE em.user_id = auth.uid() AND em.role = 'admin'
-    )
-  );
-
--- ── tasks ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS tasks (
   id              uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   activity_id     uuid NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
@@ -132,57 +57,6 @@ CREATE TABLE IF NOT EXISTS tasks (
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Assignees can see their tasks"
-  ON tasks FOR SELECT USING (
-    assignee_1_id = auth.uid()
-    OR assignee_2_id = auth.uid()
-    OR EXISTS (
-      SELECT 1 FROM event_members em
-      JOIN activities a ON a.event_id = em.event_id
-      WHERE a.id = tasks.activity_id
-        AND em.user_id = auth.uid()
-        AND em.role IN ('admin', 'lead')
-    )
-  );
-
-CREATE POLICY "Admins and leads can insert tasks"
-  ON tasks FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM event_members em
-      JOIN activities a ON a.event_id = em.event_id
-      WHERE a.id = tasks.activity_id
-        AND em.user_id = auth.uid()
-        AND em.role IN ('admin', 'lead')
-    )
-  );
-
-CREATE POLICY "Assignees and admins can update tasks"
-  ON tasks FOR UPDATE USING (
-    assignee_1_id = auth.uid()
-    OR assignee_2_id = auth.uid()
-    OR EXISTS (
-      SELECT 1 FROM event_members em
-      JOIN activities a ON a.event_id = em.event_id
-      WHERE a.id = tasks.activity_id
-        AND em.user_id = auth.uid()
-        AND em.role IN ('admin', 'lead')
-    )
-  );
-
-CREATE POLICY "Admins can delete tasks"
-  ON tasks FOR DELETE USING (
-    EXISTS (
-      SELECT 1 FROM event_members em
-      JOIN activities a ON a.event_id = em.event_id
-      WHERE a.id = tasks.activity_id
-        AND em.user_id = auth.uid()
-        AND em.role = 'admin'
-    )
-  );
-
--- ── announcements ────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS announcements (
   id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   event_id    uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -191,32 +65,6 @@ CREATE TABLE IF NOT EXISTS announcements (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Authenticated users can read announcements"
-  ON announcements FOR SELECT USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Admins can insert announcements"
-  ON announcements FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM event_members em
-      WHERE em.event_id = announcements.event_id
-        AND em.user_id = auth.uid()
-        AND em.role = 'admin'
-    )
-  );
-
-CREATE POLICY "Admins can delete announcements"
-  ON announcements FOR DELETE USING (
-    EXISTS (
-      SELECT 1 FROM event_members em
-      WHERE em.event_id = announcements.event_id
-        AND em.user_id = auth.uid()
-        AND em.role = 'admin'
-    )
-  );
-
--- ── email_log ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS email_log (
   id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   event_id    uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -227,10 +75,146 @@ CREATE TABLE IF NOT EXISTS email_log (
   sent_at     timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE email_log ENABLE ROW LEVEL SECURITY;
+-- ══════════════════════════════════════════════
+-- ROW LEVEL SECURITY (after all tables exist)
+-- ══════════════════════════════════════════════
 
-CREATE POLICY "Authenticated users can read email_log"
-  ON email_log FOR SELECT USING (auth.role() = 'authenticated');
+ALTER TABLE events        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE activities    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE email_log     ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Service role can insert email_log"
-  ON email_log FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+-- events
+CREATE POLICY "events_select" ON events
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "events_insert" ON events
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM event_members em WHERE em.user_id = auth.uid() AND em.role = 'admin')
+  );
+
+CREATE POLICY "events_update" ON events
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM event_members em WHERE em.user_id = auth.uid() AND em.role = 'admin')
+  );
+
+-- users
+CREATE POLICY "users_select" ON users
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "users_insert" ON users
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "users_update" ON users
+  FOR UPDATE USING (id = auth.uid());
+
+-- event_members
+CREATE POLICY "members_select" ON event_members
+  FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "members_all_admin" ON event_members
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM event_members em WHERE em.user_id = auth.uid() AND em.role = 'admin')
+  );
+
+-- activities
+CREATE POLICY "activities_select" ON activities
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "activities_insert" ON activities
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM event_members em WHERE em.user_id = auth.uid() AND em.role = 'admin')
+  );
+
+CREATE POLICY "activities_update" ON activities
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM event_members em WHERE em.user_id = auth.uid() AND em.role = 'admin')
+  );
+
+CREATE POLICY "activities_delete" ON activities
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM event_members em WHERE em.user_id = auth.uid() AND em.role = 'admin')
+  );
+
+-- tasks
+CREATE POLICY "tasks_select" ON tasks
+  FOR SELECT USING (
+    assignee_1_id = auth.uid()
+    OR assignee_2_id = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM event_members em
+      JOIN activities a ON a.event_id = em.event_id
+      WHERE a.id = tasks.activity_id
+        AND em.user_id = auth.uid()
+        AND em.role IN ('admin', 'lead')
+    )
+  );
+
+CREATE POLICY "tasks_insert" ON tasks
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM event_members em
+      JOIN activities a ON a.event_id = em.event_id
+      WHERE a.id = tasks.activity_id
+        AND em.user_id = auth.uid()
+        AND em.role IN ('admin', 'lead')
+    )
+  );
+
+CREATE POLICY "tasks_update" ON tasks
+  FOR UPDATE USING (
+    assignee_1_id = auth.uid()
+    OR assignee_2_id = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM event_members em
+      JOIN activities a ON a.event_id = em.event_id
+      WHERE a.id = tasks.activity_id
+        AND em.user_id = auth.uid()
+        AND em.role IN ('admin', 'lead')
+    )
+  );
+
+CREATE POLICY "tasks_delete" ON tasks
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM event_members em
+      JOIN activities a ON a.event_id = em.event_id
+      WHERE a.id = tasks.activity_id
+        AND em.user_id = auth.uid()
+        AND em.role = 'admin'
+    )
+  );
+
+-- announcements
+CREATE POLICY "announcements_select" ON announcements
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "announcements_insert" ON announcements
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM event_members em
+      WHERE em.event_id = announcements.event_id
+        AND em.user_id = auth.uid()
+        AND em.role = 'admin'
+    )
+  );
+
+CREATE POLICY "announcements_delete" ON announcements
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM event_members em
+      WHERE em.event_id = announcements.event_id
+        AND em.user_id = auth.uid()
+        AND em.role = 'admin'
+    )
+  );
+
+-- email_log
+CREATE POLICY "email_log_select" ON email_log
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "email_log_insert" ON email_log
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
