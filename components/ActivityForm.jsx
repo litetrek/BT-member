@@ -28,7 +28,8 @@ export default function ActivityForm({ eventId, activity, onClose, onSaved }) {
   useEffect(() => {
     fetch(`/api/users?event_id=${eventId}`)
       .then((r) => r.json())
-      .then(setUsers)
+      .then((d) => setUsers(Array.isArray(d) ? d : []))
+      .catch(() => setUsers([]))
   }, [eventId])
 
   async function handleSubmit(e) {
