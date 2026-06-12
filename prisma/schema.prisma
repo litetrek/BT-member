@@ -1,0 +1,160 @@
+// BT-Member Event Management — Database Schema
+// Stack: Next.js 14 (pages router), Supabase (Postgres + RLS), NextAuth v4, Tailwind CSS
+// Hosted on Vercel. All API routes use service role key (bypasses RLS).
+// Auth: Google OAuth via NextAuth. Session stores user.id, user.role (best role across events).
+// Roles: admin > lead > member
+//
+// NOTE: This file is for reference only. The project uses @supabase/supabase-js directly,
+// not Prisma ORM. Do not run "prisma generate" or "prisma migrate" against this file.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  slug       String   @unique
+  event_date DateTime @db.Date
+  status     String   @default("active") // "active" | "archived"
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  members       EventMember[]
+  activities    Activity[]
+  announcements Announcement[]
+  email_logs    EmailLog[]
+  activity_logs ActivityLog[]
+
+  @@map("events")
+}
+
+model User {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String?  // null = invited but never signed in (pending)
+  email      String   @unique
+  avatar_url String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  memberships        EventMember[]
+  led_activities     Activity[]    @relation("ActivityLead")
+  co_led_activities  Activity[]    @relation("ActivityCoLead")
+  tasks_as_assignee1 Task[]        @relation("TaskAssignee1")
+  tasks_as_assignee2 Task[]        @relation("TaskAssignee2")
+  tasks_created      Task[]        @relation("TaskCreatedBy")
+  announcements      Announcement[]
+  email_logs         EmailLog[]
+  activity_logs      ActivityLog[]
+
+  @@map("users")
+}
+
+model EventMember {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id  String   @db.Uuid
+  user_id   String   @db.Uuid
+  role      String   @default("member") // "admin" | "lead" | "member"
+  joined_at DateTime @default(now()) @db.Timestamptz(6)
+
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([event_id, user_id])
+  @@map("event_members")
+}
+
+model Activity {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id   String  @db.Uuid
+  lead_id    String  @db.Uuid
+  co_lead_id String? @db.Uuid
+  name       String
+  icon       String  @default("ti-star") // Tabler icon class e.g. "ti-star"
+  sort_order Int     @default(0)
+
+  event   Event  @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  lead    User   @relation("ActivityLead", fields: [lead_id], references: [id])
+  co_lead User?  @relation("ActivityCoLead", fields: [co_lead_id], references: [id])
+  tasks   Task[]
+
+  @@map("activities")
+}
+
+model Task {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  activity_id   String    @db.Uuid
+  assignee_1_id String    @db.Uuid
+  assignee_2_id String?   @db.Uuid
+  created_by    String    @db.Uuid
+  title         String
+  status        String    @default("open") // "open" | "in_progress" | "done"
+  due_date      DateTime? @db.Date
+  note          String?   // optional note from assignee (last saved note)
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+
+  activity  Activity @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  assignee1 User     @relation("TaskAssignee1", fields: [assignee_1_id], references: [id])
+  assignee2 User?    @relation("TaskAssignee2", fields: [assignee_2_id], references: [id])
+  creator   User     @relation("TaskCreatedBy", fields: [created_by], references: [id])
+
+  @@map("tasks")
+}
+
+model Announcement {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id   String   @db.Uuid
+  created_by String   @db.Uuid
+  message    String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  event   Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  creator User  @relation(fields: [created_by], references: [id])
+
+  @@map("announcements")
+}
+
+// Tracks every outbound email sent by the daily cron job
+model EmailLog {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id String   @db.Uuid
+  user_id  String   @db.Uuid
+  task_id  String?  @db.Uuid
+  type     String   // "daily_digest" | "overdue_reminder" | "announcement"
+  status   String   @default("sent") // "sent" | "failed"
+  sent_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id], references: [id])
+
+  @@map("email_log")
+}
+
+// Audit log — one row per meaningful change
+// entity_type: 'task' | 'activity' | 'announcement'
+// action:      'created' | 'updated' | 'deleted' | 'status_changed' | 'note_added'
+// field_changed / old_value / new_value populated for status_changed + field-level updates
+// note populated for note_added actions
+model ActivityLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id      String?  @db.Uuid
+  user_id       String?  @db.Uuid
+  entity_type   String   // 'task' | 'activity' | 'announcement'
+  entity_id     String?  @db.Uuid
+  entity_name   String?
+  action        String   // 'created' | 'updated' | 'deleted' | 'status_changed' | 'note_added'
+  field_changed String?
+  old_value     String?
+  new_value     String?
+  note          String?
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  event Event? @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  user  User?  @relation(fields: [user_id], references: [id])
+
+  @@map("activity_log")
+}

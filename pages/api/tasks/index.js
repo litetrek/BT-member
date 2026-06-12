@@ -64,10 +64,13 @@ export default async function handler(req, res) {
 
     const { data: act } = await supabase.from('activities').select('event_id').eq('id', activity_id).single()
     await supabase.from('activity_log').insert({
-      event_id: act?.event_id ?? null,
-      task_id: data.id,
-      user_id: session.user.id,
-      action: 'task_created',
+      event_id:    act?.event_id ?? null,
+      user_id:     session.user.id,
+      entity_type: 'task',
+      entity_id:   data.id,
+      entity_name: title,
+      action:      'created',
+      new_value:   status,
     })
 
     return res.status(201).json(data)

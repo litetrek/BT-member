@@ -15,14 +15,19 @@ export default async function handler(req, res) {
   if (!event_id && !task_id) return res.status(400).json({ error: 'event_id or task_id required' })
 
   const supabase = createServerClient()
+
   let query = supabase
     .from('activity_log')
-    .select('*, user:user_id(id, name, avatar_url), task:task_id(id, title)')
+    .select('id, entity_type, entity_name, action, field_changed, old_value, new_value, note, created_at, actor:user_id(name, avatar_url)')
     .order('created_at', { ascending: false })
     .limit(200)
 
-  if (event_id) query = query.eq('event_id', event_id)
-  if (task_id)  query = query.eq('task_id', task_id)
+  // task_id takes priority — filter by entity_id for this specific task
+  if (task_id) {
+    query = query.eq('entity_id', task_id).eq('entity_type', 'task')
+  } else {
+    query = query.eq('event_id', event_id)
+  }
 
   if (hours) {
     const cutoff = new Date(Date.now() - Number(hours) * 3600 * 1000)

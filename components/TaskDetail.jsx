@@ -4,18 +4,10 @@ import Avatar from './Avatar'
 import StatusBadge from './StatusBadge'
 
 const STATUS_OPTIONS = [
-  { value: 'open', label: 'Open' },
+  { value: 'open',        label: 'Open' },
   { value: 'in_progress', label: 'In Progress' },
-  { value: 'done', label: 'Done' },
+  { value: 'done',        label: 'Done' },
 ]
-
-const ACTION_LABELS = {
-  task_created:        'Created task',
-  task_updated:        'Updated task',
-  task_status_changed: 'Status changed to',
-  task_note_updated:   'Added note',
-  task_deleted:        'Deleted task',
-}
 
 function relativeTime(ts) {
   const diff = Date.now() - new Date(ts).getTime()
@@ -25,6 +17,27 @@ function relativeTime(ts) {
   const hrs = Math.floor(mins / 60)
   if (hrs < 24)  return `${hrs}h ago`
   return `${Math.floor(hrs / 24)}d ago`
+}
+
+function describeEntry(entry) {
+  const actor = entry.actor?.name ?? 'Someone'
+  switch (entry.action) {
+    case 'status_changed':
+      return { text: `${actor} changed status`, detail: `${entry.old_value} → ${entry.new_value}` }
+    case 'note_added':
+      return { text: `${actor} added a note`, detail: entry.note ? `"${entry.note}"` : '' }
+    case 'created':
+      return { text: `Task created by ${actor}`, detail: '' }
+    case 'deleted':
+      return { text: `Task deleted by ${actor}`, detail: '' }
+    case 'updated':
+      return {
+        text: `${actor} updated ${entry.field_changed ?? 'task'}`,
+        detail: entry.old_value && entry.new_value ? `${entry.old_value} → ${entry.new_value}` : '',
+      }
+    default:
+      return { text: `${actor} ${entry.action.replace(/_/g, ' ')}`, detail: '' }
+  }
 }
 
 export default function TaskDetail({ task, onClose, onSaved }) {
@@ -41,12 +54,14 @@ export default function TaskDetail({ task, onClose, onSaved }) {
   const isAssignee = task.assignee_1_id === userId || task.assignee_2_id === userId
   const canUpdate  = isAssignee || ['admin', 'lead'].includes(userRole)
 
-  useEffect(() => {
+  function loadHistory() {
     fetch(`/api/log?task_id=${task.id}`)
       .then((r) => r.json())
       .then((d) => { setHistory(Array.isArray(d) ? d : []); setLogLoading(false) })
       .catch(() => setLogLoading(false))
-  }, [task.id])
+  }
+
+  useEffect(() => { loadHistory() }, [task.id])
 
   async function handleSave() {
     setSaving(true)
@@ -58,10 +73,7 @@ export default function TaskDetail({ task, onClose, onSaved }) {
     })
     if (res.ok) {
       onSaved()
-      // Refresh history
-      fetch(`/api/log?task_id=${task.id}`)
-        .then((r) => r.json())
-        .then((d) => setHistory(Array.isArray(d) ? d : []))
+      loadHistory()
     } else {
       const d = await res.json().catch(() => ({}))
       setError(d.error ?? 'Save failed')
@@ -155,7 +167,7 @@ export default function TaskDetail({ task, onClose, onSaved }) {
             </div>
           )}
 
-          {/* Current note display (read-only for non-editors) */}
+          {/* Read-only note for non-editors */}
           {!canUpdate && task.note && (
             <div className="px-5 py-4 border-b border-gray-100">
               <p className="text-xs text-gray-500 mb-1">Note</p>
@@ -173,22 +185,18 @@ export default function TaskDetail({ task, onClose, onSaved }) {
             ) : (
               <div className="flex flex-col gap-3">
                 {history.map((entry) => {
-                  const label = ACTION_LABELS[entry.action] ?? entry.action.replace(/_/g, ' ')
-                  const detail = entry.action === 'task_status_changed' ? ` ${entry.note}` : ''
+                  const { text, detail } = describeEntry(entry)
                   return (
                     <div key={entry.id} className="flex items-start gap-2.5">
                       <Avatar
-                        name={entry.user?.name ?? '?'}
-                        avatarUrl={entry.user?.avatar_url}
+                        name={entry.actor?.name ?? '?'}
+                        avatarUrl={entry.actor?.avatar_url}
                         size="sm"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-700">
-                          <span className="font-medium">{entry.user?.name ?? 'Someone'}</span>
-                          {' '}{label}{detail}
-                        </p>
-                        {entry.action === 'task_note_updated' && entry.note && (
-                          <p className="text-xs text-gray-500 mt-0.5 italic">"{entry.note}"</p>
+                        <p className="text-xs text-gray-700">{text}</p>
+                        {detail && (
+                          <p className="text-xs text-gray-500 mt-0.5 italic">{detail}</p>
                         )}
                         <p className="text-xs text-gray-400 mt-0.5">{relativeTime(entry.created_at)}</p>
                       </div>

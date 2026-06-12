@@ -29,15 +29,17 @@ export default async function handler(req, res) {
     const { data, error } = await supabase
       .from('announcements')
       .insert({ event_id, message, created_by: session.user.id })
-      .select()
-      .single()
+      .select().single()
 
     if (error) return res.status(500).json({ error: error.message })
 
     await supabase.from('activity_log').insert({
       event_id,
-      user_id: session.user.id,
-      action: 'announcement_created',
+      user_id:     session.user.id,
+      entity_type: 'announcement',
+      entity_id:   data.id,
+      entity_name: message.substring(0, 60),
+      action:      'created',
     })
 
     return res.status(201).json(data)

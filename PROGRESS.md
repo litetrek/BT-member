@@ -1,6 +1,7 @@
 # BT-Member Event Management — Progress Snapshot
 
 ## Day 3 Complete — Activity Log, Task Detail Modal, AI Summary, Mobile Polish
+## Day 3 Patch — activity_log schema corrected, all log writes use full fields
 
 ---
 
@@ -167,21 +168,27 @@
 
 **API**
 - `GET /api/log?event_id=&task_id=&hours=` — returns log entries with user and task info; accepts either filter
-- All existing routes now insert to `activity_log` on mutation:
-  - tasks POST → `task_created`
-  - tasks PUT → `task_status_changed` (with new status as note) or `task_note_updated` or `task_updated`
-  - tasks DELETE → `task_deleted` (logged before delete so task_id FK is valid)
-  - activities POST → `activity_created`
-  - activities PUT → `activity_updated`
-  - activities DELETE → `activity_deleted`
-  - announcements POST → `announcement_created`
+- All existing routes now insert to `activity_log` on mutation using corrected schema fields:
+  - tasks POST → `entity_type:'task'`, `action:'created'`, `new_value: status`
+  - tasks PUT (status/note) → separate entries: `action:'status_changed'` (with `field_changed`, `old_value`, `new_value`) and `action:'note_added'` (with `note`)
+  - tasks PUT (full edit) → per-field entries for title, status, due_date, assignees; `action:'note_added'` if note provided
+  - tasks DELETE → `action:'deleted'` (logged before delete; entity_id preserved since no FK)
+  - activities POST → `action:'created'`
+  - activities PUT → `action:'updated'`
+  - activities DELETE → `action:'deleted'`
+  - announcements POST → `action:'created'`, `entity_name: message.substring(0,60)`
 
 ### Task Detail Modal
 
 **`components/TaskDetail.jsx`** — full-screen modal (sheet on mobile, centered on sm+)
 - Top: task title, activity name, current status badge, due date, assignee avatars
 - Middle: status select + note textarea + Update button (visible to assignees, admin, lead)
-- Bottom: history list from `/api/log?task_id=` — shows user avatar, action label, relative timestamp, note text
+- Bottom: history list from `/api/log?task_id=` — natural language descriptions per action
+  - `status_changed` → "Actor changed status open → done"
+  - `note_added` → "Actor added a note: '...'"
+  - `created` → "Task created by Actor"
+  - `updated` → "Actor updated field: old → new"
+- Uses `entry.actor.name/avatar_url` (new field name from log query)
 - Closes on backdrop click or × button
 
 **`components/TaskItem.jsx`** updated
@@ -195,28 +202,27 @@
 - TaskDetail rendered below TaskForm with `onSaved={handleDetailSaved}` (refreshes task list)
 
 **`pages/api/tasks/[id].js`** updated
-- PUT now accepts `note` field alongside `status`
+- PUT accepts `note` field alongside `status`
 - Status/note-only path: detects when no full-edit fields present — allows assignees OR admin/lead
-- Full-edit path: admin/lead only (unchanged behavior)
-- Both paths write to `activity_log`
+- Full-edit path: admin/lead only; fetches task before update for old values; logs per changed field
+- Both paths write to `activity_log` using new schema
 
 ### AI Summary Dashboard
 
-**`pages/api/ai/summary.js`** (new)
+**`pages/api/ai/summary.js`**
 - `GET /api/ai/summary?event_id=&hours=` — admin/lead only
-- Fetches recent `activity_log` entries for the event; formats as readable lines
+- Formats each log entry as: "[Actor] changed task 'Title' status: open → done — 2 hrs ago"
 - Calls Claude (`claude-sonnet-4-6`) via `@anthropic-ai/sdk` — 2–3 sentence prose summary
 - Returns `{ summary, entry_count }`
 - **Requires `ANTHROPIC_API_KEY` in `.env.local` and Vercel env vars**
 
-**`components/AISummary.jsx`** (new)
+**`components/AISummary.jsx`**
 - Time range selector: Last 4 hours / Last 24 hours / Last 7 days
 - Generate button — fetches from `/api/ai/summary`; shows spinner while loading
-- Displays summary text + entry count
 - Shown on dashboard for admin/lead only
 
 **`pages/[slug]/dashboard.jsx`** updated
-- Imports AISummary; renders it between stat cards and the two-column section
+- Renders AISummary between stat cards and two-column section
 - Visible only when `userRole` is admin or lead and `eventId` is available
 
 ### Mobile Layout Polish
@@ -231,25 +237,80 @@
 **`pages/[slug]/dashboard.jsx`**
 - Stat card grid: `gap-3 sm:gap-4`
 - Activity progress section: `gap-6 lg:gap-8` for the two-column grid
-- My Tasks item: truncate + gap for tight mobile widths
 
 ---
 
-## Current State (after Day 3)
+## Day 3 Patch — activity_log Schema Corrected
 
-- All activity is tracked in `activity_log` — full audit trail
-- Clicking a task row opens TaskDetail modal with status/note update + history
-- AI Summary available on dashboard for admin/lead — summarizes recent activity in prose
-- Layout has mobile-friendly hamburger nav drawer
+**Problem:** The original `activity_log` table used `task_id`, a generic `action` string, and `note` — too coarse for meaningful history display and AI summarization.
+
+**Fix applied to all files:**
+
+`prisma/schema.prisma` — ActivityLog model replaced with corrected fields:
+- `entity_type` (task | activity | announcement)
+- `entity_id` — UUID of the affected record
+- `entity_name` — human-readable name snapshot
+- `action` (created | updated | deleted | status_changed | note_added)
+- `field_changed`, `old_value`, `new_value` — for field-level change tracking
+- `note` — for note_added actions
+- Removed `task_id` FK; Task model no longer has `log_entries` relation
+
+`pages/api/log/index.js` — rewritten:
+- Selects `id, entity_type, entity_name, action, field_changed, old_value, new_value, note, created_at, actor:user_id(name, avatar_url)`
+- `task_id` query param now filters by `entity_id + entity_type='task'` (no FK join needed)
+- `event_id` param filters by `event_id` column directly
+
+`pages/api/ai/summary.js` — updated `formatLine()`:
+- Builds natural-language lines using `entity_name`, `action`, `field_changed`, `old_value`, `new_value`, `note`, `actor.name`
+- Example: "Vincent changed task 'Book venue AV' status: open → done — 2 hrs ago"
+
+`components/TaskDetail.jsx` — updated `describeEntry()`:
+- Maps `action` + new fields to natural-language descriptions
+- Uses `entry.actor` (not `entry.user`) for name/avatar
+
+All 7 mutation API routes updated to insert using new field names.
+
+**⚠️ Supabase SQL required** — the `activity_log` table must be rebuilt with the new schema. Run in Supabase SQL Editor:
+```sql
+DROP TABLE IF EXISTS activity_log;
+CREATE TABLE activity_log (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id      uuid REFERENCES events(id) ON DELETE CASCADE,
+  user_id       uuid REFERENCES users(id) ON DELETE SET NULL,
+  entity_type   text NOT NULL,
+  entity_id     uuid,
+  entity_name   text,
+  action        text NOT NULL,
+  field_changed text,
+  old_value     text,
+  new_value     text,
+  note          text,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "log_select" ON activity_log FOR SELECT USING (
+  EXISTS (SELECT 1 FROM event_members WHERE event_id = activity_log.event_id AND user_id = auth.uid())
+);
+CREATE POLICY "log_insert" ON activity_log FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+```
+
+---
+
+## Current State (after Day 3 Patch)
+
+- `activity_log` schema corrected with full field set — `entity_type`, `entity_id`, `entity_name`, `action`, `field_changed`, `old_value`, `new_value`, `note`
+- All 7 mutation routes write structured log entries
+- TaskDetail history renders natural-language descriptions per action type
+- AI Summary prompt includes full field context for richer summaries
 - `@anthropic-ai/sdk@0.104.1` installed
 
 ---
 
 ## Pending / Next Steps
 
-- **Run SQL in Supabase** — `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS note text` + full `activity_log` DDL (see Day 3 schema section above)
-- **Add `ANTHROPIC_API_KEY`** to `.env.local` and Vercel env vars (AI summary won't work without it)
-- Add `CRON_SECRET` to Vercel environment variables (cron endpoint needs it)
+- **Run activity_log DDL in Supabase** (see Day 3 Patch section above — DROP + recreate)
+- **Add `ANTHROPIC_API_KEY`** to `.env.local` and Vercel env vars
+- Add `CRON_SECRET` to Vercel environment variables
 - Trigger announcement emails from the Activities page (currently only posted to DB)
 - Test Google sign-in end-to-end with real user, verify role propagation
-- Consider adding per-event role context (currently uses highest role across all events)
+- Consider per-event role context (currently uses highest role across all events)

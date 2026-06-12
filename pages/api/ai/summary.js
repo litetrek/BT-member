@@ -5,16 +5,34 @@ import Anthropic from '@anthropic-ai/sdk'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const ACTION_READABLE = {
-  task_created:        'created a task',
-  task_updated:        'updated a task',
-  task_status_changed: 'changed task status to',
-  task_note_updated:   'added a note to a task',
-  task_deleted:        'deleted a task',
-  activity_created:    'created an activity',
-  activity_updated:    'updated an activity',
-  activity_deleted:    'deleted an activity',
-  announcement_created:'posted an announcement',
+function timeAgo(ts) {
+  const mins = Math.round((Date.now() - new Date(ts).getTime()) / 60000)
+  if (mins < 60)   return `${mins} min ago`
+  if (mins < 1440) return `${Math.round(mins / 60)} hrs ago`
+  return `${Math.round(mins / 1440)} days ago`
+}
+
+function formatLine(entry) {
+  const actor = entry.actor?.name ?? 'Someone'
+  const name  = entry.entity_name ? `'${entry.entity_name}'` : entry.entity_type
+  const when  = timeAgo(entry.created_at)
+
+  switch (entry.action) {
+    case 'status_changed':
+      return `${actor} changed ${entry.entity_type} ${name} status: ${entry.old_value} → ${entry.new_value} — ${when}`
+    case 'note_added':
+      return `${actor} added note to ${name}: ${entry.note} — ${when}`
+    case 'created':
+      return `${actor} created ${entry.entity_type} ${name} — ${when}`
+    case 'deleted':
+      return `${actor} deleted ${entry.entity_type} ${name} — ${when}`
+    case 'updated': {
+      const field = entry.field_changed ? ` (${entry.field_changed}: ${entry.old_value} → ${entry.new_value})` : ''
+      return `${actor} updated ${entry.entity_type} ${name}${field} — ${when}`
+    }
+    default:
+      return `${actor} ${entry.action} ${entry.entity_type} ${name} — ${when}`
+  }
 }
 
 export default async function handler(req, res) {
@@ -37,7 +55,7 @@ export default async function handler(req, res) {
 
   const { data: logs, error } = await supabase
     .from('activity_log')
-    .select('*, user:user_id(name), task:task_id(title)')
+    .select('entity_type, entity_name, action, field_changed, old_value, new_value, note, created_at, actor:user_id(name)')
     .eq('event_id', event_id)
     .gte('created_at', cutoff.toISOString())
     .order('created_at', { ascending: false })
@@ -46,27 +64,17 @@ export default async function handler(req, res) {
   if (error) return res.status(500).json({ error: error.message })
 
   if (!logs || logs.length === 0) {
-    return res.status(200).json({ summary: 'No activity recorded in this time period.' })
+    return res.status(200).json({ summary: 'No activity recorded in this time period.', entry_count: 0 })
   }
 
-  // Format log entries for Claude
-  const lines = logs.map((entry) => {
-    const who = entry.user?.name ?? 'Someone'
-    const verb = ACTION_READABLE[entry.action] ?? entry.action.replace(/_/g, ' ')
-    const taskRef = entry.task?.title ? ` "${entry.task.title}"` : ''
-    const detail = entry.action === 'task_status_changed' && entry.note ? ` ${entry.note}` : ''
-    const noteText = entry.action === 'task_note_updated' && entry.note ? `: "${entry.note}"` : ''
-    const mins = Math.round((Date.now() - new Date(entry.created_at).getTime()) / 60000)
-    const timeAgo = mins < 60 ? `${mins}m ago` : mins < 1440 ? `${Math.round(mins / 60)}h ago` : `${Math.round(mins / 1440)}d ago`
-    return `- ${who} ${verb}${detail}${taskRef}${noteText} (${timeAgo})`
-  })
+  const lines = logs.map(formatLine)
 
   const prompt = `You are summarizing recent activity for a Buddhist Town event management team.
 
-Recent activity log:
+Activity log:
 ${lines.join('\n')}
 
-Write a concise 2–3 sentence prose summary of what the team has been working on. Be specific about tasks and people mentioned. Use a neutral, factual tone.`
+Write a concise 2–3 sentence prose summary of what the team has been working on. Be specific about tasks and people. Use a neutral, factual tone.`
 
   try {
     const message = await client.messages.create({

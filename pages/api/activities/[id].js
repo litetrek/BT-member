@@ -14,36 +14,42 @@ export default async function handler(req, res) {
   if (req.method === 'PUT') {
     const { lead_id, co_lead_id, name, icon, sort_order } = req.body
 
-    const { data: act } = await supabase.from('activities').select('event_id').eq('id', id).single()
+    const { data: act } = await supabase
+      .from('activities').select('event_id, name').eq('id', id).single()
 
     const { data, error } = await supabase
       .from('activities')
       .update({ lead_id, co_lead_id: co_lead_id || null, name, icon, sort_order })
-      .eq('id', id)
-      .select()
-      .single()
+      .eq('id', id).select().single()
 
     if (error) return res.status(500).json({ error: error.message })
 
     await supabase.from('activity_log').insert({
-      event_id: act?.event_id ?? null,
-      user_id: session.user.id,
-      action: 'activity_updated',
+      event_id:    act?.event_id ?? null,
+      user_id:     session.user.id,
+      entity_type: 'activity',
+      entity_id:   id,
+      entity_name: act?.name ?? name,
+      action:      'updated',
     })
 
     return res.status(200).json(data)
   }
 
   if (req.method === 'DELETE') {
-    const { data: act } = await supabase.from('activities').select('event_id').eq('id', id).single()
+    const { data: act } = await supabase
+      .from('activities').select('event_id, name').eq('id', id).single()
 
     const { error } = await supabase.from('activities').delete().eq('id', id)
     if (error) return res.status(500).json({ error: error.message })
 
     await supabase.from('activity_log').insert({
-      event_id: act?.event_id ?? null,
-      user_id: session.user.id,
-      action: 'activity_deleted',
+      event_id:    act?.event_id ?? null,
+      user_id:     session.user.id,
+      entity_type: 'activity',
+      entity_id:   id,
+      entity_name: act?.name ?? null,
+      action:      'deleted',
     })
 
     return res.status(204).end()
