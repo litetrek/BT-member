@@ -7,7 +7,7 @@ const ROLES = [
 ]
 
 export default function InviteForm({ eventId, onClose, onSaved }) {
-  const [form, setForm] = useState({ email: '', role: 'member' })
+  const [form, setForm] = useState({ name: '', email: '', role: 'member' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -30,7 +30,7 @@ export default function InviteForm({ eventId, onClose, onSaved }) {
       onSaved()
     } else {
       const d = await res.json().catch(() => ({}))
-      setError(d.error ?? 'Invite failed')
+      setError(d.error ?? 'Failed to add member')
     }
     setSaving(false)
   }
@@ -40,8 +40,20 @@ export default function InviteForm({ eventId, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-lg">
-        <h2 className="font-semibold text-gray-900 mb-4">Invite Member</h2>
+        <h2 className="font-semibold text-gray-900 mb-4">Add Member</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Name</label>
+            <input
+              type="text"
+              required
+              value={form.name}
+              onChange={(e) => set('name', e.target.value)}
+              placeholder="Full name"
+              className={inputCls}
+            />
+          </div>
+
           <div>
             <label className="block text-xs text-gray-500 mb-1">Email</label>
             <input
@@ -82,7 +94,7 @@ export default function InviteForm({ eventId, onClose, onSaved }) {
               disabled={saving}
               className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
-              {saving ? 'Inviting…' : 'Invite'}
+              {saving ? 'Adding…' : 'Add Member'}
             </button>
           </div>
         </form>

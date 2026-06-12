@@ -10,12 +10,6 @@ import Spinner from '@/components/Spinner'
 
 const ROLES = ['admin', 'lead', 'member']
 
-const ROLE_COLORS = {
-  admin: 'bg-purple-100 text-purple-700',
-  lead:  'bg-blue-100 text-blue-700',
-  member:'bg-gray-100 text-gray-600',
-}
-
 export default function AdminUsersPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -24,9 +18,12 @@ export default function AdminUsersPage() {
   const [members, setMembers] = useState([])
   const [eventId, setEventId] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [showInvite, setShowInvite] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
   const [removeTarget, setRemoveTarget] = useState(null)
-  const [updatingRole, setUpdatingRole] = useState(null)
+  const [editTarget, setEditTarget] = useState(null)   // { id, name, role, email }
+  const [editForm, setEditForm] = useState({ name: '', role: 'member' })
+  const [saving, setSaving] = useState(false)
+  const [editError, setEditError] = useState('')
 
   const userRole = session?.user?.role
 
@@ -59,15 +56,28 @@ export default function AdminUsersPage() {
     if (eventId) loadMembers(eventId)
   }, [eventId])
 
-  async function handleRoleChange(userId, newRole) {
-    setUpdatingRole(userId)
-    await fetch(`/api/users/${userId}`, {
+  function openEdit(m) {
+    setEditTarget(m)
+    setEditForm({ name: m.name ?? '', role: m.role })
+    setEditError('')
+  }
+
+  async function handleSaveEdit() {
+    setSaving(true)
+    setEditError('')
+    const res = await fetch(`/api/users/${editTarget.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: newRole, event_id: eventId }),
+      body: JSON.stringify({ name: editForm.name, role: editForm.role, event_id: eventId }),
     })
-    setUpdatingRole(null)
-    loadMembers(eventId)
+    if (res.ok) {
+      setEditTarget(null)
+      loadMembers(eventId)
+    } else {
+      const d = await res.json().catch(() => ({}))
+      setEditError(d.error ?? 'Save failed')
+    }
+    setSaving(false)
   }
 
   async function handleRemove(userId) {
@@ -79,7 +89,7 @@ export default function AdminUsersPage() {
   const active  = members.filter((m) => m.status === 'active')
   const pending = members.filter((m) => m.status === 'invited')
 
-  const selectCls = 'border border-gray-200 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400'
+  const inputCls = 'w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400'
 
   return (
     <>
@@ -88,10 +98,10 @@ export default function AdminUsersPage() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-lg font-semibold text-gray-900">Team Members</h1>
           <button
-            onClick={() => setShowInvite(true)}
+            onClick={() => setShowAdd(true)}
             className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
           >
-            + Invite
+            + Add Member
           </button>
         </div>
 
@@ -122,16 +132,13 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-500">{m.email}</td>
                     <td className="px-4 py-3">
-                      <select
-                        value={m.role}
-                        disabled={updatingRole === m.id || m.id === session?.user?.id}
-                        onChange={(e) => handleRoleChange(m.id, e.target.value)}
-                        className={selectCls}
-                      >
-                        {ROLES.map((r) => (
-                          <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
-                        ))}
-                      </select>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                        m.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                        m.role === 'lead'  ? 'bg-blue-100 text-blue-700' :
+                                             'bg-gray-100 text-gray-600'
+                      }`}>
+                        {m.role.charAt(0).toUpperCase() + m.role.slice(1)}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
@@ -139,15 +146,24 @@ export default function AdminUsersPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {m.id !== session?.user?.id && (
+                      <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => setRemoveTarget(m)}
-                          className="text-gray-400 hover:text-red-500"
-                          title="Remove member"
+                          onClick={() => openEdit(m)}
+                          className="text-gray-400 hover:text-blue-500"
+                          title="Edit member"
                         >
-                          <span className="ti ti-trash text-sm" />
+                          <span className="ti ti-pencil text-sm" />
                         </button>
-                      )}
+                        {m.id !== session?.user?.id && (
+                          <button
+                            onClick={() => setRemoveTarget(m)}
+                            className="text-gray-400 hover:text-red-500"
+                            title="Remove member"
+                          >
+                            <span className="ti ti-trash text-sm" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -157,7 +173,7 @@ export default function AdminUsersPage() {
                     <tr>
                       <td colSpan={5} className="px-4 py-2 bg-gray-50">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                          Pending Invites
+                          Not yet signed in
                         </span>
                       </td>
                     </tr>
@@ -166,25 +182,29 @@ export default function AdminUsersPage() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <Avatar name={m.email} avatarUrl={null} size="sm" />
-                            <span className="text-gray-400 italic text-sm">Invited</span>
+                            <span className="text-gray-400 italic text-sm">—</span>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-gray-500">{m.email}</td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${ROLE_COLORS[m.role] ?? ROLE_COLORS.member}`}>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                            m.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                            m.role === 'lead'  ? 'bg-blue-100 text-blue-700' :
+                                                 'bg-gray-100 text-gray-600'
+                          }`}>
                             {m.role.charAt(0).toUpperCase() + m.role.slice(1)}
                           </span>
                         </td>
                         <td className="px-4 py-3">
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                            Invited
+                            Pending
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <button
                             onClick={() => setRemoveTarget(m)}
                             className="text-gray-400 hover:text-red-500"
-                            title="Cancel invite"
+                            title="Remove"
                           >
                             <span className="ti ti-trash text-sm" />
                           </button>
@@ -199,14 +219,70 @@ export default function AdminUsersPage() {
         )}
       </Layout>
 
-      {showInvite && eventId && (
+      {/* Add Member modal */}
+      {showAdd && eventId && (
         <InviteForm
           eventId={eventId}
-          onClose={() => setShowInvite(false)}
-          onSaved={() => { setShowInvite(false); loadMembers(eventId) }}
+          onClose={() => setShowAdd(false)}
+          onSaved={() => { setShowAdd(false); loadMembers(eventId) }}
         />
       )}
 
+      {/* Edit modal */}
+      {editTarget && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-lg">
+            <h2 className="font-semibold text-gray-900 mb-4">Edit Member</h2>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Email</label>
+                <p className="text-sm text-gray-400 px-3 py-2 bg-gray-50 rounded border border-gray-100">
+                  {editTarget.email}
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Role</label>
+                <select
+                  value={editForm.role}
+                  onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}
+                  className={inputCls}
+                >
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+              {editError && <p className="text-xs text-red-500">{editError}</p>}
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setEditTarget(null)}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={saving}
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove confirm */}
       {removeTarget && (
         <ConfirmDialog
           message={`Remove ${removeTarget.name ?? removeTarget.email} from this event?`}

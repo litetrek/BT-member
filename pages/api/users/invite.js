@@ -18,20 +18,23 @@ export default async function handler(req, res) {
   if (await requireAdmin(req, res)) return
 
   const supabase = adminClient()
-  const { email, role = 'member', event_id } = req.body
+  const { name, email, role = 'member', event_id } = req.body
   if (!email || !event_id) return res.status(400).json({ error: 'email and event_id required' })
 
-  // Look up or create placeholder user
+  // Look up existing user or create with provided name
   let { data: user } = await supabase.from('users').select('id').eq('email', email).single()
 
   if (!user) {
     const { data: newUser, error: createErr } = await supabase
       .from('users')
-      .insert({ email, name: null })
+      .insert({ email, name: name || null })
       .select('id')
       .single()
     if (createErr) return res.status(500).json({ error: createErr.message })
     user = newUser
+  } else if (name) {
+    // Update name if admin provided one and user exists without a name
+    await supabase.from('users').update({ name }).eq('id', user.id).is('name', null)
   }
 
   // Add/update event membership
