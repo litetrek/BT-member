@@ -51,7 +51,7 @@ export default function ActivityForm({ eventId, activity, onClose, onSaved }) {
       onSaved()
     } else {
       const d = await res.json()
-      setError(d.error ?? 'Save failed')
+      setError(d.error ?? '儲存失敗')
     }
     setSaving(false)
   }
@@ -60,11 +60,11 @@ export default function ActivityForm({ eventId, activity, onClose, onSaved }) {
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-lg">
         <h2 className="font-semibold text-gray-900 mb-4">
-          {isEdit ? 'Edit Activity' : 'New Activity'}
+          {isEdit ? '編輯活動' : '新增活動'}
         </h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Name</label>
+            <label className="block text-xs text-gray-500 mb-1">名稱</label>
             <input
               type="text"
               required
@@ -75,19 +75,19 @@ export default function ActivityForm({ eventId, activity, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Icon</label>
+            <label className="block text-xs text-gray-500 mb-1">圖示</label>
             <IconPicker value={form.icon} onChange={(v) => setForm({ ...form, icon: v })} />
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Lead</label>
+            <label className="block text-xs text-gray-500 mb-1">負責人</label>
             <select
               required
               value={form.lead_id}
               onChange={(e) => setForm({ ...form, lead_id: e.target.value })}
               className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
             >
-              <option value="">Select lead…</option>
+              <option value="">選擇負責人…</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>{u.name ?? u.email}</option>
               ))}
@@ -95,13 +95,13 @@ export default function ActivityForm({ eventId, activity, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Co-lead (optional)</label>
+            <label className="block text-xs text-gray-500 mb-1">協助人（選填）</label>
             <select
               value={form.co_lead_id}
               onChange={(e) => setForm({ ...form, co_lead_id: e.target.value })}
               className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
             >
-              <option value="">None</option>
+              <option value="">無</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>{u.name ?? u.email}</option>
               ))}
@@ -116,14 +116,14 @@ export default function ActivityForm({ eventId, activity, onClose, onSaved }) {
               onClick={onClose}
               className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
             >
-              Cancel
+              取消
             </button>
             <button
               type="submit"
               disabled={saving}
               className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? '儲存中…' : '儲存'}
             </button>
           </div>
         </form>

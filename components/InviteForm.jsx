@@ -1,9 +1,9 @@
 import { useState } from 'react'
 
 const ROLES = [
-  { value: 'member', label: 'Member' },
-  { value: 'lead', label: 'Lead' },
-  { value: 'admin', label: 'Admin' },
+  { value: 'member', label: '一般成員' },
+  { value: 'lead',   label: '負責人' },
+  { value: 'admin',  label: '管理員' },
 ]
 
 export default function InviteForm({ eventId, onClose, onSaved }) {
@@ -30,7 +30,7 @@ export default function InviteForm({ eventId, onClose, onSaved }) {
       onSaved()
     } else {
       const d = await res.json().catch(() => ({}))
-      setError(d.error ?? 'Failed to add member')
+      setError(d.error ?? '新增失敗')
     }
     setSaving(false)
   }
@@ -40,22 +40,22 @@ export default function InviteForm({ eventId, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-lg">
-        <h2 className="font-semibold text-gray-900 mb-4">Add Member</h2>
+        <h2 className="font-semibold text-gray-900 mb-4">新增成員</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Name</label>
+            <label className="block text-xs text-gray-500 mb-1">姓名</label>
             <input
               type="text"
               required
               value={form.name}
               onChange={(e) => set('name', e.target.value)}
-              placeholder="Full name"
+              placeholder="全名"
               className={inputCls}
             />
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Email</label>
+            <label className="block text-xs text-gray-500 mb-1">電子郵件</label>
             <input
               type="email"
               required
@@ -67,7 +67,7 @@ export default function InviteForm({ eventId, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Role</label>
+            <label className="block text-xs text-gray-500 mb-1">角色</label>
             <select
               value={form.role}
               onChange={(e) => set('role', e.target.value)}
@@ -87,14 +87,14 @@ export default function InviteForm({ eventId, onClose, onSaved }) {
               onClick={onClose}
               className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
             >
-              Cancel
+              取消
             </button>
             <button
               type="submit"
               disabled={saving}
               className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
-              {saving ? 'Adding…' : 'Add Member'}
+              {saving ? '新增中…' : '新增成員'}
             </button>
           </div>
         </form>

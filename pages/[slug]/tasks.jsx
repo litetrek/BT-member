@@ -11,11 +11,11 @@ import ConfirmDialog from '@/components/ConfirmDialog'
 import ErrorBoundary from '@/components/ErrorBoundary'
 
 const STATUS_FILTERS = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'open', label: 'Open' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'done', label: 'Done' },
-  { value: 'overdue', label: 'Overdue' },
+  { value: 'all',         label: '全部狀態' },
+  { value: 'open',        label: '未開始' },
+  { value: 'in_progress', label: '進行中' },
+  { value: 'done',        label: '已完成' },
+  { value: 'overdue',     label: '逾期' },
 ]
 
 function Section({ title, tasks, currentUserId, userRole, onStatusChange, onEdit, onOpen, highlightId }) {
@@ -125,7 +125,6 @@ export default function TasksPage() {
 
   function handleDetailSaved() {
     loadTasks()
-    // Refresh detailTask data from updated tasks list
     setDetailTask((prev) => prev)
   }
 
@@ -152,18 +151,18 @@ export default function TasksPage() {
 
   return (
     <>
-      <Head><title>Tasks · {slug}</title></Head>
+      <Head><title>任務 · {slug}</title></Head>
       <Layout slug={slug} activePage="tasks" user={session?.user} userRole={userRole}>
         <ErrorBoundary>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
-            <h1 className="text-lg font-semibold text-gray-900">Tasks</h1>
+            <h1 className="text-lg font-semibold text-gray-900">任務</h1>
             <div className="flex items-center gap-2 flex-wrap">
               <select
                 value={filterActivity}
                 onChange={(e) => setFilterActivity(e.target.value)}
                 className={selectCls}
               >
-                <option value="all">All Activities</option>
+                <option value="all">全部活動</option>
                 {activities.map((a) => (
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
@@ -182,7 +181,7 @@ export default function TasksPage() {
                   onClick={() => { setEditTask(null); setShowForm(true) }}
                   className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
                 >
-                  + Add Task
+                  + 新增任務
                 </button>
               )}
             </div>
@@ -191,13 +190,13 @@ export default function TasksPage() {
           {loading ? (
             <div className="flex justify-center py-16"><Spinner /></div>
           ) : tasks.length === 0 ? (
-            <p className="text-sm text-gray-400">No tasks yet. {canAddTask && 'Add the first one.'}</p>
+            <p className="text-sm text-gray-400">尚無任務。{canAddTask && '新增第一個任務。'}</p>
           ) : isEmpty ? (
-            <p className="text-sm text-gray-400">No tasks match the current filters.</p>
+            <p className="text-sm text-gray-400">目前篩選條件下沒有任務。</p>
           ) : (
             <>
               <Section
-                title="Overdue"
+                title="逾期"
                 tasks={overdue}
                 currentUserId={session?.user?.id}
                 userRole={userRole}
@@ -207,7 +206,7 @@ export default function TasksPage() {
                 highlightId={highlightId}
               />
               <Section
-                title="In Progress"
+                title="進行中"
                 tasks={inProgress}
                 currentUserId={session?.user?.id}
                 userRole={userRole}
@@ -217,7 +216,7 @@ export default function TasksPage() {
                 highlightId={highlightId}
               />
               <Section
-                title="Open"
+                title="未開始"
                 tasks={open}
                 currentUserId={session?.user?.id}
                 userRole={userRole}
@@ -227,7 +226,7 @@ export default function TasksPage() {
                 highlightId={highlightId}
               />
               <Section
-                title="Done"
+                title="已完成"
                 tasks={done}
                 currentUserId={session?.user?.id}
                 userRole={userRole}
@@ -263,8 +262,8 @@ export default function TasksPage() {
 
       {deleteTarget && (
         <ConfirmDialog
-          message={`Delete "${deleteTarget.title}"? This cannot be undone.`}
-          confirmLabel="Delete"
+          message={`確定要刪除「${deleteTarget.title}」？此操作無法復原。`}
+          confirmLabel="刪除"
           onConfirm={() => handleDelete(deleteTarget.id)}
           onCancel={() => setDeleteTarget(null)}
         />

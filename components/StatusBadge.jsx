@@ -15,10 +15,10 @@ export default function StatusBadge({ status, dueDate }) {
   }
 
   const labels = {
-    open:        'Open',
-    in_progress: 'In Progress',
-    done:        'Done',
-    overdue:     'Overdue',
+    open:        '未開始',
+    in_progress: '進行中',
+    done:        '已完成',
+    overdue:     '逾期',
   }
 
   return (

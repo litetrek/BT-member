@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     const session = await getServerSession(req, res, authOptions)
-    if (!session || session.user?.role !== 'admin') {
+    if (!session || !['admin', 'lead'].includes(session.user?.role)) {
       return res.status(403).json({ error: 'Forbidden' })
     }
 

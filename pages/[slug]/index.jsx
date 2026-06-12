@@ -30,7 +30,7 @@ export default function EventLogin() {
 
   return (
     <>
-      <Head><title>{event?.name ?? slug} · BT Events</title></Head>
+      <Head><title>{event?.name ?? slug} · 佛誕活動</title></Head>
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
         <div className="bg-white border border-gray-200 rounded-xl p-8 w-full max-w-sm text-center">
           <Link href="/" className="text-xs text-gray-400 hover:text-gray-600 block mb-6">
@@ -41,13 +41,13 @@ export default function EventLogin() {
             <>
               <h1 className="font-semibold text-gray-900 text-lg mb-1">{event.name}</h1>
               <p className="text-sm text-gray-500 mb-8">
-                {new Date(event.event_date).toLocaleDateString('en-US', {
+                {new Date(event.event_date).toLocaleDateString('zh-TW', {
                   year: 'numeric', month: 'long', day: 'numeric',
                 })}
               </p>
             </>
           ) : (
-            <p className="text-sm text-gray-400 mb-8">Loading event…</p>
+            <p className="text-sm text-gray-400 mb-8">載入中…</p>
           )}
 
           <button
@@ -60,10 +60,10 @@ export default function EventLogin() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            Sign in with Google
+            以 Google 帳號登入
           </button>
 
-          <p className="text-xs text-gray-400 mt-4">Team members only · invite required</p>
+          <p className="text-xs text-gray-400 mt-4">僅限團隊成員 · 需要邀請</p>
         </div>
       </div>
     </>

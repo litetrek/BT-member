@@ -1,4 +1,4 @@
-export default function ConfirmDialog({ message, confirmLabel = 'Delete', onConfirm, onCancel }) {
+export default function ConfirmDialog({ message, confirmLabel = '刪除', onConfirm, onCancel }) {
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-lg">
@@ -8,7 +8,7 @@ export default function ConfirmDialog({ message, confirmLabel = 'Delete', onConf
             onClick={onCancel}
             className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
           >
-            Cancel
+            取消
           </button>
           <button
             onClick={onConfirm}

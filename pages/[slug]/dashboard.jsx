@@ -85,16 +85,16 @@ export default function Dashboard() {
 
   return (
     <>
-      <Head><title>Dashboard · {slug}</title></Head>
+      <Head><title>總覽 · {slug}</title></Head>
       <Layout slug={slug} activePage="dashboard" user={session?.user} userRole={userRole}>
-        <h1 className="text-lg font-semibold text-gray-900 mb-6">Dashboard</h1>
+        <h1 className="text-lg font-semibold text-gray-900 mb-6">總覽</h1>
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
-          <StatCard label="Total Tasks"  value={stats.total}       />
-          <StatCard label="Done"         value={stats.done}        color="text-green-600" />
-          <StatCard label="In Progress"  value={stats.in_progress} color="text-amber-600" />
-          <StatCard label="Overdue"      value={stats.overdue}     color="text-red-600" />
+          <StatCard label="總任務"  value={stats.total}       />
+          <StatCard label="已完成"  value={stats.done}        color="text-green-600" />
+          <StatCard label="進行中"  value={stats.in_progress} color="text-amber-600" />
+          <StatCard label="逾期"    value={stats.overdue}     color="text-red-600" />
         </div>
 
         {/* AI Summary — admin/lead only */}
@@ -107,9 +107,9 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* My Tasks */}
           <section>
-            <h2 className="text-sm font-medium text-gray-700 mb-3">My Tasks</h2>
+            <h2 className="text-sm font-medium text-gray-700 mb-3">我的任務</h2>
             {myTasks.length === 0 ? (
-              <p className="text-sm text-gray-400">No tasks assigned to you.</p>
+              <p className="text-sm text-gray-400">目前沒有指派給您的任務。</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {myTasks.map((t) => (
@@ -126,11 +126,11 @@ export default function Dashboard() {
           <section>
             <h2 className="text-sm font-medium text-gray-700 mb-3">
               <Link href={`/${slug}/activities`} className="hover:text-blue-600">
-                Activity Progress →
+                活動進度 →
               </Link>
             </h2>
             {activities.length === 0 ? (
-              <p className="text-sm text-gray-400">No activities yet.</p>
+              <p className="text-sm text-gray-400">尚無活動。</p>
             ) : (
               <div className="flex flex-col gap-3">
                 {activities.map((a) => {

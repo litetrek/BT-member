@@ -27,7 +27,7 @@ export default function ActivityCard({ activity, onEdit, onDelete, isAdmin }) {
 
       <div>
         <div className="flex justify-between text-xs text-gray-500 mb-1">
-          <span>{done}/{total} tasks done</span>
+          <span>{done}/{total} 個任務已完成</span>
           <span>{pct}%</span>
         </div>
         <div className="w-full bg-gray-100 rounded-full h-1.5">
@@ -44,13 +44,13 @@ export default function ActivityCard({ activity, onEdit, onDelete, isAdmin }) {
             onClick={() => onEdit(activity)}
             className="text-xs text-blue-600 hover:underline"
           >
-            Edit
+            編輯
           </button>
           <button
             onClick={() => onDelete(activity.id)}
             className="text-xs text-red-500 hover:underline"
           >
-            Delete
+            刪除
           </button>
         </div>
       )}

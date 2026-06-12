@@ -1,9 +1,9 @@
 import { useState, useRef } from 'react'
 
 const RANGES = [
-  { value: '4',   label: 'Last 4 hours' },
-  { value: '24',  label: 'Last 24 hours' },
-  { value: '168', label: 'Last 7 days' },
+  { value: '4',   label: '最近 4 小時' },
+  { value: '24',  label: '最近 24 小時' },
+  { value: '168', label: '最近 7 天' },
 ]
 
 export default function AISummary({ eventId }) {

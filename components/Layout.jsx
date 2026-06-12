@@ -78,7 +78,7 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
                     : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
-                {item.label}
+                {item.labelZh}
               </Link>
             ))}
           </nav>
@@ -108,7 +108,7 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                   >
                     <Icon name="logout" className="text-gray-400" />
-                    Sign out
+                    登出
                   </button>
                 </div>
               </>

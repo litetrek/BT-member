@@ -5,7 +5,7 @@ import Head from 'next/head'
 
 function EventCard({ event }) {
   const isActive = event.status === 'active'
-  const dateStr = new Date(event.event_date).toLocaleDateString('en-US', {
+  const dateStr = new Date(event.event_date).toLocaleDateString('zh-TW', {
     year: 'numeric', month: 'long', day: 'numeric',
   })
 
@@ -25,7 +25,7 @@ function EventCard({ event }) {
               isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
             }`}
           >
-            {isActive ? 'Active' : 'Archived'}
+            {isActive ? '進行中' : '已結束'}
           </span>
         </div>
         <h2 className="font-semibold text-gray-900 text-sm mb-1">{event.name}</h2>
@@ -52,17 +52,17 @@ export default function Home() {
 
   return (
     <>
-      <Head><title>BT Events</title></Head>
+      <Head><title>佛誕活動</title></Head>
       <div className="min-h-screen bg-gray-50">
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             <div>
-              <h1 className="font-semibold text-gray-900">BT Events</h1>
+              <h1 className="font-semibold text-gray-900">佛誕活動</h1>
               <p className="text-xs text-gray-500">bt.cyber-tech.com</p>
             </div>
             {session?.user?.role === 'admin' && (
               <button className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">
-                + Add Event
+                + 新增活動
               </button>
             )}
           </div>
@@ -70,9 +70,9 @@ export default function Home() {
 
         <main className="max-w-6xl mx-auto px-6 py-10">
           {loading ? (
-            <p className="text-sm text-gray-400">Loading…</p>
+            <p className="text-sm text-gray-400">載入中…</p>
           ) : events.length === 0 ? (
-            <p className="text-sm text-gray-400">No events yet.</p>
+            <p className="text-sm text-gray-400">尚無活動。</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {events.map((e) => <EventCard key={e.id} event={e} />)}

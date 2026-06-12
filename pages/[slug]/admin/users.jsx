@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ConfirmDialog'
 import Spinner from '@/components/Spinner'
 
 const ROLES = ['admin', 'lead', 'member']
+const ROLE_LABELS = { admin: '管理員', lead: '負責人', member: '一般成員' }
 
 export default function AdminUsersPage() {
   const { data: session, status } = useSession()
@@ -20,7 +21,7 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [removeTarget, setRemoveTarget] = useState(null)
-  const [editTarget, setEditTarget] = useState(null)   // { id, name, role, email }
+  const [editTarget, setEditTarget] = useState(null)
   const [editForm, setEditForm] = useState({ name: '', role: 'member' })
   const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState('')
@@ -75,7 +76,7 @@ export default function AdminUsersPage() {
       loadMembers(eventId)
     } else {
       const d = await res.json().catch(() => ({}))
-      setEditError(d.error ?? 'Save failed')
+      setEditError(d.error ?? '儲存失敗')
     }
     setSaving(false)
   }
@@ -93,31 +94,31 @@ export default function AdminUsersPage() {
 
   return (
     <>
-      <Head><title>Team · {slug}</title></Head>
+      <Head><title>團隊 · {slug}</title></Head>
       <Layout slug={slug} activePage="users" user={session?.user} userRole={userRole}>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-lg font-semibold text-gray-900">Team Members</h1>
+          <h1 className="text-lg font-semibold text-gray-900">團隊成員</h1>
           <button
             onClick={() => setShowAdd(true)}
             className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
           >
-            + Add Member
+            + 新增成員
           </button>
         </div>
 
         {loading ? (
           <div className="flex justify-center py-16"><Spinner /></div>
         ) : active.length === 0 && pending.length === 0 ? (
-          <p className="text-sm text-gray-400">No team members yet.</p>
+          <p className="text-sm text-gray-400">尚無團隊成員。</p>
         ) : (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Member</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Email</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Role</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">成員</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">電子郵件</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">角色</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">狀態</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -137,12 +138,12 @@ export default function AdminUsersPage() {
                         m.role === 'lead'  ? 'bg-blue-100 text-blue-700' :
                                              'bg-gray-100 text-gray-600'
                       }`}>
-                        {m.role.charAt(0).toUpperCase() + m.role.slice(1)}
+                        {ROLE_LABELS[m.role] ?? m.role}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
-                        Active
+                        活躍
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -150,7 +151,7 @@ export default function AdminUsersPage() {
                         <button
                           onClick={() => openEdit(m)}
                           className="text-gray-400 hover:text-blue-500"
-                          title="Edit member"
+                          title="編輯成員"
                         >
                           <span className="ti ti-pencil text-sm" />
                         </button>
@@ -158,7 +159,7 @@ export default function AdminUsersPage() {
                           <button
                             onClick={() => setRemoveTarget(m)}
                             className="text-gray-400 hover:text-red-500"
-                            title="Remove member"
+                            title="移除成員"
                           >
                             <span className="ti ti-trash text-sm" />
                           </button>
@@ -173,7 +174,7 @@ export default function AdminUsersPage() {
                     <tr>
                       <td colSpan={5} className="px-4 py-2 bg-gray-50">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                          Not yet signed in
+                          尚未登入
                         </span>
                       </td>
                     </tr>
@@ -192,19 +193,19 @@ export default function AdminUsersPage() {
                             m.role === 'lead'  ? 'bg-blue-100 text-blue-700' :
                                                  'bg-gray-100 text-gray-600'
                           }`}>
-                            {m.role.charAt(0).toUpperCase() + m.role.slice(1)}
+                            {ROLE_LABELS[m.role] ?? m.role}
                           </span>
                         </td>
                         <td className="px-4 py-3">
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                            Pending
+                            待確認
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <button
                             onClick={() => setRemoveTarget(m)}
                             className="text-gray-400 hover:text-red-500"
-                            title="Remove"
+                            title="移除"
                           >
                             <span className="ti ti-trash text-sm" />
                           </button>
@@ -232,16 +233,16 @@ export default function AdminUsersPage() {
       {editTarget && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-lg">
-            <h2 className="font-semibold text-gray-900 mb-4">Edit Member</h2>
+            <h2 className="font-semibold text-gray-900 mb-4">編輯成員</h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Email</label>
+                <label className="block text-xs text-gray-500 mb-1">電子郵件</label>
                 <p className="text-sm text-gray-400 px-3 py-2 bg-gray-50 rounded border border-gray-100">
                   {editTarget.email}
                 </p>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Name</label>
+                <label className="block text-xs text-gray-500 mb-1">姓名</label>
                 <input
                   type="text"
                   value={editForm.name}
@@ -250,14 +251,14 @@ export default function AdminUsersPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Role</label>
+                <label className="block text-xs text-gray-500 mb-1">角色</label>
                 <select
                   value={editForm.role}
                   onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}
                   className={inputCls}
                 >
                   {ROLES.map((r) => (
-                    <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                    <option key={r} value={r}>{ROLE_LABELS[r]}</option>
                   ))}
                 </select>
               </div>
@@ -267,14 +268,14 @@ export default function AdminUsersPage() {
                   onClick={() => setEditTarget(null)}
                   className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
                 >
-                  Cancel
+                  取消
                 </button>
                 <button
                   onClick={handleSaveEdit}
                   disabled={saving}
                   className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {saving ? 'Saving…' : 'Save'}
+                  {saving ? '儲存中…' : '儲存'}
                 </button>
               </div>
             </div>
@@ -285,8 +286,8 @@ export default function AdminUsersPage() {
       {/* Remove confirm */}
       {removeTarget && (
         <ConfirmDialog
-          message={`Remove ${removeTarget.name ?? removeTarget.email} from this event?`}
-          confirmLabel="Remove"
+          message={`確定要從此活動移除 ${removeTarget.name ?? removeTarget.email} 嗎？`}
+          confirmLabel="移除"
           onConfirm={() => handleRemove(removeTarget.id)}
           onCancel={() => setRemoveTarget(null)}
         />

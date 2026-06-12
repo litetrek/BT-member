@@ -2,7 +2,8 @@
 
 ## Day 3 Complete — Activity Log, Task Detail Modal, AI Summary, Mobile Polish
 ## Day 3 Patch — activity_log schema corrected, all log writes use full fields
-## Day 3 Patch 2 — AI summary outputs English + Traditional Chinese
+## Day 3 Patch 2 — AI summary Chinese only + 朗讀 button, mobile bottom tab bar
+## Day 3 Patch 3 — Full Traditional Chinese UI, 狀態更新 (leader+admin), mobile font +2px
 
 ---
 
@@ -145,135 +146,44 @@
 
 **Schema additions** (`supabase/schema.sql`)
 - `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS note text` — optional task note
-- `CREATE TABLE activity_log` — tracks all meaningful actions with `event_id`, `task_id`, `user_id`, `action`, `note`, `created_at`
-  - `task_id` uses `ON DELETE SET NULL` — log entries survive task deletion
-  - RLS: members can read their event's log; authenticated users can insert
-- **Run in Supabase SQL Editor:**
-  ```sql
-  ALTER TABLE tasks ADD COLUMN IF NOT EXISTS note text;
-  CREATE TABLE IF NOT EXISTS activity_log (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    event_id uuid REFERENCES events(id) ON DELETE CASCADE,
-    task_id uuid REFERENCES tasks(id) ON DELETE SET NULL,
-    user_id uuid REFERENCES users(id) ON DELETE SET NULL,
-    action text NOT NULL,
-    note text,
-    created_at timestamptz NOT NULL DEFAULT now()
-  );
-  ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
-  CREATE POLICY "log_select" ON activity_log FOR SELECT USING (
-    EXISTS (SELECT 1 FROM event_members WHERE event_id = activity_log.event_id AND user_id = auth.uid())
-  );
-  CREATE POLICY "log_insert" ON activity_log FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-  ```
+- `CREATE TABLE activity_log` — entity-based audit log
 
 **API**
-- `GET /api/log?event_id=&task_id=&hours=` — returns log entries with user and task info; accepts either filter
-- All existing routes now insert to `activity_log` on mutation using corrected schema fields:
-  - tasks POST → `entity_type:'task'`, `action:'created'`, `new_value: status`
-  - tasks PUT (status/note) → separate entries: `action:'status_changed'` (with `field_changed`, `old_value`, `new_value`) and `action:'note_added'` (with `note`)
-  - tasks PUT (full edit) → per-field entries for title, status, due_date, assignees; `action:'note_added'` if note provided
-  - tasks DELETE → `action:'deleted'` (logged before delete; entity_id preserved since no FK)
-  - activities POST → `action:'created'`
-  - activities PUT → `action:'updated'`
-  - activities DELETE → `action:'deleted'`
-  - announcements POST → `action:'created'`, `entity_name: message.substring(0,60)`
+- `GET /api/log?event_id=&task_id=&hours=` — returns log entries with actor info
+- All existing routes now insert to `activity_log` on mutation
 
 ### Task Detail Modal
 
 **`components/TaskDetail.jsx`** — full-screen modal (sheet on mobile, centered on sm+)
 - Top: task title, activity name, current status badge, due date, assignee avatars
 - Middle: status select + note textarea + Update button (visible to assignees, admin, lead)
-- Bottom: history list from `/api/log?task_id=` — natural language descriptions per action
-  - `status_changed` → "Actor changed status open → done"
-  - `note_added` → "Actor added a note: '...'"
-  - `created` → "Task created by Actor"
-  - `updated` → "Actor updated field: old → new"
-- Uses `entry.actor.name/avatar_url` (new field name from log query)
-- Closes on backdrop click or × button
-
-**`components/TaskItem.jsx`** updated
-- Entire row is clickable — opens TaskDetail via `onOpen` prop
-- Checkbox and pencil button use `e.stopPropagation()` to avoid triggering detail
-- Cursor changed to pointer for the row
-
-**`pages/[slug]/tasks.jsx`** updated
-- Imports TaskDetail; `detailTask` state controls which task is open
-- All Section components pass `onOpen={setDetailTask}`
-- TaskDetail rendered below TaskForm with `onSaved={handleDetailSaved}` (refreshes task list)
-
-**`pages/api/tasks/[id].js`** updated
-- PUT accepts `note` field alongside `status`
-- Status/note-only path: detects when no full-edit fields present — allows assignees OR admin/lead
-- Full-edit path: admin/lead only; fetches task before update for old values; logs per changed field
-- Both paths write to `activity_log` using new schema
+- Bottom: history list from `/api/log?task_id=` — Chinese natural language descriptions per action
 
 ### AI Summary Dashboard
 
 **`pages/api/ai/summary.js`**
 - `GET /api/ai/summary?event_id=&hours=` — admin/lead only
-- Formats each log entry as: "[Actor] changed task 'Title' status: open → done — 2 hrs ago"
-- Calls Claude (`claude-sonnet-4-6`) via `@anthropic-ai/sdk` — 2–3 sentence prose summary
-- Returns `{ summary, entry_count }`
-- Output is bilingual: English first, then Traditional Chinese (中文), labelled and separated by a blank line
-- `max_tokens` set to 800 to accommodate both languages
+- Chinese-only prompt, `max_tokens` 400, model `claude-sonnet-4-6`
 - **Requires `ANTHROPIC_API_KEY` in `.env.local` and Vercel env vars**
 
 **`components/AISummary.jsx`**
-- Time range selector: Last 4 hours / Last 24 hours / Last 7 days
-- Generate button — fetches from `/api/ai/summary`; shows spinner while loading
+- Time range selector: 最近 4 小時 / 最近 24 小時 / 最近 7 天
+- 朗讀/停止 button using Web Speech API (lang: zh-TW, rate: 0.9)
 - Shown on dashboard for admin/lead only
 
-**`pages/[slug]/dashboard.jsx`** updated
-- Renders AISummary between stat cards and two-column section
-- Visible only when `userRole` is admin or lead and `eventId` is available
+### Mobile Layout — Bottom Tab Bar
 
-### Mobile Layout Polish
-
-**`components/Layout.jsx`** updated
-- Added mobile hamburger menu (`ti-menu-2`) that opens a vertical nav drawer below the header
-- Desktop nav unchanged (hidden on mobile with `sm:flex`)
-- Nav items in drawer include icon + label
-- Reduced padding: `px-4 sm:px-6` header and `px-4 sm:px-6 py-6 sm:py-8` main
-- User name hidden on mobile to save space
-
-**`pages/[slug]/dashboard.jsx`**
-- Stat card grid: `gap-3 sm:gap-4`
-- Activity progress section: `gap-6 lg:gap-8` for the two-column grid
+**`components/Layout.jsx`** completely redesigned:
+- Inline SVG icons (no CDN dependency — fixes iOS Safari rendering)
+- Fixed bottom tab bar (`sm:hidden`) — tabs for 總覽, 活動, 任務, 成員
+- Desktop top nav unchanged (`hidden sm:flex`)
+- `pb-24 sm:pb-8` on main to prevent bottom tab overlap
 
 ---
 
 ## Day 3 Patch — activity_log Schema Corrected
 
-**Problem:** The original `activity_log` table used `task_id`, a generic `action` string, and `note` — too coarse for meaningful history display and AI summarization.
-
-**Fix applied to all files:**
-
-`prisma/schema.prisma` — ActivityLog model replaced with corrected fields:
-- `entity_type` (task | activity | announcement)
-- `entity_id` — UUID of the affected record
-- `entity_name` — human-readable name snapshot
-- `action` (created | updated | deleted | status_changed | note_added)
-- `field_changed`, `old_value`, `new_value` — for field-level change tracking
-- `note` — for note_added actions
-- Removed `task_id` FK; Task model no longer has `log_entries` relation
-
-`pages/api/log/index.js` — rewritten:
-- Selects `id, entity_type, entity_name, action, field_changed, old_value, new_value, note, created_at, actor:user_id(name, avatar_url)`
-- `task_id` query param now filters by `entity_id + entity_type='task'` (no FK join needed)
-- `event_id` param filters by `event_id` column directly
-
-`pages/api/ai/summary.js` — updated `formatLine()`:
-- Builds natural-language lines using `entity_name`, `action`, `field_changed`, `old_value`, `new_value`, `note`, `actor.name`
-- Example: "Vincent changed task 'Book venue AV' status: open → done — 2 hrs ago"
-
-`components/TaskDetail.jsx` — updated `describeEntry()`:
-- Maps `action` + new fields to natural-language descriptions
-- Uses `entry.actor` (not `entry.user`) for name/avatar
-
-All 7 mutation API routes updated to insert using new field names.
-
-**⚠️ Supabase SQL required** — the `activity_log` table must be rebuilt with the new schema. Run in Supabase SQL Editor:
+**Corrected `activity_log` table** — run in Supabase SQL Editor:
 ```sql
 DROP TABLE IF EXISTS activity_log;
 CREATE TABLE activity_log (
@@ -299,13 +209,44 @@ CREATE POLICY "log_insert" ON activity_log FOR INSERT WITH CHECK (auth.role() = 
 
 ---
 
-## Current State (after Day 3 Patch)
+## Day 3 Patch 3 — Traditional Chinese UI + Status Updates + Mobile Font
 
-- `activity_log` schema corrected with full field set — `entity_type`, `entity_id`, `entity_name`, `action`, `field_changed`, `old_value`, `new_value`, `note`
-- All 7 mutation routes write structured log entries
-- TaskDetail history renders natural-language descriptions per action type
-- AI Summary prompt includes full field context for richer summaries
-- `@anthropic-ai/sdk@0.104.1` installed
+### Changes Made
+
+**`pages/api/announcements/index.js`**
+- POST permission: `role !== 'admin'` → `!['admin','lead'].includes(role)`
+- Leaders can now post status updates
+
+**`styles/globals.css`**
+- Added `@media (max-width: 640px) { html { font-size: 18px; } }` — +2px mobile font
+
+**All UI text converted to Traditional Chinese:**
+
+- `components/StatusBadge.jsx` — Open→未開始, In Progress→進行中, Done→已完成, Overdue→逾期
+- `components/ConfirmDialog.jsx` — Cancel→取消, default confirmLabel→刪除
+- `components/ActivityCard.jsx` — "tasks done"→個任務已完成, Edit→編輯, Delete→刪除
+- `components/TaskForm.jsx` — all labels (標題, 活動, 狀態, 負責人一/二, 到期日, 刪除任務, 取消, 儲存)
+- `components/ActivityForm.jsx` — all labels (名稱, 圖示, 負責人, 協助人, 取消, 儲存)
+- `components/InviteForm.jsx` — all labels; roles: 一般成員/負責人/管理員
+- `components/TaskDetail.jsx` — all labels; history descriptions in Chinese; relative time in Chinese
+- `components/AISummary.jsx` — time ranges: 最近 4 小時 / 最近 24 小時 / 最近 7 天
+- `components/Layout.jsx` — desktop nav uses Chinese labels; 登出
+- `pages/index.jsx` — 佛誕活動, 進行中/已結束 status badges, 載入中…, 尚無活動
+- `pages/[slug]/index.jsx` — 以 Google 帳號登入, 僅限團隊成員 · 需要邀請
+- `pages/[slug]/dashboard.jsx` — 總覽, 總任務/已完成/進行中/逾期, 我的任務, 活動進度
+- `pages/[slug]/activities.jsx` — 活動, 狀態更新 (was Announcements), 發佈, 新增活動
+- `pages/[slug]/tasks.jsx` — 任務, 全部活動, 全部狀態, section titles all Chinese, 新增任務
+- `pages/[slug]/admin/users.jsx` — 團隊成員, 成員/電子郵件/角色/狀態, 活躍/待確認, 編輯成員, 移除
+
+---
+
+## Current State
+
+- Full Traditional Chinese UI across all pages and components
+- 狀態更新 (Status Updates) — postable by admin or lead (was admin-only)
+- Mobile font size: 18px base (up from 16px)
+- AI Summary: Chinese only with 朗讀 button
+- Mobile: fixed bottom tab bar with inline SVG icons
 
 ---
 
@@ -314,6 +255,6 @@ CREATE POLICY "log_insert" ON activity_log FOR INSERT WITH CHECK (auth.role() = 
 - **Run activity_log DDL in Supabase** (see Day 3 Patch section above — DROP + recreate)
 - **Add `ANTHROPIC_API_KEY`** to `.env.local` and Vercel env vars
 - Add `CRON_SECRET` to Vercel environment variables
-- Trigger announcement emails from the Activities page (currently only posted to DB)
+- Trigger announcement emails from Activities page (currently only posted to DB)
 - Test Google sign-in end-to-end with real user, verify role propagation
 - Consider per-event role context (currently uses highest role across all events)

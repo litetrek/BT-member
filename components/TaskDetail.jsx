@@ -4,35 +4,35 @@ import Avatar from './Avatar'
 import StatusBadge from './StatusBadge'
 
 const STATUS_OPTIONS = [
-  { value: 'open',        label: 'Open' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'done',        label: 'Done' },
+  { value: 'open',        label: '未開始' },
+  { value: 'in_progress', label: '進行中' },
+  { value: 'done',        label: '已完成' },
 ]
 
 function relativeTime(ts) {
   const diff = Date.now() - new Date(ts).getTime()
   const mins = Math.floor(diff / 60000)
-  if (mins < 1)  return 'just now'
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1)  return '剛剛'
+  if (mins < 60) return `${mins} 分鐘前`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24)  return `${hrs}h ago`
-  return `${Math.floor(hrs / 24)}d ago`
+  if (hrs < 24)  return `${hrs} 小時前`
+  return `${Math.floor(hrs / 24)} 天前`
 }
 
 function describeEntry(entry) {
-  const actor = entry.actor?.name ?? 'Someone'
+  const actor = entry.actor?.name ?? '某人'
   switch (entry.action) {
     case 'status_changed':
-      return { text: `${actor} changed status`, detail: `${entry.old_value} → ${entry.new_value}` }
+      return { text: `${actor} 更改了狀態`, detail: `${entry.old_value} → ${entry.new_value}` }
     case 'note_added':
-      return { text: `${actor} added a note`, detail: entry.note ? `"${entry.note}"` : '' }
+      return { text: `${actor} 新增了備注`, detail: entry.note ? `「${entry.note}」` : '' }
     case 'created':
-      return { text: `Task created by ${actor}`, detail: '' }
+      return { text: `任務由 ${actor} 建立`, detail: '' }
     case 'deleted':
-      return { text: `Task deleted by ${actor}`, detail: '' }
+      return { text: `任務由 ${actor} 刪除`, detail: '' }
     case 'updated':
       return {
-        text: `${actor} updated ${entry.field_changed ?? 'task'}`,
+        text: `${actor} 更新了 ${entry.field_changed ?? '任務'}`,
         detail: entry.old_value && entry.new_value ? `${entry.old_value} → ${entry.new_value}` : '',
       }
     default:
@@ -76,7 +76,7 @@ export default function TaskDetail({ task, onClose, onSaved }) {
       loadHistory()
     } else {
       const d = await res.json().catch(() => ({}))
-      setError(d.error ?? 'Save failed')
+      setError(d.error ?? '儲存失敗')
     }
     setSaving(false)
   }
@@ -107,20 +107,20 @@ export default function TaskDetail({ task, onClose, onSaved }) {
           {/* Task meta */}
           <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap gap-4 text-sm">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-gray-400">Status</span>
+              <span className="text-xs text-gray-400">狀態</span>
               <StatusBadge status={task.status} dueDate={task.due_date} />
             </div>
             {task.due_date && (
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-gray-400">Due</span>
+                <span className="text-xs text-gray-400">到期日</span>
                 <span className="text-xs text-gray-700">
-                  {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {new Date(task.due_date + 'T00:00:00').toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
               </div>
             )}
             {(assignee1 || assignee2) && (
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-gray-400">Assigned</span>
+                <span className="text-xs text-gray-400">負責人</span>
                 <div className="flex -space-x-1">
                   {assignee1 && <Avatar name={assignee1.name ?? assignee1.email} avatarUrl={assignee1.avatar_url} size="sm" />}
                   {assignee2 && <Avatar name={assignee2.name ?? assignee2.email} avatarUrl={assignee2.avatar_url} size="sm" />}
@@ -134,7 +134,7 @@ export default function TaskDetail({ task, onClose, onSaved }) {
             <div className="px-5 py-4 border-b border-gray-100 flex flex-col gap-3">
               <div className="flex gap-3 items-end">
                 <div className="flex-1">
-                  <label className="block text-xs text-gray-500 mb-1">Status</label>
+                  <label className="block text-xs text-gray-500 mb-1">狀態</label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
@@ -150,16 +150,16 @@ export default function TaskDetail({ task, onClose, onSaved }) {
                   disabled={saving}
                   className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 shrink-0"
                 >
-                  {saving ? 'Saving…' : 'Update'}
+                  {saving ? '儲存中…' : '更新'}
                 </button>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Note</label>
+                <label className="block text-xs text-gray-500 mb-1">備注</label>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   rows={2}
-                  placeholder="Add a note…"
+                  placeholder="新增備注…"
                   className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
                 />
               </div>
@@ -170,18 +170,18 @@ export default function TaskDetail({ task, onClose, onSaved }) {
           {/* Read-only note for non-editors */}
           {!canUpdate && task.note && (
             <div className="px-5 py-4 border-b border-gray-100">
-              <p className="text-xs text-gray-500 mb-1">Note</p>
+              <p className="text-xs text-gray-500 mb-1">備注</p>
               <p className="text-sm text-gray-700">{task.note}</p>
             </div>
           )}
 
           {/* History */}
           <div className="px-5 py-4">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">History</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">歷史記錄</p>
             {logLoading ? (
-              <p className="text-xs text-gray-400">Loading…</p>
+              <p className="text-xs text-gray-400">載入中…</p>
             ) : history.length === 0 ? (
-              <p className="text-xs text-gray-400">No history yet.</p>
+              <p className="text-xs text-gray-400">尚無記錄。</p>
             ) : (
               <div className="flex flex-col gap-3">
                 {history.map((entry) => {
