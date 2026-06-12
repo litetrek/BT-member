@@ -74,14 +74,12 @@ export default async function handler(req, res) {
 Activity log:
 ${lines.join('\n')}
 
-Write a concise 2–3 sentence prose summary of what the team has been working on. Be specific about tasks and people. Use a neutral, factual tone.
-
-Provide the summary twice: first in English, then in Chinese (Traditional). Separate them with a blank line. Label each section with "English:" and "中文:" respectively.`
+請用繁體中文寫一段簡短的摘要（2至3句），說明團隊近期的工作進展。請具體提及相關任務和人員，語氣保持中立、客觀。`
 
   try {
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 800,
+      max_tokens: 400,
       messages: [{ role: 'user', content: prompt }],
     })
 
