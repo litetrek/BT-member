@@ -74,12 +74,14 @@ export default async function handler(req, res) {
 Activity log:
 ${lines.join('\n')}
 
-Write a concise 2–3 sentence prose summary of what the team has been working on. Be specific about tasks and people. Use a neutral, factual tone.`
+Write a concise 2–3 sentence prose summary of what the team has been working on. Be specific about tasks and people. Use a neutral, factual tone.
+
+Provide the summary twice: first in English, then in Chinese (Traditional). Separate them with a blank line. Label each section with "English:" and "中文:" respectively.`
 
   try {
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 400,
+      max_tokens: 800,
       messages: [{ role: 'user', content: prompt }],
     })
 
