@@ -218,3 +218,35 @@ CREATE POLICY "email_log_select" ON email_log
 
 CREATE POLICY "email_log_insert" ON email_log
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+-- ══════════════════════════════════════════════
+-- DAY 3 ADDITIONS
+-- ══════════════════════════════════════════════
+
+-- Note field on tasks (run separately if tasks table already exists)
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS note text;
+
+-- Activity log
+CREATE TABLE IF NOT EXISTS activity_log (
+  id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  event_id    uuid REFERENCES events(id) ON DELETE CASCADE,
+  task_id     uuid REFERENCES tasks(id) ON DELETE SET NULL,
+  user_id     uuid REFERENCES users(id) ON DELETE SET NULL,
+  action      text NOT NULL,
+  note        text,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "log_select" ON activity_log
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM event_members
+      WHERE event_id = activity_log.event_id
+        AND user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "log_insert" ON activity_log
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');

@@ -5,6 +5,7 @@ import Head from 'next/head'
 import Layout from '@/components/Layout'
 import TaskItem from '@/components/TaskItem'
 import TaskForm from '@/components/TaskForm'
+import TaskDetail from '@/components/TaskDetail'
 import Spinner from '@/components/Spinner'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -17,7 +18,7 @@ const STATUS_FILTERS = [
   { value: 'overdue', label: 'Overdue' },
 ]
 
-function Section({ title, tasks, currentUserId, userRole, onStatusChange, onEdit, highlightId }) {
+function Section({ title, tasks, currentUserId, userRole, onStatusChange, onEdit, onOpen, highlightId }) {
   if (!tasks.length) return null
   return (
     <div className="mb-6">
@@ -33,6 +34,7 @@ function Section({ title, tasks, currentUserId, userRole, onStatusChange, onEdit
             userRole={userRole}
             onStatusChange={onStatusChange}
             onEdit={onEdit}
+            onOpen={onOpen}
             highlighted={t.id === highlightId}
           />
         ))}
@@ -54,6 +56,7 @@ export default function TasksPage() {
   const [filterStatus, setFilterStatus] = useState('all')
   const [showForm, setShowForm] = useState(false)
   const [editTask, setEditTask] = useState(null)
+  const [detailTask, setDetailTask] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
   useEffect(() => {
@@ -120,11 +123,16 @@ export default function TasksPage() {
     loadTasks()
   }
 
+  function handleDetailSaved() {
+    loadTasks()
+    // Refresh detailTask data from updated tasks list
+    setDetailTask((prev) => prev)
+  }
+
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const userRole = session?.user?.role ?? 'member'
   const canAddTask = ['admin', 'lead'].includes(userRole)
 
-  // Client-side filters
   let visible = tasks
   if (filterActivity !== 'all') visible = visible.filter((t) => t.activity_id === filterActivity)
   if (filterStatus === 'overdue') {
@@ -133,7 +141,6 @@ export default function TasksPage() {
     visible = visible.filter((t) => t.status === filterStatus)
   }
 
-  // Partition into sections
   const overdue    = visible.filter((t) => t.status !== 'done' && t.due_date && new Date(t.due_date) < today)
   const inProgress = visible.filter((t) => t.status === 'in_progress' && !(t.due_date && new Date(t.due_date) < today))
   const open       = visible.filter((t) => t.status === 'open' && !(t.due_date && new Date(t.due_date) < today))
@@ -196,6 +203,7 @@ export default function TasksPage() {
                 userRole={userRole}
                 onStatusChange={handleStatusChange}
                 onEdit={(t) => { setEditTask(t); setShowForm(true) }}
+                onOpen={setDetailTask}
                 highlightId={highlightId}
               />
               <Section
@@ -205,6 +213,7 @@ export default function TasksPage() {
                 userRole={userRole}
                 onStatusChange={handleStatusChange}
                 onEdit={(t) => { setEditTask(t); setShowForm(true) }}
+                onOpen={setDetailTask}
                 highlightId={highlightId}
               />
               <Section
@@ -214,6 +223,7 @@ export default function TasksPage() {
                 userRole={userRole}
                 onStatusChange={handleStatusChange}
                 onEdit={(t) => { setEditTask(t); setShowForm(true) }}
+                onOpen={setDetailTask}
                 highlightId={highlightId}
               />
               <Section
@@ -223,12 +233,21 @@ export default function TasksPage() {
                 userRole={userRole}
                 onStatusChange={handleStatusChange}
                 onEdit={(t) => { setEditTask(t); setShowForm(true) }}
+                onOpen={setDetailTask}
                 highlightId={highlightId}
               />
             </>
           )}
         </ErrorBoundary>
       </Layout>
+
+      {detailTask && (
+        <TaskDetail
+          task={detailTask}
+          onClose={() => setDetailTask(null)}
+          onSaved={handleDetailSaved}
+        />
+      )}
 
       {showForm && eventId && (
         <TaskForm

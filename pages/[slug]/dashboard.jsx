@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import Layout from '@/components/Layout'
 import StatusBadge from '@/components/StatusBadge'
+import AISummary from '@/components/AISummary'
 import Link from 'next/link'
 
 function StatCard({ label, value, color }) {
@@ -22,7 +23,10 @@ export default function Dashboard() {
 
   const [activities, setActivities] = useState([])
   const [myTasks, setMyTasks] = useState([])
+  const [eventId, setEventId] = useState(null)
   const [loading, setLoading] = useState(true)
+
+  const userRole = session?.user?.role
 
   useEffect(() => {
     if (status === 'unauthenticated') router.replace(`/${slug}`)
@@ -33,7 +37,11 @@ export default function Dashboard() {
 
     fetch(`/api/activities?slug=${slug}`)
       .then((r) => r.json())
-      .then((d) => setActivities(Array.isArray(d) ? d : []))
+      .then((d) => {
+        const list = Array.isArray(d) ? d : []
+        setActivities(list)
+        if (list[0]?.event_id) setEventId(list[0].event_id)
+      })
       .catch(() => setActivities([]))
 
     fetch(`/api/tasks?slug=${slug}`)
@@ -52,6 +60,18 @@ export default function Dashboard() {
       .catch(() => setLoading(false))
   }, [slug, status, session])
 
+  // Fallback: get eventId from /api/events if activities didn't provide it
+  useEffect(() => {
+    if (!slug || eventId) return
+    fetch('/api/events')
+      .then((r) => r.json())
+      .then((events) => {
+        const ev = (events ?? []).find((e) => e.slug === slug)
+        if (ev) setEventId(ev.id)
+      })
+      .catch(() => {})
+  }, [slug, eventId])
+
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const allTasks = activities.flatMap((a) => a.tasks ?? [])
   const stats = {
@@ -61,20 +81,30 @@ export default function Dashboard() {
     overdue:     allTasks.filter((t) => t.status !== 'done' && t.due_date && new Date(t.due_date) < today).length,
   }
 
+  const canSeeAI = ['admin', 'lead'].includes(userRole)
+
   return (
     <>
       <Head><title>Dashboard · {slug}</title></Head>
-      <Layout slug={slug} activePage="dashboard" user={session?.user} userRole={session?.user?.role}>
+      <Layout slug={slug} activePage="dashboard" user={session?.user} userRole={userRole}>
         <h1 className="text-lg font-semibold text-gray-900 mb-6">Dashboard</h1>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        {/* Stat cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
           <StatCard label="Total Tasks"  value={stats.total}       />
           <StatCard label="Done"         value={stats.done}        color="text-green-600" />
           <StatCard label="In Progress"  value={stats.in_progress} color="text-amber-600" />
           <StatCard label="Overdue"      value={stats.overdue}     color="text-red-600" />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* AI Summary — admin/lead only */}
+        {canSeeAI && eventId && (
+          <div className="mb-8">
+            <AISummary eventId={eventId} />
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* My Tasks */}
           <section>
             <h2 className="text-sm font-medium text-gray-700 mb-3">My Tasks</h2>
@@ -83,8 +113,8 @@ export default function Dashboard() {
             ) : (
               <div className="flex flex-col gap-2">
                 {myTasks.map((t) => (
-                  <div key={t.id} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center justify-between">
-                    <span className="text-sm text-gray-800">{t.title}</span>
+                  <div key={t.id} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center justify-between gap-2">
+                    <span className="text-sm text-gray-800 truncate">{t.title}</span>
                     <StatusBadge status={t.status} dueDate={t.due_date} />
                   </div>
                 ))}
@@ -110,9 +140,9 @@ export default function Dashboard() {
                   return (
                     <div key={a.id} className="bg-white border border-gray-200 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className={`ti ${a.icon} text-blue-500`} />
-                        <span className="text-sm text-gray-800">{a.name}</span>
-                        <span className="ml-auto text-xs text-gray-400">{pct}%</span>
+                        <span className={`ti ${a.icon} text-blue-500 shrink-0`} />
+                        <span className="text-sm text-gray-800 truncate">{a.name}</span>
+                        <span className="ml-auto text-xs text-gray-400 shrink-0">{pct}%</span>
                       </div>
                       <div className="w-full bg-gray-100 rounded-full h-1.5">
                         <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />

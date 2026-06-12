@@ -17,7 +17,6 @@ export default async function handler(req, res) {
 
     if (eventError || !event) return res.status(404).json({ error: 'Event not found' })
 
-    // Fetch activities + tasks separately to avoid PostgREST join issues
     const { data: activities, error: actError } = await supabase
       .from('activities')
       .select('*')
@@ -28,14 +27,12 @@ export default async function handler(req, res) {
 
     if (!activities.length) return res.status(200).json([])
 
-    // Fetch tasks for these activities
     const activityIds = activities.map((a) => a.id)
     const { data: tasks } = await supabase
       .from('tasks')
       .select('id, activity_id, status')
       .in('activity_id', activityIds)
 
-    // Fetch user info for leads / co-leads
     const userIds = [...new Set(
       activities.flatMap((a) => [a.lead_id, a.co_lead_id].filter(Boolean))
     )]
@@ -75,6 +72,13 @@ export default async function handler(req, res) {
       .single()
 
     if (error) return res.status(500).json({ error: error.message })
+
+    await supabase.from('activity_log').insert({
+      event_id,
+      user_id: session.user.id,
+      action: 'activity_created',
+    })
+
     return res.status(201).json(data)
   }
 

@@ -61,6 +61,15 @@ export default async function handler(req, res) {
     }).select().single()
 
     if (error) return res.status(500).json({ error: error.message })
+
+    const { data: act } = await supabase.from('activities').select('event_id').eq('id', activity_id).single()
+    await supabase.from('activity_log').insert({
+      event_id: act?.event_id ?? null,
+      task_id: data.id,
+      user_id: session.user.id,
+      action: 'task_created',
+    })
+
     return res.status(201).json(data)
   }
 

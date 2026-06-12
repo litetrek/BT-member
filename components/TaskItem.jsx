@@ -1,13 +1,14 @@
 import Avatar from './Avatar'
 import StatusBadge from './StatusBadge'
 
-export default function TaskItem({ task, currentUserId, userRole, onStatusChange, onEdit, highlighted }) {
+export default function TaskItem({ task, currentUserId, userRole, onStatusChange, onEdit, onOpen, highlighted }) {
   const isAssignee = task.assignee_1_id === currentUserId || task.assignee_2_id === currentUserId
   const canCheck = isAssignee
   const canEdit = ['admin', 'lead'].includes(userRole)
   const isDone = task.status === 'done'
 
-  function handleCheck() {
+  function handleCheck(e) {
+    e.stopPropagation()
     if (!canCheck) return
     onStatusChange(task.id, isDone ? 'open' : 'done')
   }
@@ -15,7 +16,8 @@ export default function TaskItem({ task, currentUserId, userRole, onStatusChange
   return (
     <div
       id={`task-${task.id}`}
-      className={`bg-white border rounded-lg px-4 py-3 flex items-center gap-3 transition-colors ${
+      onClick={() => onOpen?.(task)}
+      className={`bg-white border rounded-lg px-4 py-3 flex items-center gap-3 transition-colors cursor-pointer hover:bg-gray-50 ${
         highlighted ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200'
       }`}
     >
@@ -23,6 +25,7 @@ export default function TaskItem({ task, currentUserId, userRole, onStatusChange
         type="checkbox"
         checked={isDone}
         onChange={handleCheck}
+        onClick={(e) => e.stopPropagation()}
         disabled={!canCheck}
         className={`w-4 h-4 rounded accent-blue-600 shrink-0 ${canCheck ? 'cursor-pointer' : 'cursor-default opacity-40'}`}
       />
@@ -64,7 +67,7 @@ export default function TaskItem({ task, currentUserId, userRole, onStatusChange
 
         {canEdit && (
           <button
-            onClick={() => onEdit(task)}
+            onClick={(e) => { e.stopPropagation(); onEdit(task) }}
             className="text-gray-400 hover:text-gray-700 ml-1"
             title="Edit task"
           >

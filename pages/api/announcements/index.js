@@ -33,6 +33,13 @@ export default async function handler(req, res) {
       .single()
 
     if (error) return res.status(500).json({ error: error.message })
+
+    await supabase.from('activity_log').insert({
+      event_id,
+      user_id: session.user.id,
+      action: 'announcement_created',
+    })
+
     return res.status(201).json(data)
   }
 

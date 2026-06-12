@@ -1,6 +1,6 @@
 # BT-Member Event Management — Progress Snapshot
 
-## Day 2 Complete — Tasks, User Admin, Email Cron, Polish
+## Day 3 Complete — Activity Log, Task Detail Modal, AI Summary, Mobile Polish
 
 ---
 
@@ -20,7 +20,7 @@
 - Schema deployed live to Supabase via `scripts/run-schema.js`
 
 **Lib Files (Day 1)**
-- `lib/supabase/server.js` — server-side Supabase client (anon key)
+- `lib/supabase/server.js` — server-side Supabase client (service role key, bypasses RLS)
 - `lib/supabase/client.js` — browser Supabase singleton
 - `lib/auth.js` — NextAuth config (Google provider, upserts user on sign-in)
 - `lib/constants.js` — ICONS (10), STATUS_LIST, ROLES
@@ -92,12 +92,13 @@
 - `DELETE /api/users/[id]?event_id=` — remove from event_members; admin only
 
 **Components**
-- `components/InviteForm.jsx` — modal: email + role select; POSTs to `/api/users/invite`
+- `components/InviteForm.jsx` — modal: name + email + role select; POSTs to `/api/users/invite`
 
 **Page — `/[slug]/admin/users`** (new)
 - Admin-only (redirects non-admins to dashboard)
-- Team table: avatar, name, email, inline role dropdown, status badge, trash button
-- Pending invites section at bottom (users with `name IS NULL`)
+- Team table: avatar, name, email, role badge, status badge, pencil + trash buttons
+- Edit modal: change name + role (email read-only)
+- Pending section: users with `name=null` (not yet signed in)
 - Confirm dialog before remove; cannot remove self
 
 **Pending invite tracking:** Users invited by email but not yet signed in have `name=null` in the `users` table. When they sign in via Google OAuth, the upsert fills in their name — distinguishing them from active members automatically.
@@ -128,32 +129,127 @@
 
 **`vercel.json`** — cron schedule: `0 14 * * *` (14:00 UTC = 7:00 AM Pacific)
 
-### Polish
+### Day 2 Polish
 - `components/Spinner.jsx` — used on tasks and users pages during loading
 - `components/ConfirmDialog.jsx` — used before all delete/remove actions
 - `components/ErrorBoundary.jsx` — React class boundary wrapping tasks page content
 - Empty state messages on all list sections
-- Add Task button conditionally visible (admin/lead only)
-- Confirm dialog before task delete and member removal
 
 ---
 
-## Current State (after Day 2)
+## What Was Built — Day 3
 
-- bt.cyber-tech.com live; build clean (no errors, 19 routes)
-- Full task CRUD: create, edit, status toggle, delete with confirm
-- User admin: invite by email, inline role change, remove member, pending invite display
-- Daily email cron wired for Vercel (7 AM Pacific); 4 email templates ready
-- All pages have loading spinners and empty states
-- `CRON_SECRET` added to `.env.local.example` — must also be added to Vercel env vars
+### Activity Log
+
+**Schema additions** (`supabase/schema.sql`)
+- `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS note text` — optional task note
+- `CREATE TABLE activity_log` — tracks all meaningful actions with `event_id`, `task_id`, `user_id`, `action`, `note`, `created_at`
+  - `task_id` uses `ON DELETE SET NULL` — log entries survive task deletion
+  - RLS: members can read their event's log; authenticated users can insert
+- **Run in Supabase SQL Editor:**
+  ```sql
+  ALTER TABLE tasks ADD COLUMN IF NOT EXISTS note text;
+  CREATE TABLE IF NOT EXISTS activity_log (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    event_id uuid REFERENCES events(id) ON DELETE CASCADE,
+    task_id uuid REFERENCES tasks(id) ON DELETE SET NULL,
+    user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    action text NOT NULL,
+    note text,
+    created_at timestamptz NOT NULL DEFAULT now()
+  );
+  ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "log_select" ON activity_log FOR SELECT USING (
+    EXISTS (SELECT 1 FROM event_members WHERE event_id = activity_log.event_id AND user_id = auth.uid())
+  );
+  CREATE POLICY "log_insert" ON activity_log FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+  ```
+
+**API**
+- `GET /api/log?event_id=&task_id=&hours=` — returns log entries with user and task info; accepts either filter
+- All existing routes now insert to `activity_log` on mutation:
+  - tasks POST → `task_created`
+  - tasks PUT → `task_status_changed` (with new status as note) or `task_note_updated` or `task_updated`
+  - tasks DELETE → `task_deleted` (logged before delete so task_id FK is valid)
+  - activities POST → `activity_created`
+  - activities PUT → `activity_updated`
+  - activities DELETE → `activity_deleted`
+  - announcements POST → `announcement_created`
+
+### Task Detail Modal
+
+**`components/TaskDetail.jsx`** — full-screen modal (sheet on mobile, centered on sm+)
+- Top: task title, activity name, current status badge, due date, assignee avatars
+- Middle: status select + note textarea + Update button (visible to assignees, admin, lead)
+- Bottom: history list from `/api/log?task_id=` — shows user avatar, action label, relative timestamp, note text
+- Closes on backdrop click or × button
+
+**`components/TaskItem.jsx`** updated
+- Entire row is clickable — opens TaskDetail via `onOpen` prop
+- Checkbox and pencil button use `e.stopPropagation()` to avoid triggering detail
+- Cursor changed to pointer for the row
+
+**`pages/[slug]/tasks.jsx`** updated
+- Imports TaskDetail; `detailTask` state controls which task is open
+- All Section components pass `onOpen={setDetailTask}`
+- TaskDetail rendered below TaskForm with `onSaved={handleDetailSaved}` (refreshes task list)
+
+**`pages/api/tasks/[id].js`** updated
+- PUT now accepts `note` field alongside `status`
+- Status/note-only path: detects when no full-edit fields present — allows assignees OR admin/lead
+- Full-edit path: admin/lead only (unchanged behavior)
+- Both paths write to `activity_log`
+
+### AI Summary Dashboard
+
+**`pages/api/ai/summary.js`** (new)
+- `GET /api/ai/summary?event_id=&hours=` — admin/lead only
+- Fetches recent `activity_log` entries for the event; formats as readable lines
+- Calls Claude (`claude-sonnet-4-6`) via `@anthropic-ai/sdk` — 2–3 sentence prose summary
+- Returns `{ summary, entry_count }`
+- **Requires `ANTHROPIC_API_KEY` in `.env.local` and Vercel env vars**
+
+**`components/AISummary.jsx`** (new)
+- Time range selector: Last 4 hours / Last 24 hours / Last 7 days
+- Generate button — fetches from `/api/ai/summary`; shows spinner while loading
+- Displays summary text + entry count
+- Shown on dashboard for admin/lead only
+
+**`pages/[slug]/dashboard.jsx`** updated
+- Imports AISummary; renders it between stat cards and the two-column section
+- Visible only when `userRole` is admin or lead and `eventId` is available
+
+### Mobile Layout Polish
+
+**`components/Layout.jsx`** updated
+- Added mobile hamburger menu (`ti-menu-2`) that opens a vertical nav drawer below the header
+- Desktop nav unchanged (hidden on mobile with `sm:flex`)
+- Nav items in drawer include icon + label
+- Reduced padding: `px-4 sm:px-6` header and `px-4 sm:px-6 py-6 sm:py-8` main
+- User name hidden on mobile to save space
+
+**`pages/[slug]/dashboard.jsx`**
+- Stat card grid: `gap-3 sm:gap-4`
+- Activity progress section: `gap-6 lg:gap-8` for the two-column grid
+- My Tasks item: truncate + gap for tight mobile widths
 
 ---
 
-## Pending / Next Steps (Day 3)
+## Current State (after Day 3)
 
-- Add `CRON_SECRET` to Vercel environment variables
+- All activity is tracked in `activity_log` — full audit trail
+- Clicking a task row opens TaskDetail modal with status/note update + history
+- AI Summary available on dashboard for admin/lead — summarizes recent activity in prose
+- Layout has mobile-friendly hamburger nav drawer
+- `@anthropic-ai/sdk@0.104.1` installed
+
+---
+
+## Pending / Next Steps
+
+- **Run SQL in Supabase** — `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS note text` + full `activity_log` DDL (see Day 3 schema section above)
+- **Add `ANTHROPIC_API_KEY`** to `.env.local` and Vercel env vars (AI summary won't work without it)
+- Add `CRON_SECRET` to Vercel environment variables (cron endpoint needs it)
 - Trigger announcement emails from the Activities page (currently only posted to DB)
 - Test Google sign-in end-to-end with real user, verify role propagation
-- Seed activities with real lead user IDs (vlin77@gmail.com is now admin)
 - Consider adding per-event role context (currently uses highest role across all events)
-- Mobile layout review

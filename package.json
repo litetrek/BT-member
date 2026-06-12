@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
     "@auth/supabase-adapter": "^1.3.0",
     "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.0.8",
