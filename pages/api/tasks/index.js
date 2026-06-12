@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Forbidden' })
     }
 
-    const { title, activity_id, status = 'open', assignee_1_id, assignee_2_id, due_date } = req.body
+    const { title, activity_id, status = 'open', assignee_1_id, assignee_2_id, due_date, description } = req.body
     if (!title || !activity_id || !assignee_1_id) {
       return res.status(400).json({ error: 'title, activity_id, assignee_1_id required' })
     }
@@ -57,13 +57,14 @@ export default async function handler(req, res) {
       assignee_1_id,
       assignee_2_id: assignee_2_id || null,
       due_date: due_date || null,
+      description: description || null,
       created_by: session.user.id,
     }).select().single()
 
     if (error) return res.status(500).json({ error: error.message })
 
     const { data: act } = await supabase.from('activities').select('event_id').eq('id', activity_id).single()
-    await supabase.from('activity_log').insert({
+    const logEntries = [{
       event_id:    act?.event_id ?? null,
       user_id:     session.user.id,
       entity_type: 'task',
@@ -71,8 +72,22 @@ export default async function handler(req, res) {
       entity_name: title,
       action:      'created',
       new_value:   status,
-    })
+    }]
 
+    if (description) {
+      logEntries.push({
+        event_id:     act?.event_id ?? null,
+        user_id:      session.user.id,
+        entity_type:  'task',
+        entity_id:    data.id,
+        entity_name:  title,
+        action:       'updated',
+        field_changed: 'description',
+        new_value:    description.substring(0, 100),
+      })
+    }
+
+    await supabase.from('activity_log').insert(logEntries)
     return res.status(201).json(data)
   }
 

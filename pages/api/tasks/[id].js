@@ -9,100 +9,92 @@ export default async function handler(req, res) {
   if (!session) return res.status(401).json({ error: 'Unauthorized' })
 
   if (req.method === 'PUT') {
-    const { status, note, title, activity_id, assignee_1_id, assignee_2_id, due_date } = req.body
-    const userId   = session.user.id
-    const userRole = session.user.role
+    const { status, note, title, description, activity_id, assignee_1_id, assignee_2_id, due_date } = req.body
+    const userId        = session.user.id
+    const userRole      = session.user.role
+    const isAdminOrLead = ['admin', 'lead'].includes(userRole)
 
-    const isStatusNoteOnly = (status !== undefined || note !== undefined) &&
-      !title && !activity_id && !assignee_1_id && !assignee_2_id && !due_date
+    // Fetch task upfront — need created_by, description, and old values for logging
+    const { data: task } = await supabase
+      .from('tasks')
+      .select('title, description, status, due_date, assignee_1_id, assignee_2_id, created_by, note, activity:activity_id(event_id)')
+      .eq('id', id)
+      .single()
+    if (!task) return res.status(404).json({ error: 'Not found' })
 
-    if (isStatusNoteOnly) {
-      const { data: task } = await supabase
-        .from('tasks')
-        .select('assignee_1_id, assignee_2_id, status, title, activity:activity_id(event_id)')
-        .eq('id', id)
-        .single()
-      if (!task) return res.status(404).json({ error: 'Not found' })
+    const isAssignee = task.assignee_1_id === userId || task.assignee_2_id === userId
+    const isCreator  = task.created_by === userId
 
-      const isAssignee = task.assignee_1_id === userId || task.assignee_2_id === userId
-      if (!isAssignee && !['admin', 'lead'].includes(userRole)) {
-        return res.status(403).json({ error: 'Forbidden' })
-      }
-
-      const eventId = task.activity?.event_id ?? null
-      const update = { updated_at: new Date().toISOString() }
-      if (status !== undefined) update.status = status
-      if (note !== undefined) update.note = note
-
-      const { data, error } = await supabase
-        .from('tasks').update(update).eq('id', id).select().single()
-      if (error) return res.status(500).json({ error: error.message })
-
-      const logEntries = []
-      const base = { event_id: eventId, user_id: userId, entity_type: 'task', entity_id: id, entity_name: task.title }
-
-      if (status !== undefined) {
-        logEntries.push({ ...base, action: 'status_changed', field_changed: 'status', old_value: task.status, new_value: status })
-      }
-      if (note !== undefined && note) {
-        logEntries.push({ ...base, action: 'note_added', note })
-      }
-      if (logEntries.length) await supabase.from('activity_log').insert(logEntries)
-
-      return res.status(200).json(data)
-    }
-
-    // Full edit — admin/lead only
-    if (!['admin', 'lead'].includes(userRole)) {
+    // Must be admin/lead, assignee, or creator
+    if (!isAdminOrLead && !isAssignee && !isCreator) {
       return res.status(403).json({ error: 'Forbidden' })
     }
 
-    const { data: taskMeta } = await supabase
-      .from('tasks')
-      .select('title, status, due_date, assignee_1_id, assignee_2_id, activity:activity_id(event_id)')
-      .eq('id', id)
-      .single()
-    if (!taskMeta) return res.status(404).json({ error: 'Not found' })
-
-    const eventId = taskMeta.activity?.event_id ?? null
-    const update = { updated_at: new Date().toISOString() }
-    if (title !== undefined)        update.title          = title
-    if (activity_id !== undefined)  update.activity_id    = activity_id
-    if (status !== undefined)       update.status         = status
-    if (note !== undefined)         update.note           = note
-    if (assignee_1_id !== undefined) update.assignee_1_id = assignee_1_id
-    if (assignee_2_id !== undefined) update.assignee_2_id = assignee_2_id || null
-    if (due_date !== undefined)     update.due_date       = due_date || null
-
-    const { data, error } = await supabase
-      .from('tasks').update(update).eq('id', id).select().single()
-    if (error) return res.status(500).json({ error: error.message })
-
-    const base = { event_id: eventId, user_id: userId, entity_type: 'task', entity_id: id, entity_name: taskMeta.title }
+    const eventId = task.activity?.event_id ?? null
+    const base    = { event_id: eventId, user_id: userId, entity_type: 'task', entity_id: id, entity_name: task.title }
+    const update  = { updated_at: new Date().toISOString() }
     const logEntries = []
 
-    if (title !== undefined && title !== taskMeta.title) {
-      logEntries.push({ ...base, action: 'updated', field_changed: 'title', old_value: taskMeta.title, new_value: title })
+    // status — assignee or admin/lead only (creator without assignee role: silently ignored)
+    if (status !== undefined) {
+      if (isAssignee || isAdminOrLead) {
+        update.status = status
+        if (status !== task.status) {
+          logEntries.push({ ...base, action: 'status_changed', field_changed: 'status', old_value: task.status, new_value: status })
+        }
+      }
     }
-    if (status !== undefined && status !== taskMeta.status) {
-      logEntries.push({ ...base, action: 'status_changed', field_changed: 'status', old_value: taskMeta.status, new_value: status })
+
+    // note — assignee or admin/lead only
+    if (note !== undefined) {
+      if (isAssignee || isAdminOrLead) {
+        update.note = note
+        if (note) logEntries.push({ ...base, action: 'note_added', note })
+      }
     }
-    if (due_date !== undefined) {
-      logEntries.push({ ...base, action: 'updated', field_changed: 'due_date', old_value: taskMeta.due_date ?? null, new_value: due_date || null })
+
+    // title — creator, assignee, or admin/lead
+    if (title !== undefined && title !== task.title) {
+      update.title = title
+      logEntries.push({ ...base, action: 'updated', field_changed: 'title', old_value: task.title, new_value: title })
     }
-    if (assignee_1_id !== undefined && assignee_1_id !== taskMeta.assignee_1_id) {
-      logEntries.push({ ...base, action: 'updated', field_changed: 'assignee_1', old_value: taskMeta.assignee_1_id, new_value: assignee_1_id })
+
+    // description — creator, assignee, or admin/lead
+    if (description !== undefined && description !== (task.description ?? '')) {
+      update.description = description || null
+      logEntries.push({
+        ...base,
+        action: 'updated',
+        field_changed: 'description',
+        old_value: (task.description ?? '').substring(0, 100),
+        new_value: (description ?? '').substring(0, 100),
+      })
     }
-    if (assignee_2_id !== undefined && (assignee_2_id || null) !== taskMeta.assignee_2_id) {
-      logEntries.push({ ...base, action: 'updated', field_changed: 'assignee_2', old_value: taskMeta.assignee_2_id, new_value: assignee_2_id || null })
+
+    // Structural fields — admin/lead only
+    if (isAdminOrLead) {
+      if (activity_id !== undefined)  update.activity_id   = activity_id
+      if (assignee_1_id !== undefined) {
+        update.assignee_1_id = assignee_1_id
+        if (assignee_1_id !== task.assignee_1_id) {
+          logEntries.push({ ...base, action: 'updated', field_changed: 'assignee_1', old_value: task.assignee_1_id, new_value: assignee_1_id })
+        }
+      }
+      if (assignee_2_id !== undefined) {
+        update.assignee_2_id = assignee_2_id || null
+        if ((assignee_2_id || null) !== task.assignee_2_id) {
+          logEntries.push({ ...base, action: 'updated', field_changed: 'assignee_2', old_value: task.assignee_2_id, new_value: assignee_2_id || null })
+        }
+      }
+      if (due_date !== undefined) {
+        update.due_date = due_date || null
+        logEntries.push({ ...base, action: 'updated', field_changed: 'due_date', old_value: task.due_date ?? null, new_value: due_date || null })
+      }
     }
-    if (note !== undefined && note) {
-      logEntries.push({ ...base, action: 'note_added', note })
-    }
-    if (!logEntries.length) {
-      logEntries.push({ ...base, action: 'updated' })
-    }
-    await supabase.from('activity_log').insert(logEntries)
+
+    const { data, error } = await supabase.from('tasks').update(update).eq('id', id).select().single()
+    if (error) return res.status(500).json({ error: error.message })
+    if (logEntries.length) await supabase.from('activity_log').insert(logEntries)
 
     return res.status(200).json(data)
   }

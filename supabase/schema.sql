@@ -223,8 +223,11 @@ CREATE POLICY "email_log_insert" ON email_log
 -- DAY 3 ADDITIONS
 -- ══════════════════════════════════════════════
 
--- Note field on tasks (run separately if tasks table already exists)
+-- Note field on tasks (applied Day 3)
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS note text;
+
+-- Description field on tasks (applied Day 4 — 2026-06-11)
+-- ALTER TABLE tasks ADD COLUMN IF NOT EXISTS description text;
 
 -- Activity log
 CREATE TABLE IF NOT EXISTS activity_log (

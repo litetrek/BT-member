@@ -5,6 +5,7 @@ import Head from 'next/head'
 import Layout from '@/components/Layout'
 import StatusBadge from '@/components/StatusBadge'
 import AISummary from '@/components/AISummary'
+import AIChat from '@/components/AIChat'
 import Link from 'next/link'
 
 function StatCard({ label, value, color }) {
@@ -97,10 +98,11 @@ export default function Dashboard() {
           <StatCard label="逾期"    value={stats.overdue}     color="text-red-600" />
         </div>
 
-        {/* AI Summary — admin/lead only */}
+        {/* AI Summary + Chat — admin/lead only */}
         {canSeeAI && eventId && (
-          <div className="mb-8">
+          <div className="mb-8 flex flex-col gap-4">
             <AISummary eventId={eventId} />
+            <AIChat eventId={eventId} />
           </div>
         )}
 

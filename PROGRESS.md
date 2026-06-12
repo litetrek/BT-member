@@ -1,9 +1,6 @@
 # BT-Member Event Management — Progress Snapshot
 
-## Day 3 Complete — Activity Log, Task Detail Modal, AI Summary, Mobile Polish
-## Day 3 Patch — activity_log schema corrected, all log writes use full fields
-## Day 3 Patch 2 — AI summary Chinese only + 朗讀 button, mobile bottom tab bar
-## Day 3 Patch 3 — Full Traditional Chinese UI, 狀態更新 (leader+admin), mobile font +2px
+## Day 4 Complete — Task Description, Title Edit Permissions, AI Chat Q&A
 
 ---
 
@@ -240,21 +237,96 @@ CREATE POLICY "log_insert" ON activity_log FOR INSERT WITH CHECK (auth.role() = 
 
 ---
 
-## Current State
+## What Was Built — Day 4
 
-- Full Traditional Chinese UI across all pages and components
-- 狀態更新 (Status Updates) — postable by admin or lead (was admin-only)
-- Mobile font size: 18px base (up from 16px)
-- AI Summary: Chinese only with 朗讀 button
-- Mobile: fixed bottom tab bar with inline SVG icons
+### A. Task Description Field
+
+**Supabase migration** (must be run manually in SQL Editor):
+```sql
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS description text;
+```
+
+**`prisma/schema.prisma`**
+- Added `description String?` to Task model (reference only, not used by ORM)
+
+**`pages/api/tasks/index.js`** (rewritten)
+- POST now accepts `description` from req.body
+- Inserts `description: description || null` into tasks row
+- Logs description on creation if non-empty: `field_changed='description'`, truncated to 100 chars
+
+**`pages/api/tasks/[id].js`** (rewritten — three-tier permission model)
+- Fetches task upfront (including `created_by`) to support permission checks + logging
+- Three permission tiers:
+  1. **Admin/lead** — all fields (activity_id, assignees, due_date, status, note, title, description)
+  2. **Assignee** (assignee_1_id or assignee_2_id) — status, note, title, description
+  3. **Creator** (created_by = userId) — title, description only
+- Non-permitted fields silently ignored (no 403 for partial payloads)
+- Description changes logged with truncation to 100 chars
+
+**`components/TaskForm.jsx`**
+- Added `description: ''` to form state
+- Edit useEffect hydrates `description: task.description ?? ''`
+- Textarea field below title: label 任務描述, 3 rows, placeholder 請輸入任務說明（選填）, no validation
+- Submit body includes `description: form.description || null`
+
+**`components/TaskDetail.jsx`**
+- Read-only description display below modal header (only shown when `task.description` is non-null)
+- Styled: `bg-gray-50 rounded px-3 py-2 leading-relaxed whitespace-pre-wrap`
+
+### B. Task Title Edit Permissions
+
+**`components/TaskDetail.jsx`** — inline title editing
+- Added state: `displayTitle`, `editingTitle`, `titleDraft`, `titleSaving`
+- Permission: `canEditTitle = isAssignee || isCreator || ['admin','lead'].includes(userRole)`
+- Eligible users: title h2 is clickable (cursor-pointer, hover:text-blue-600, tooltip 點擊以編輯標題)
+- Clicking replaces h2 with input + 儲存/取消 buttons
+- Enter saves, Escape cancels; saving PUTs `{ title }` only to `/api/tasks/[id]`
+- Non-eligible users: title is plain text, no interaction
+
+### C. AI Chat Q&A
+
+**`pages/api/ai/chat.js`** (new)
+- POST, admin/lead only
+- Accepts: `event_id`, `question`, `conversation_history` (array, sliced to last 10)
+- Fetches: activities → (parallel) tasks, activity_log (30 days, 50 entries), announcements (30 days, 20 entries)
+- Chinese system prompt includes: [活動列表], [任務列表], [最近30天紀錄], [最近公告]
+- Model: `claude-sonnet-4-6`, `max_tokens: 400`
+- Returns: `{ answer, updated_history }`
+
+**`components/AIChat.jsx`** (new)
+- Multi-turn chat UI; client owns conversation history (not persisted)
+- User bubbles: right-aligned blue; assistant: left-aligned gray
+- `content: null` → "思考中…" italic in pending bubble
+- Error → "抱歉，無法取得回應，請再試一次。"
+- Enter (without Shift) sends; 清除對話 button resets messages + history
+- Auto-scrolls to bottom on new messages via ref
+
+**`pages/[slug]/dashboard.jsx`**
+- Imports `AIChat`
+- Renders `<AIChat eventId={eventId} />` below `<AISummary />` inside the `canSeeAI && eventId` block
 
 ---
 
-## Pending / Next Steps
+## Current State
 
-- **Run activity_log DDL in Supabase** (see Day 3 Patch section above — DROP + recreate)
-- **Add `ANTHROPIC_API_KEY`** to `.env.local` and Vercel env vars
-- Add `CRON_SECRET` to Vercel environment variables
+- Full Traditional Chinese UI across all pages and components
+- Three-tier task permission model: admin/lead → assignee → creator
+- Task description field: create/edit in TaskForm, read-only display in TaskDetail
+- Inline title editing in TaskDetail for eligible users
+- AI Summary + AI Chat Q&A on dashboard (admin/lead only)
+- Mobile: fixed bottom tab bar with inline SVG icons
+- 狀態更新 postable by admin or lead
+
+---
+
+## Pending / Supabase Manual Steps
+
+- **Run description DDL in Supabase SQL Editor:**
+  ```sql
+  ALTER TABLE tasks ADD COLUMN IF NOT EXISTS description text;
+  ```
+- **`ANTHROPIC_API_KEY`** must be set in `.env.local` and Vercel env vars
+- **`CRON_SECRET`** must be set in Vercel environment variables
 - Trigger announcement emails from Activities page (currently only posted to DB)
 - Test Google sign-in end-to-end with real user, verify role propagation
 - Consider per-event role context (currently uses highest role across all events)

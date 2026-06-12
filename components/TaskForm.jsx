@@ -11,6 +11,7 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
 
   const [form, setForm] = useState({
     title: '',
+    description: '',
     activity_id: activities[0]?.id ?? '',
     status: 'open',
     assignee_1_id: '',
@@ -25,6 +26,7 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
     if (task) {
       setForm({
         title: task.title,
+        description: task.description ?? '',
         activity_id: task.activity_id,
         status: task.status,
         assignee_1_id: task.assignee_1_id,
@@ -54,6 +56,7 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
     const body = {
       ...form,
       slug,
+      description: form.description || null,
       assignee_2_id: form.assignee_2_id || null,
       due_date: form.due_date || null,
     }
@@ -91,6 +94,17 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
               value={form.title}
               onChange={(e) => set('title', e.target.value)}
               className={inputCls}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">任務描述</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => set('description', e.target.value)}
+              rows={3}
+              placeholder="請輸入任務說明（選填）"
+              className={`${inputCls} resize-none`}
             />
           </div>
 

@@ -42,6 +42,10 @@ function describeEntry(entry) {
 
 export default function TaskDetail({ task, onClose, onSaved }) {
   const { data: session } = useSession()
+  const [displayTitle, setDisplayTitle] = useState(task.title)
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft]     = useState(task.title)
+  const [titleSaving, setTitleSaving]   = useState(false)
   const [status, setStatus]   = useState(task.status)
   const [note, setNote]       = useState(task.note ?? '')
   const [saving, setSaving]   = useState(false)
@@ -51,8 +55,10 @@ export default function TaskDetail({ task, onClose, onSaved }) {
 
   const userId   = session?.user?.id
   const userRole = session?.user?.role
-  const isAssignee = task.assignee_1_id === userId || task.assignee_2_id === userId
-  const canUpdate  = isAssignee || ['admin', 'lead'].includes(userRole)
+  const isAssignee   = task.assignee_1_id === userId || task.assignee_2_id === userId
+  const isCreator    = task.created_by === userId
+  const canUpdate    = isAssignee || ['admin', 'lead'].includes(userRole)
+  const canEditTitle = isAssignee || isCreator || ['admin', 'lead'].includes(userRole)
 
   function loadHistory() {
     fetch(`/api/log?task_id=${task.id}`)
@@ -81,6 +87,24 @@ export default function TaskDetail({ task, onClose, onSaved }) {
     setSaving(false)
   }
 
+  async function handleSaveTitle() {
+    const newTitle = titleDraft.trim()
+    if (!newTitle || newTitle === displayTitle) { setEditingTitle(false); return }
+    setTitleSaving(true)
+    const res = await fetch(`/api/tasks/${task.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: newTitle }),
+    })
+    if (res.ok) {
+      setDisplayTitle(newTitle)
+      setEditingTitle(false)
+      loadHistory()
+      onSaved()
+    }
+    setTitleSaving(false)
+  }
+
   const assignee1 = task.assignee1
   const assignee2 = task.assignee2
 
@@ -92,8 +116,39 @@ export default function TaskDetail({ task, onClose, onSaved }) {
       <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-xl shadow-xl flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-gray-100 shrink-0">
-          <div className="pr-4">
-            <h2 className="text-base font-semibold text-gray-900 leading-snug">{task.title}</h2>
+          <div className="pr-4 flex-1 min-w-0">
+            {editingTitle ? (
+              <div className="flex items-center gap-2">
+                <input
+                  autoFocus
+                  value={titleDraft}
+                  onChange={(e) => setTitleDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTitle(); if (e.key === 'Escape') setEditingTitle(false) }}
+                  className="flex-1 min-w-0 text-base font-semibold text-gray-900 border border-gray-300 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+                <button
+                  onClick={handleSaveTitle}
+                  disabled={titleSaving}
+                  className="text-xs text-blue-600 hover:text-blue-700 shrink-0"
+                >
+                  {titleSaving ? '…' : '儲存'}
+                </button>
+                <button
+                  onClick={() => setEditingTitle(false)}
+                  className="text-xs text-gray-400 hover:text-gray-600 shrink-0"
+                >
+                  取消
+                </button>
+              </div>
+            ) : (
+              <h2
+                className={`text-base font-semibold text-gray-900 leading-snug ${canEditTitle ? 'cursor-pointer hover:text-blue-600' : ''}`}
+                onClick={canEditTitle ? () => { setTitleDraft(displayTitle); setEditingTitle(true) } : undefined}
+                title={canEditTitle ? '點擊以編輯標題' : undefined}
+              >
+                {displayTitle}
+              </h2>
+            )}
             {task.activity?.name && (
               <p className="text-xs text-gray-400 mt-0.5">{task.activity.name}</p>
             )}
@@ -104,6 +159,14 @@ export default function TaskDetail({ task, onClose, onSaved }) {
         </div>
 
         <div className="overflow-y-auto flex-1">
+          {/* Description — read-only, shown if present */}
+          {task.description && (
+            <div className="px-5 py-3 border-b border-gray-100">
+              <p className="text-xs text-gray-400 mb-1">任務描述</p>
+              <p className="text-sm text-gray-700 bg-gray-50 rounded px-3 py-2 leading-relaxed whitespace-pre-wrap">{task.description}</p>
+            </div>
+          )}
+
           {/* Task meta */}
           <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap gap-4 text-sm">
             <div className="flex items-center gap-1.5">
