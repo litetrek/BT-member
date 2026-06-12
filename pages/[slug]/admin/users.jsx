@@ -169,7 +169,7 @@ export default function AdminUsersPage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {active.map((m) => (
-                  <tr key={m.id} className="hover:bg-gray-50">
+                  <tr key={m.id} onClick={() => openEdit(m)} className="hover:bg-gray-50 cursor-pointer">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <Avatar name={m.name ?? m.email} avatarUrl={m.avatar_url} size="sm" />
@@ -193,16 +193,9 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEdit(m)}
-                          className="text-gray-400 hover:text-blue-500"
-                          title="編輯成員"
-                        >
-                          <span className="ti ti-pencil text-sm" />
-                        </button>
                         {m.id !== session?.user?.id && (
                           <button
-                            onClick={() => setRemoveTarget(m)}
+                            onClick={(e) => { e.stopPropagation(); setRemoveTarget(m) }}
                             className="text-gray-400 hover:text-red-500"
                             title="移除成員"
                           >
