@@ -2,6 +2,7 @@
 
 ## Day 3 Complete — Activity Log, Task Detail Modal, AI Summary, Mobile Polish
 ## Day 3 Patch — activity_log schema corrected, all log writes use full fields
+## Day 3 Patch 2 — AI summary outputs English + Traditional Chinese
 
 ---
 
@@ -214,6 +215,8 @@
 - Formats each log entry as: "[Actor] changed task 'Title' status: open → done — 2 hrs ago"
 - Calls Claude (`claude-sonnet-4-6`) via `@anthropic-ai/sdk` — 2–3 sentence prose summary
 - Returns `{ summary, entry_count }`
+- Output is bilingual: English first, then Traditional Chinese (中文), labelled and separated by a blank line
+- `max_tokens` set to 800 to accommodate both languages
 - **Requires `ANTHROPIC_API_KEY` in `.env.local` and Vercel env vars**
 
 **`components/AISummary.jsx`**
