@@ -231,6 +231,7 @@ export default function ActivitiesPage() {
             eventId={eventId}
             activities={activities}
             currentUserId={session?.user?.id}
+            defaultActivityId={selectedActivityId}
             onClose={() => setShowStatusForm(false)}
             onSaved={() => { setShowStatusForm(false); loadAnnouncements(eventId) }}
           />

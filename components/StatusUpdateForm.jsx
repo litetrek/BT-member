@@ -6,11 +6,11 @@ function nowLocalDatetime() {
   return d.toISOString().slice(0, 16)
 }
 
-export default function StatusUpdateForm({ eventId, activities, currentUserId, onClose, onSaved }) {
+export default function StatusUpdateForm({ eventId, activities, currentUserId, defaultActivityId, onClose, onSaved }) {
   const [members, setMembers] = useState([])
   const [form, setForm] = useState({
     message: '',
-    activity_id: activities[0]?.id ?? '',
+    activity_id: defaultActivityId ?? activities[0]?.id ?? '',
     reporter_id: currentUserId ?? '',
     reported_at: nowLocalDatetime(),
   })
