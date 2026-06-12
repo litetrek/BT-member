@@ -10,7 +10,7 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
     { key: 'activities', label: 'Activities',  href: `/${slug}/activities` },
     { key: 'tasks',      label: 'Tasks',       href: `/${slug}/tasks` },
     ...(userRole === 'admin'
-      ? [{ key: 'users', label: 'Users', href: `/${slug}/users` }]
+      ? [{ key: 'users', label: 'Users', href: `/${slug}/admin/users` }]
       : []),
   ]
 
