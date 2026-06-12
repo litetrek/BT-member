@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { signOut } from 'next-auth/react'
 import Avatar from './Avatar'
 
 export default function Layout({ children, slug, activePage, user, userRole }) {
   const router = useRouter()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const nav = [
     { key: 'dashboard',  label: 'Dashboard',  href: `/${slug}/dashboard` },
@@ -42,9 +45,33 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
         </div>
 
         {user && (
-          <div className="flex items-center gap-2">
-            <Avatar name={user.name} avatarUrl={user.image} size="sm" />
-            <span className="text-sm text-gray-600 hidden sm:block">{user.name}</span>
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              className="flex items-center gap-2 rounded hover:bg-gray-100 px-2 py-1 transition-colors"
+            >
+              <Avatar name={user.name} avatarUrl={user.image} size="sm" />
+              <span className="text-sm text-gray-600 hidden sm:block">{user.name}</span>
+              <span className="ti ti-chevron-down text-xs text-gray-400" />
+            </button>
+
+            {menuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setMenuOpen(false)}
+                />
+                <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
+                  <button
+                    onClick={() => signOut({ callbackUrl: '/' })}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <span className="ti ti-logout text-gray-400" />
+                    Sign out
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </header>

@@ -1,5 +1,13 @@
-import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { requireAdmin } from '@/lib/auth'
+
+// Service role key bypasses RLS — required to insert placeholder users
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  )
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -9,7 +17,7 @@ export default async function handler(req, res) {
 
   if (await requireAdmin(req, res)) return
 
-  const supabase = createServerClient()
+  const supabase = adminClient()
   const { email, role = 'member', event_id } = req.body
   if (!email || !event_id) return res.status(400).json({ error: 'email and event_id required' })
 
