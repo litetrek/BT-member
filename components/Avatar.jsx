@@ -1,5 +1,5 @@
 export default function Avatar({ name, avatarUrl, size = 'md' }) {
-  const dim = size === 'sm' ? 'w-7 h-7 text-xs' : 'w-9 h-9 text-sm'
+  const dim = size === 'xs' ? 'w-5 h-5 text-[9px]' : size === 'sm' ? 'w-7 h-7 text-xs' : 'w-9 h-9 text-sm'
   const initials = (name ?? '?')
     .split(' ')
     .map((w) => w[0])

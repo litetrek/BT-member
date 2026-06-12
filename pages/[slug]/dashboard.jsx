@@ -4,8 +4,6 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import Layout from '@/components/Layout'
 import StatusBadge from '@/components/StatusBadge'
-import AISummary from '@/components/AISummary'
-import AIChat from '@/components/AIChat'
 import Link from 'next/link'
 
 function StatCard({ label, value, color }) {
@@ -24,7 +22,6 @@ export default function Dashboard() {
 
   const [activities, setActivities] = useState([])
   const [myTasks, setMyTasks] = useState([])
-  const [eventId, setEventId] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const userRole = session?.user?.role
@@ -41,7 +38,6 @@ export default function Dashboard() {
       .then((d) => {
         const list = Array.isArray(d) ? d : []
         setActivities(list)
-        if (list[0]?.event_id) setEventId(list[0].event_id)
       })
       .catch(() => setActivities([]))
 
@@ -61,18 +57,6 @@ export default function Dashboard() {
       .catch(() => setLoading(false))
   }, [slug, status, session])
 
-  // Fallback: get eventId from /api/events if activities didn't provide it
-  useEffect(() => {
-    if (!slug || eventId) return
-    fetch('/api/events')
-      .then((r) => r.json())
-      .then((events) => {
-        const ev = (events ?? []).find((e) => e.slug === slug)
-        if (ev) setEventId(ev.id)
-      })
-      .catch(() => {})
-  }, [slug, eventId])
-
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const allTasks = activities.flatMap((a) => a.tasks ?? [])
   const stats = {
@@ -81,8 +65,6 @@ export default function Dashboard() {
     in_progress: allTasks.filter((t) => t.status === 'in_progress').length,
     overdue:     allTasks.filter((t) => t.status !== 'done' && t.due_date && new Date(t.due_date) < today).length,
   }
-
-  const canSeeAI = ['admin', 'lead'].includes(userRole)
 
   return (
     <>
@@ -97,14 +79,6 @@ export default function Dashboard() {
           <StatCard label="進行中"  value={stats.in_progress} color="text-amber-600" />
           <StatCard label="逾期"    value={stats.overdue}     color="text-red-600" />
         </div>
-
-        {/* AI Summary + Chat — admin/lead only */}
-        {canSeeAI && eventId && (
-          <div className="mb-8 flex flex-col gap-4">
-            <AISummary eventId={eventId} />
-            <AIChat eventId={eventId} />
-          </div>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* My Tasks */}

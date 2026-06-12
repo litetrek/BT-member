@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Forbidden' })
     }
 
-    const { title, activity_id, status = 'open', assignee_1_id, assignee_2_id, due_date, description } = req.body
+    const { title, activity_id, status = 'open', assignee_1_id, assignee_2_id, due_date, description, task_type } = req.body
     if (!title || !activity_id || !assignee_1_id) {
       return res.status(400).json({ error: 'title, activity_id, assignee_1_id required' })
     }
@@ -58,6 +58,7 @@ export default async function handler(req, res) {
       assignee_2_id: assignee_2_id || null,
       due_date: due_date || null,
       description: description || null,
+      task_type: task_type || 'general',
       created_by: session.user.id,
     }).select().single()
 

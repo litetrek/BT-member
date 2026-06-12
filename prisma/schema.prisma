@@ -29,6 +29,7 @@ model Event {
   announcements Announcement[]
   email_logs    EmailLog[]
   activity_logs ActivityLog[]
+  task_types    TaskType[]
 
   @@map("events")
 }
@@ -46,9 +47,11 @@ model User {
   tasks_as_assignee1 Task[]        @relation("TaskAssignee1")
   tasks_as_assignee2 Task[]        @relation("TaskAssignee2")
   tasks_created      Task[]        @relation("TaskCreatedBy")
-  announcements      Announcement[]
-  email_logs         EmailLog[]
-  activity_logs      ActivityLog[]
+  announcements          Announcement[]
+  announcements_reported Announcement[] @relation("AnnouncementReporter")
+  email_logs             EmailLog[]
+  activity_logs          ActivityLog[]
+  task_types_created     TaskType[]
 
   @@map("users")
 }
@@ -76,10 +79,11 @@ model Activity {
   icon       String  @default("ti-star") // Tabler icon class e.g. "ti-star"
   sort_order Int     @default(0)
 
-  event   Event  @relation(fields: [event_id], references: [id], onDelete: Cascade)
-  lead    User   @relation("ActivityLead", fields: [lead_id], references: [id])
-  co_lead User?  @relation("ActivityCoLead", fields: [co_lead_id], references: [id])
-  tasks   Task[]
+  event         Event          @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  lead          User           @relation("ActivityLead", fields: [lead_id], references: [id])
+  co_lead       User?          @relation("ActivityCoLead", fields: [co_lead_id], references: [id])
+  tasks         Task[]
+  announcements Announcement[]
 
   @@map("activities")
 }
@@ -95,6 +99,7 @@ model Task {
   due_date      DateTime? @db.Date
   note          String?   // optional note from assignee (last saved note)
   description   String?   // optional task description
+  task_type     String    @default("general")
   created_at    DateTime  @default(now()) @db.Timestamptz(6)
   updated_at    DateTime  @default(now()) @db.Timestamptz(6)
 
@@ -106,15 +111,33 @@ model Task {
   @@map("tasks")
 }
 
-model Announcement {
+model TaskType {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   event_id   String   @db.Uuid
-  created_by String   @db.Uuid
-  message    String
+  name       String
+  created_by String?  @db.Uuid
   created_at DateTime @default(now()) @db.Timestamptz(6)
 
   event   Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
-  creator User  @relation(fields: [created_by], references: [id])
+  creator User? @relation(fields: [created_by], references: [id])
+
+  @@map("task_types")
+}
+
+model Announcement {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id    String    @db.Uuid
+  created_by  String    @db.Uuid
+  message     String
+  activity_id String?   @db.Uuid
+  reporter_id String?   @db.Uuid
+  reported_at DateTime? @db.Timestamptz(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  event    Event     @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  creator  User      @relation(fields: [created_by], references: [id])
+  activity Activity? @relation(fields: [activity_id], references: [id], onDelete: SetNull)
+  reporter User?     @relation("AnnouncementReporter", fields: [reporter_id], references: [id], onDelete: SetNull)
 
   @@map("announcements")
 }

@@ -1,6 +1,6 @@
 # BT-Member Event Management — Progress Snapshot
 
-## Day 4 Complete — Task Description, Title Edit Permissions, AI Chat Q&A
+## Day 5 Complete — AI Page, Voice Input, Status Update Modal, Activity Filter, Nav Redesign, Task Tabs, Task Types
 
 ---
 
@@ -38,7 +38,7 @@
 - `ActivityCard.jsx` — icon, lead/co-lead, progress bar, edit/delete (admin)
 - `ActivityForm.jsx` — modal create/edit with IconPicker, lead/co-lead selects
 - `IconPicker.jsx` — dropdown of 10 Tabler icons
-- `Avatar.jsx` — initials circle or Google photo
+- `Avatar.jsx` — initials circle or Google photo (sizes: xs, sm, md)
 - `StatusBadge.jsx` — open/in_progress/done/overdue with color coding
 
 **Pages (Day 1)**
@@ -241,7 +241,7 @@ CREATE POLICY "log_insert" ON activity_log FOR INSERT WITH CHECK (auth.role() = 
 
 ### A. Task Description Field
 
-**Supabase migration** (must be run manually in SQL Editor):
+**Supabase migration** (applied via script):
 ```sql
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS description text;
 ```
@@ -301,9 +301,111 @@ ALTER TABLE tasks ADD COLUMN IF NOT EXISTS description text;
 - Enter (without Shift) sends; 清除對話 button resets messages + history
 - Auto-scrolls to bottom on new messages via ref
 
-**`pages/[slug]/dashboard.jsx`**
-- Imports `AIChat`
-- Renders `<AIChat eventId={eventId} />` below `<AISummary />` inside the `canSeeAI && eventId` block
+---
+
+## What Was Built — Day 5
+
+### Schema Changes (applied via `scripts/migrate.js`)
+```sql
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS task_type text DEFAULT 'general';
+CREATE TABLE IF NOT EXISTS task_types (id, event_id, name, created_by, created_at) + RLS;
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS activity_id uuid REFERENCES activities(id);
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS reporter_id uuid REFERENCES users(id);
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS reported_at timestamptz;
+```
+
+### 1. AI 助理 Page
+
+**`pages/[slug]/ai.jsx`** (new)
+- Admin/lead only (redirects others to dashboard)
+- Loads AISummary + AIChat in single page
+- Route: `/[slug]/ai`
+
+**`pages/[slug]/dashboard.jsx`** — AISummary and AIChat removed from dashboard; now on AI page only
+
+### 2. Voice Input for AI Chat
+
+**`components/AIChat.jsx`** — microphone button added beside text input
+- Uses Web Speech API (`SpeechRecognition` / `webkitSpeechRecognition`)
+- Button idle: mic SVG icon, gray border
+- Recording: red border + pulse animation
+- Transcript appended to input field (not auto-sent)
+- `lang: 'zh-TW'` for Mandarin Traditional Chinese
+- Tooltip: "語音輸入"
+- Hidden if browser doesn't support SpeechRecognition
+
+### 3. Status Update Redesign
+
+**Schema:** `announcements.activity_id`, `announcements.reporter_id`, `announcements.reported_at`
+
+**`components/StatusUpdateForm.jsx`** (new modal)
+- Fields: 狀態更新內容 (textarea, required), 相關活動 (select, required), 回報人 (select, defaults to current user), 回報時間 (datetime-local, defaults to now)
+- Fetches event members for reporter dropdown
+- POSTs to `/api/announcements`; closes modal on success
+
+**`pages/api/announcements/index.js`** (updated)
+- GET: joins `activity:activity_id(name)`, `reporter:reporter_id(name, avatar_url)`
+- POST: accepts `activity_id`, `reporter_id`, `reported_at`; logs to activity_log
+
+**`pages/[slug]/activities.jsx`** — status update form replaced by "+ 新增狀態更新" button (admin/lead only) opening StatusUpdateForm modal
+
+**Status update card display:**
+- Message text
+- 相關活動: linked (clicking filters updates to that activity)
+- 回報人: avatar + name
+- 回報時間: formatted in zh-TW locale
+- "由 [name] 代為發佈" if poster ≠ reporter
+
+### 4. Activity Click Filter
+
+**`pages/[slug]/activities.jsx`**
+- `selectedActivityId` state — null = show all
+- Clicking activity card toggles selection (blue ring + bg-blue-50 + ✓ 已選取 tag)
+- Status updates list filtered by `selectedActivityId` when set
+- Filter label above status updates: "顯示：[activity name] 的狀態更新" + "× 清除篩選" button
+- All: "所有狀態更新"
+- Edit/Delete buttons in ActivityCard use `e.stopPropagation()` to prevent click-through
+
+### 5. Nav Bar Redesign
+
+**`components/Layout.jsx`** — desktop header completely redesigned:
+- Left: house SVG icon → `https://bt.cyber-tech.com` (external, tooltip "返回首頁")
+- Center: nav links (總覽 | 活動 | 任務 | AI 助理 | 成員), active = blue bg + text
+- Right: user avatar (unchanged)
+- "AI 助理" link shown only to admin/lead
+- Mobile bottom tab bar: HOME tab (leftmost) + all event nav tabs (AI tab for admin/lead only)
+
+### 6. Task View Tabs
+
+**`pages/[slug]/tasks.jsx`** — filter bar replaced by tab navigation
+- Tab pills below page title; active tab = blue bottom border
+- Tabs:
+  - **全部任務** (admin/lead only, default for admin/lead) — activity + status dropdowns, 4 status sections
+  - **我的任務（按狀態）** (all roles, default for member) — my tasks in 4 status sections (shows empty state per section)
+  - **我的任務（按活動）** (all roles) — my tasks grouped by activity name with icon
+- "+ 新增任務" button (admin/lead only) visible on all tabs
+- Deep link `?id=` highlight preserved across all tabs
+
+### 7. Task Type Field
+
+**Schema:** `tasks.task_type text DEFAULT 'general'`; `task_types` table (event-scoped, admin-managed)
+
+**API routes:**
+- `GET /api/task-types?event_id=` — returns types; auto-seeds 4 defaults (一般/採購/聯絡溝通/現場工作) on first call
+- `POST /api/task-types?event_id=` — admin only, adds custom type
+- `DELETE /api/task-types/[id]` — admin only, cannot delete default types
+
+**`components/TaskForm.jsx`** — 任務類型 select (after description, before activity); fetches types per event; stores type name in `tasks.task_type`
+
+**`components/TaskItem.jsx`** — shows task_type as small gray badge beside activity name (hidden if 'general')
+
+**`components/TaskDetail.jsx`** — 任務類型 shown in task info meta row
+
+**`pages/[slug]/admin/users.jsx`** — new "任務類型管理" section at bottom of page:
+- Lists all types for event; defaults marked "預設"
+- "+ 新增類型" inline form; delete button for custom types
+
+**`prisma/schema.prisma`** — added `task_type String @default("general")` to Task model; new TaskType model; updated Announcement model with activity_id/reporter_id/reported_at
 
 ---
 
@@ -311,20 +413,19 @@ ALTER TABLE tasks ADD COLUMN IF NOT EXISTS description text;
 
 - Full Traditional Chinese UI across all pages and components
 - Three-tier task permission model: admin/lead → assignee → creator
-- Task description field: create/edit in TaskForm, read-only display in TaskDetail
-- Inline title editing in TaskDetail for eligible users
-- AI Summary + AI Chat Q&A on dashboard (admin/lead only)
-- Mobile: fixed bottom tab bar with inline SVG icons
-- 狀態更新 postable by admin or lead
+- Task description + title inline editing
+- AI 助理 page (separate from dashboard) — admin/lead only
+- Voice input in AI Chat (zh-TW, Web Speech API)
+- Status updates: modal form with activity/reporter/time fields; clickable activity filter
+- Nav: home icon (left) + centered links + avatar (right); AI tab for admin/lead only
+- Task tabs: 全部任務 / 我的任務（按狀態）/ 我的任務（按活動）
+- Task types: event-scoped admin-managed list; badge on TaskItem; field in TaskForm/TaskDetail
+- Mobile: bottom tab bar with HOME + event nav tabs
 
 ---
 
 ## Pending / Supabase Manual Steps
 
-- **Run description DDL in Supabase SQL Editor:**
-  ```sql
-  ALTER TABLE tasks ADD COLUMN IF NOT EXISTS description text;
-  ```
 - **`ANTHROPIC_API_KEY`** must be set in `.env.local` and Vercel env vars
 - **`CRON_SECRET`** must be set in Vercel environment variables
 - Trigger announcement emails from Activities page (currently only posted to DB)

@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (!session) return res.status(401).json({ error: 'Unauthorized' })
 
   if (req.method === 'PUT') {
-    const { status, note, title, description, activity_id, assignee_1_id, assignee_2_id, due_date } = req.body
+    const { status, note, title, description, task_type, activity_id, assignee_1_id, assignee_2_id, due_date } = req.body
     const userId        = session.user.id
     const userRole      = session.user.role
     const isAdminOrLead = ['admin', 'lead'].includes(userRole)
@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     // Fetch task upfront — need created_by, description, and old values for logging
     const { data: task } = await supabase
       .from('tasks')
-      .select('title, description, status, due_date, assignee_1_id, assignee_2_id, created_by, note, activity:activity_id(event_id)')
+      .select('title, description, task_type, status, due_date, assignee_1_id, assignee_2_id, created_by, note, activity:activity_id(event_id)')
       .eq('id', id)
       .single()
     if (!task) return res.status(404).json({ error: 'Not found' })
@@ -69,6 +69,14 @@ export default async function handler(req, res) {
         old_value: (task.description ?? '').substring(0, 100),
         new_value: (description ?? '').substring(0, 100),
       })
+    }
+
+    // task_type — admin/lead only
+    if (task_type !== undefined && isAdminOrLead) {
+      update.task_type = task_type || 'general'
+      if (update.task_type !== (task.task_type ?? 'general')) {
+        logEntries.push({ ...base, action: 'updated', field_changed: 'task_type', old_value: task.task_type, new_value: update.task_type })
+      }
     }
 
     // Structural fields — admin/lead only

@@ -1,22 +1,82 @@
 import { useState, useRef, useEffect } from 'react'
 
+function MicIcon({ recording, className = '' }) {
+  if (recording) {
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-4 h-4 ${className}`}>
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+    )
+  }
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-4 h-4 ${className}`}>
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      <line x1="12" y1="19" x2="12" y2="23"/>
+      <line x1="8" y1="23" x2="16" y2="23"/>
+    </svg>
+  )
+}
+
 export default function AIChat({ eventId }) {
   const [messages, setMessages] = useState([])
   const [history,  setHistory]  = useState([])
   const [input,    setInput]    = useState('')
   const [loading,  setLoading]  = useState(false)
+  const [recording, setRecording] = useState(false)
+  const [hasSpeech, setHasSpeech] = useState(false)
   const bottomRef = useRef(null)
+  const recognitionRef = useRef(null)
+
+  // Check for SpeechRecognition support
+  useEffect(() => {
+    const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
+    setHasSpeech(!!SR)
+  }, [])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  function startRecording() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) return
+    const rec = new SR()
+    rec.lang = 'zh-TW'
+    rec.continuous = false
+    rec.interimResults = false
+
+    rec.onresult = (e) => {
+      const transcript = e.results[0]?.[0]?.transcript ?? ''
+      if (transcript) {
+        setInput((prev) => (prev ? prev + ' ' + transcript : transcript))
+      }
+    }
+    rec.onend = () => { setRecording(false) }
+    rec.onerror = () => { setRecording(false) }
+
+    recognitionRef.current = rec
+    rec.start()
+    setRecording(true)
+  }
+
+  function stopRecording() {
+    recognitionRef.current?.stop()
+    setRecording(false)
+  }
+
+  function toggleMic() {
+    if (recording) { stopRecording() } else { startRecording() }
+  }
 
   async function send() {
     const q = input.trim()
     if (!q || loading) return
     setInput('')
 
-    // Append user message + pending assistant bubble
     const userMsg  = { role: 'user',      content: q,    ts: Date.now() }
     const pending  = { role: 'assistant', content: null, ts: Date.now() + 1 }
     setMessages((m) => [...m, userMsg, pending])
@@ -31,8 +91,6 @@ export default function AIChat({ eventId }) {
       const data = await res.json()
       const answer = res.ok ? (data.answer ?? '抱歉，無法取得回應，請再試一次。') : '抱歉，無法取得回應，請再試一次。'
       if (res.ok && data.updated_history) setHistory(data.updated_history)
-
-      // Replace pending bubble with real answer
       setMessages((m) => m.map((msg) => msg === pending ? { ...msg, content: answer } : msg))
     } catch {
       setMessages((m) => m.map((msg) => msg === pending ? { ...msg, content: '抱歉，無法取得回應，請再試一次。' } : msg))
@@ -96,8 +154,8 @@ export default function AIChat({ eventId }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div className="px-4 pb-4 sm:pb-4 pt-2 border-t border-gray-100 flex gap-2 items-end">
+      {/* Input row */}
+      <div className="px-4 pb-4 pt-2 border-t border-gray-100 flex gap-2 items-end">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -107,6 +165,22 @@ export default function AIChat({ eventId }) {
           disabled={loading}
           className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none disabled:opacity-50"
         />
+
+        {hasSpeech && (
+          <button
+            type="button"
+            onClick={toggleMic}
+            title="語音輸入"
+            className={`p-2 rounded-lg border transition-colors shrink-0 ${
+              recording
+                ? 'border-red-400 bg-red-50 text-red-500 animate-pulse'
+                : 'border-gray-200 text-gray-400 hover:text-blue-500 hover:border-blue-300'
+            }`}
+          >
+            <MicIcon recording={recording} />
+          </button>
+        )}
+
         <button
           onClick={send}
           disabled={loading || !input.trim()}

@@ -173,6 +173,14 @@ export default function TaskDetail({ task, onClose, onSaved }) {
               <span className="text-xs text-gray-400">狀態</span>
               <StatusBadge status={task.status} dueDate={task.due_date} />
             </div>
+            {task.task_type && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-gray-400">任務類型</span>
+                <span className="text-xs font-medium text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
+                  {task.task_type}
+                </span>
+              </div>
+            )}
             {task.due_date && (
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-gray-400">到期日</span>

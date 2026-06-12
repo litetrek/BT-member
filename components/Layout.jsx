@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { signOut } from 'next-auth/react'
 import Avatar from './Avatar'
 
-// Inline SVG icons — no CDN dependency, always visible on mobile
 function Icon({ name, className = '' }) {
   const icons = {
     dashboard: (
@@ -25,10 +24,22 @@ function Icon({ name, className = '' }) {
         <line x1="13" y1="8" x2="21" y2="8"/><line x1="13" y1="16" x2="21" y2="16"/>
       </svg>
     ),
+    ai: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-5 h-5 ${className}`}>
+        <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.46 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/>
+        <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.46 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/>
+      </svg>
+    ),
     users: (
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-5 h-5 ${className}`}>
         <circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
         <path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/>
+      </svg>
+    ),
+    home: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-5 h-5 ${className}`}>
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
       </svg>
     ),
     logout: (
@@ -49,25 +60,40 @@ function Icon({ name, className = '' }) {
 export default function Layout({ children, slug, activePage, user, userRole }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
+  const canSeeAI = ['admin', 'lead'].includes(userRole)
+
   const nav = [
-    { key: 'dashboard',  label: 'Dashboard',  labelZh: '總覽',  icon: 'dashboard',  href: `/${slug}/dashboard` },
-    { key: 'activities', label: 'Activities',  labelZh: '活動',  icon: 'activities', href: `/${slug}/activities` },
-    { key: 'tasks',      label: 'Tasks',       labelZh: '任務',  icon: 'tasks',      href: `/${slug}/tasks` },
-    ...(userRole === 'admin'
-      ? [{ key: 'users', label: 'Users', labelZh: '成員', icon: 'users', href: `/${slug}/admin/users` }]
+    { key: 'dashboard',  labelZh: '總覽',   icon: 'dashboard',  href: `/${slug}/dashboard` },
+    { key: 'activities', labelZh: '活動',   icon: 'activities', href: `/${slug}/activities` },
+    { key: 'tasks',      labelZh: '任務',   icon: 'tasks',      href: `/${slug}/tasks` },
+    ...(canSeeAI
+      ? [{ key: 'ai', labelZh: 'AI 助理', icon: 'ai', href: `/${slug}/ai` }]
       : []),
-  ]
+    { key: 'users',      labelZh: '成員',   icon: 'users',      href: `/${slug}/admin/users`,
+      adminOnly: true },
+  ].filter((item) => !item.adminOnly || userRole === 'admin')
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ── Top header ── */}
-      <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          {/* Site slug — always visible */}
-          <span className="text-sm font-semibold text-gray-800 truncate">{slug}</span>
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <nav className="flex items-center justify-between px-4 sm:px-6 h-14">
 
-          {/* Desktop nav */}
-          <nav className="hidden sm:flex items-center gap-1 ml-2">
+          {/* Left: home icon (desktop) + slug (mobile only) */}
+          <div className="flex items-center gap-3 min-w-0 sm:w-10">
+            <a
+              href="https://bt.cyber-tech.com"
+              className="hidden sm:flex items-center text-gray-400 hover:text-gray-700 transition-colors shrink-0"
+              title="返回首頁"
+            >
+              <Icon name="home" />
+            </a>
+            {/* Mobile: show slug as brand */}
+            <span className="text-sm font-semibold text-gray-800 truncate sm:hidden">{slug}</span>
+          </div>
+
+          {/* Center: desktop nav links */}
+          <div className="hidden sm:flex items-center gap-1">
             {nav.map((item) => (
               <Link
                 key={item.key}
@@ -81,49 +107,59 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
                 {item.labelZh}
               </Link>
             ))}
-          </nav>
-        </div>
-
-        {user && (
-          <div className="relative shrink-0">
-            <button
-              onClick={() => setMenuOpen((o) => !o)}
-              className="flex items-center gap-2 rounded-full hover:bg-gray-100 p-1 transition-colors"
-            >
-              <Avatar name={user.name} avatarUrl={user.image} size="sm" />
-              <span className="text-sm text-gray-600 hidden sm:block pr-1">{user.name}</span>
-              <span className="hidden sm:block"><Icon name="chevron" className="text-gray-400" /></span>
-            </button>
-
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1">
-                  <div className="px-4 py-2 border-b border-gray-100 sm:hidden">
-                    <p className="text-xs font-medium text-gray-800 truncate">{user.name}</p>
-                    <p className="text-xs text-gray-400 truncate">{userRole}</p>
-                  </div>
-                  <button
-                    onClick={() => signOut({ callbackUrl: '/' })}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                  >
-                    <Icon name="logout" className="text-gray-400" />
-                    登出
-                  </button>
-                </div>
-              </>
-            )}
           </div>
-        )}
+
+          {/* Right: avatar */}
+          {user && (
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setMenuOpen((o) => !o)}
+                className="flex items-center gap-2 rounded-full hover:bg-gray-100 p-1 transition-colors"
+              >
+                <Avatar name={user.name} avatarUrl={user.image} size="sm" />
+                <span className="text-sm text-gray-600 hidden sm:block pr-1">{user.name}</span>
+                <span className="hidden sm:block"><Icon name="chevron" className="text-gray-400" /></span>
+              </button>
+
+              {menuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                  <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1">
+                    <div className="px-4 py-2 border-b border-gray-100 sm:hidden">
+                      <p className="text-xs font-medium text-gray-800 truncate">{user.name}</p>
+                      <p className="text-xs text-gray-400 truncate">{userRole}</p>
+                    </div>
+                    <button
+                      onClick={() => signOut({ callbackUrl: '/' })}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <Icon name="logout" className="text-gray-400" />
+                      登出
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </nav>
       </header>
 
-      {/* ── Main content — bottom padding on mobile for tab bar ── */}
+      {/* ── Main content ── */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-24 sm:pb-8">
         {children}
       </main>
 
       {/* ── Mobile bottom tab bar ── */}
       <nav className="sm:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 z-30 flex">
+        {/* Home tab — leftmost */}
+        <a
+          href="https://bt.cyber-tech.com"
+          className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-gray-400 hover:text-gray-700 transition-colors"
+        >
+          <Icon name="home" className="text-gray-400" />
+          <span className="text-[10px] font-medium">首頁</span>
+        </a>
+
         {nav.map((item) => {
           const active = activePage === item.key
           return (

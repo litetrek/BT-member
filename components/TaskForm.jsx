@@ -12,6 +12,7 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
   const [form, setForm] = useState({
     title: '',
     description: '',
+    task_type: '',
     activity_id: activities[0]?.id ?? '',
     status: 'open',
     assignee_1_id: '',
@@ -19,6 +20,7 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
     due_date: '',
   })
   const [users, setUsers] = useState([])
+  const [taskTypes, setTaskTypes] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -27,6 +29,7 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
       setForm({
         title: task.title,
         description: task.description ?? '',
+        task_type: task.task_type ?? '',
         activity_id: task.activity_id,
         status: task.status,
         assignee_1_id: task.assignee_1_id,
@@ -42,6 +45,16 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
       .then((r) => r.json())
       .then((d) => setUsers(Array.isArray(d) ? d.filter((u) => u.status !== 'invited') : []))
       .catch(() => setUsers([]))
+    fetch(`/api/task-types?event_id=${eventId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const list = Array.isArray(d) ? d : []
+        setTaskTypes(list)
+        if (!task && list.length > 0) {
+          setForm((f) => ({ ...f, task_type: list[0].name }))
+        }
+      })
+      .catch(() => {})
   }, [eventId])
 
   function set(key, val) {
@@ -57,6 +70,7 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
       ...form,
       slug,
       description: form.description || null,
+      task_type: form.task_type || null,
       assignee_2_id: form.assignee_2_id || null,
       due_date: form.due_date || null,
     }
@@ -107,6 +121,22 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
               className={`${inputCls} resize-none`}
             />
           </div>
+
+          {taskTypes.length > 0 && (
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">任務類型</label>
+              <select
+                value={form.task_type}
+                onChange={(e) => set('task_type', e.target.value)}
+                className={inputCls}
+              >
+                <option value="">不指定</option>
+                {taskTypes.map((tt) => (
+                  <option key={tt.id} value={tt.name}>{tt.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs text-gray-500 mb-1">活動</label>

@@ -10,6 +10,7 @@ import Spinner from '@/components/Spinner'
 
 const ROLES = ['admin', 'lead', 'member']
 const ROLE_LABELS = { admin: '管理員', lead: '負責人', member: '一般成員' }
+const DEFAULT_TYPE_NAMES = ['一般', '採購', '聯絡溝通', '現場工作']
 
 export default function AdminUsersPage() {
   const { data: session, status } = useSession()
@@ -25,6 +26,12 @@ export default function AdminUsersPage() {
   const [editForm, setEditForm] = useState({ name: '', role: 'member' })
   const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState('')
+
+  // Task types
+  const [taskTypes, setTaskTypes] = useState([])
+  const [newTypeName, setNewTypeName] = useState('')
+  const [addingType, setAddingType] = useState(false)
+  const [typeError, setTypeError] = useState('')
 
   const userRole = session?.user?.role
 
@@ -54,8 +61,46 @@ export default function AdminUsersPage() {
   }
 
   useEffect(() => {
-    if (eventId) loadMembers(eventId)
+    if (eventId) {
+      loadMembers(eventId)
+      loadTaskTypes(eventId)
+    }
   }, [eventId])
+
+  function loadTaskTypes(eid) {
+    fetch(`/api/task-types?event_id=${eid}`)
+      .then((r) => r.json())
+      .then((d) => setTaskTypes(Array.isArray(d) ? d : []))
+      .catch(() => {})
+  }
+
+  async function handleAddType(e) {
+    e.preventDefault()
+    const name = newTypeName.trim()
+    if (!name || !eventId) return
+    setAddingType(true)
+    setTypeError('')
+    const res = await fetch(`/api/task-types?event_id=${eventId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    if (res.ok) {
+      setNewTypeName('')
+      loadTaskTypes(eventId)
+    } else {
+      const d = await res.json().catch(() => ({}))
+      setTypeError(d.error ?? '新增失敗')
+    }
+    setAddingType(false)
+  }
+
+  async function handleDeleteType(id, name) {
+    if (DEFAULT_TYPE_NAMES.includes(name)) return
+    if (!confirm(`確定要刪除「${name}」類型嗎？`)) return
+    const res = await fetch(`/api/task-types/${id}`, { method: 'DELETE' })
+    if (res.ok) loadTaskTypes(eventId)
+  }
 
   function openEdit(m) {
     setEditTarget(m)
@@ -218,6 +263,55 @@ export default function AdminUsersPage() {
             </table>
           </div>
         )}
+        {/* Task Type Management */}
+        <section className="mt-10">
+          <h2 className="text-base font-semibold text-gray-900 mb-4">任務類型管理</h2>
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mb-4">
+            {taskTypes.length === 0 ? (
+              <p className="text-sm text-gray-400 px-4 py-3">尚無類型。</p>
+            ) : (
+              <ul className="divide-y divide-gray-50">
+                {taskTypes.map((tt) => {
+                  const isDefault = DEFAULT_TYPE_NAMES.includes(tt.name)
+                  return (
+                    <li key={tt.id} className="flex items-center justify-between px-4 py-2.5">
+                      <span className="text-sm text-gray-800">{tt.name}</span>
+                      {isDefault ? (
+                        <span className="text-xs text-gray-400">預設</span>
+                      ) : (
+                        <button
+                          onClick={() => handleDeleteType(tt.id, tt.name)}
+                          className="text-gray-400 hover:text-red-500 text-xs"
+                          title="刪除類型"
+                        >
+                          <span className="ti ti-trash text-sm" />
+                        </button>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+
+          <form onSubmit={handleAddType} className="flex gap-2 items-center">
+            <input
+              type="text"
+              value={newTypeName}
+              onChange={(e) => setNewTypeName(e.target.value)}
+              placeholder="新類型名稱"
+              className="flex-1 border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+            />
+            <button
+              type="submit"
+              disabled={addingType || !newTypeName.trim()}
+              className="text-sm bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 disabled:opacity-50 shrink-0"
+            >
+              + 新增類型
+            </button>
+          </form>
+          {typeError && <p className="text-xs text-red-500 mt-1">{typeError}</p>}
+        </section>
       </Layout>
 
       {/* Add Member modal */}

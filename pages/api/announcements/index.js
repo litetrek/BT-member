@@ -11,7 +11,12 @@ export default async function handler(req, res) {
 
     const { data, error } = await supabase
       .from('announcements')
-      .select('*, creator:created_by(name, avatar_url)')
+      .select(`
+        *,
+        creator:created_by(name, avatar_url),
+        reporter:reporter_id(name, avatar_url),
+        activity:activity_id(name)
+      `)
       .eq('event_id', event_id)
       .order('created_at', { ascending: false })
 
@@ -25,10 +30,18 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Forbidden' })
     }
 
-    const { event_id, message } = req.body
+    const { event_id, message, activity_id, reporter_id, reported_at } = req.body
+
     const { data, error } = await supabase
       .from('announcements')
-      .insert({ event_id, message, created_by: session.user.id })
+      .insert({
+        event_id,
+        message,
+        created_by:  session.user.id,
+        activity_id: activity_id || null,
+        reporter_id: reporter_id || null,
+        reported_at: reported_at || null,
+      })
       .select().single()
 
     if (error) return res.status(500).json({ error: error.message })

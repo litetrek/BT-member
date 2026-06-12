@@ -34,8 +34,18 @@ export default function TaskItem({ task, currentUserId, userRole, onStatusChange
         <p className={`text-sm text-gray-800 truncate ${isDone ? 'line-through text-gray-400' : ''}`}>
           {task.title}
         </p>
-        {task.activity?.name && (
-          <p className="text-xs text-gray-400 mt-0.5">{task.activity.name}</p>
+        {(task.activity?.name || task.task_type) && (
+          <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+            {task.activity?.name}
+            {task.activity?.name && task.task_type && task.task_type !== 'general' && (
+              <span className="text-gray-300">·</span>
+            )}
+            {task.task_type && task.task_type !== 'general' && (
+              <span className="inline-flex items-center px-1.5 py-0 rounded text-[10px] font-medium bg-gray-100 text-gray-500">
+                {task.task_type}
+              </span>
+            )}
+          </p>
         )}
       </div>
 

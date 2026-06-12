@@ -41,13 +41,13 @@ export default function ActivityCard({ activity, onEdit, onDelete, isAdmin }) {
       {isAdmin && (
         <div className="flex gap-2 pt-1 border-t border-gray-100">
           <button
-            onClick={() => onEdit(activity)}
+            onClick={(e) => { e.stopPropagation(); onEdit(activity) }}
             className="text-xs text-blue-600 hover:underline"
           >
             編輯
           </button>
           <button
-            onClick={() => onDelete(activity.id)}
+            onClick={(e) => { e.stopPropagation(); onDelete(activity.id) }}
             className="text-xs text-red-500 hover:underline"
           >
             刪除

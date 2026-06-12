@@ -5,6 +5,16 @@ import Head from 'next/head'
 import Layout from '@/components/Layout'
 import ActivityCard from '@/components/ActivityCard'
 import ActivityForm from '@/components/ActivityForm'
+import StatusUpdateForm from '@/components/StatusUpdateForm'
+import Avatar from '@/components/Avatar'
+
+function formatDateZh(ts) {
+  if (!ts) return ''
+  return new Date(ts).toLocaleString('zh-TW', {
+    year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
 
 export default function ActivitiesPage() {
   const { data: session, status } = useSession()
@@ -16,11 +26,11 @@ export default function ActivitiesPage() {
   const [eventId, setEventId] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [editActivity, setEditActivity] = useState(null)
-  const [newMsg, setNewMsg] = useState('')
-  const [postingMsg, setPostingMsg] = useState(false)
+  const [showStatusForm, setShowStatusForm] = useState(false)
+  const [selectedActivityId, setSelectedActivityId] = useState(null)
 
-  const isAdmin  = session?.user?.role === 'admin'
-  const canPost  = ['admin', 'lead'].includes(session?.user?.role)
+  const isAdmin = session?.user?.role === 'admin'
+  const canPost = ['admin', 'lead'].includes(session?.user?.role)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.replace(`/${slug}`)
@@ -66,19 +76,15 @@ export default function ActivitiesPage() {
     load()
   }
 
-  async function handlePostAnnouncement(e) {
-    e.preventDefault()
-    if (!newMsg.trim() || !eventId) return
-    setPostingMsg(true)
-    await fetch('/api/announcements', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event_id: eventId, message: newMsg }),
-    })
-    setNewMsg('')
-    loadAnnouncements(eventId)
-    setPostingMsg(false)
+  function handleActivityClick(activityId) {
+    setSelectedActivityId((prev) => prev === activityId ? null : activityId)
   }
+
+  const selectedActivity = activities.find((a) => a.id === selectedActivityId)
+
+  const visibleAnnouncements = selectedActivityId
+    ? announcements.filter((a) => a.activity_id === selectedActivityId)
+    : announcements
 
   return (
     <>
@@ -100,57 +106,113 @@ export default function ActivitiesPage() {
           <p className="text-sm text-gray-400 mb-8">尚無活動。</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
-            {activities.map((a) => (
-              <ActivityCard
-                key={a.id}
-                activity={a}
-                isAdmin={isAdmin}
-                onEdit={(act) => { setEditActivity(act); setShowForm(true) }}
-                onDelete={handleDelete}
-              />
-            ))}
+            {activities.map((a) => {
+              const isSelected = selectedActivityId === a.id
+              return (
+                <div
+                  key={a.id}
+                  className={`relative cursor-pointer rounded-xl transition-all ${
+                    isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+                  }`}
+                  onClick={() => handleActivityClick(a.id)}
+                >
+                  {isSelected && (
+                    <span className="absolute top-2 right-2 z-10 text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded-full">
+                      ✓ 已選取
+                    </span>
+                  )}
+                  <ActivityCard
+                    activity={a}
+                    isAdmin={isAdmin}
+                    onEdit={(act) => { setEditActivity(act); setShowForm(true) }}
+                    onDelete={handleDelete}
+                  />
+                </div>
+              )
+            })}
           </div>
         )}
 
         {/* Status Updates */}
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-medium text-gray-700">狀態更新</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-medium text-gray-700">狀態更新</h2>
+              {selectedActivityId ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-blue-600">
+                    顯示：{selectedActivity?.name} 的狀態更新
+                  </span>
+                  <button
+                    onClick={() => setSelectedActivityId(null)}
+                    className="text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    × 清除篩選
+                  </button>
+                </div>
+              ) : (
+                <span className="text-xs text-gray-400">所有狀態更新</span>
+              )}
+            </div>
+            {canPost && (
+              <button
+                onClick={() => setShowStatusForm(true)}
+                className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
+              >
+                + 新增狀態更新
+              </button>
+            )}
           </div>
 
-          {canPost && (
-            <form onSubmit={handlePostAnnouncement} className="flex gap-2 mb-4">
-              <input
-                type="text"
-                placeholder="輸入新的狀態更新…"
-                value={newMsg}
-                onChange={(e) => setNewMsg(e.target.value)}
-                className="flex-1 border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-              />
-              <button
-                type="submit"
-                disabled={postingMsg || !newMsg.trim()}
-                className="text-sm bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-              >
-                發佈
-              </button>
-            </form>
-          )}
-
-          {announcements.length === 0 ? (
+          {visibleAnnouncements.length === 0 ? (
             <p className="text-sm text-gray-400">尚無狀態更新。</p>
           ) : (
-            <div className="flex flex-col gap-2">
-              {announcements.map((a) => (
-                <div key={a.id} className="bg-white border border-gray-200 rounded-lg px-4 py-3">
-                  <p className="text-sm text-gray-800">{a.message}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {new Date(a.created_at).toLocaleDateString('zh-TW', {
-                      month: 'short', day: 'numeric', year: 'numeric',
-                    })}
-                  </p>
-                </div>
-              ))}
+            <div className="flex flex-col gap-3">
+              {visibleAnnouncements.map((a) => {
+                const activityName = a.activity
+                  ? a.activity.name
+                  : activities.find((act) => act.id === a.activity_id)?.name
+
+                const reporterName = a.reporter?.name ?? a.reporter?.email
+                const posterName   = a.creator?.name ?? a.creator?.email
+                const showOnBehalf = reporterName && posterName && a.reporter_id !== a.created_by
+
+                return (
+                  <div key={a.id} className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+                    <p className="text-sm text-gray-800 mb-2">{a.message}</p>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                      {activityName && (
+                        <button
+                          onClick={() => setSelectedActivityId(
+                            selectedActivityId === a.activity_id ? null : a.activity_id
+                          )}
+                          className="text-blue-600 hover:underline"
+                        >
+                          相關活動：{activityName}
+                        </button>
+                      )}
+                      {reporterName && (
+                        <span className="flex items-center gap-1">
+                          <Avatar
+                            name={reporterName}
+                            avatarUrl={a.reporter?.avatar_url}
+                            size="xs"
+                          />
+                          回報人：{reporterName}
+                        </span>
+                      )}
+                      <span>
+                        回報時間：{formatDateZh(a.reported_at ?? a.created_at)}
+                      </span>
+                      {showOnBehalf && (
+                        <span className="text-gray-400 italic">
+                          由 {posterName} 代為發佈
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </section>
@@ -161,6 +223,16 @@ export default function ActivitiesPage() {
             activity={editActivity}
             onClose={() => setShowForm(false)}
             onSaved={() => { setShowForm(false); load() }}
+          />
+        )}
+
+        {showStatusForm && eventId && (
+          <StatusUpdateForm
+            eventId={eventId}
+            activities={activities}
+            currentUserId={session?.user?.id}
+            onClose={() => setShowStatusForm(false)}
+            onSaved={() => { setShowStatusForm(false); loadAnnouncements(eventId) }}
           />
         )}
       </Layout>
