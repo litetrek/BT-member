@@ -2,45 +2,46 @@ import {
   Html, Head, Body, Container, Preview,
   Heading, Text, Section, Hr, Link,
 } from '@react-email/components'
+import { t } from '@/lib/lang'
 
 const base = process.env.NEXT_PUBLIC_APP_URL || 'https://bt.cyber-tech.com'
 
 export default function LeadDigestEmail({ user = {}, activity = {}, tasks = [], slug = '', lang = 'zh' }) {
-  const isEn = lang === 'en'
-  const locale = isEn ? 'en-US' : 'zh-TW'
+  const locale = lang === 'en' ? 'en-US' : 'zh-TW'
 
-  const STATUS_LABEL = isEn
-    ? { open: 'Not Started', in_progress: 'In Progress', done: 'Done' }
-    : { open: '未開始', in_progress: '進行中', done: '已完成' }
+  const STATUS_LABEL = {
+    open:        t(lang, 'Not Started', '未開始'),
+    in_progress: t(lang, 'In Progress', '進行中'),
+    done:        t(lang, 'Done',        '已完成'),
+  }
   const STATUS_COLOR = { open: '#6b7280', in_progress: '#d97706', done: '#16a34a' }
 
   const byStatus = {
-    in_progress: tasks.filter((t) => t.status === 'in_progress'),
-    open:        tasks.filter((t) => t.status === 'open'),
-    done:        tasks.filter((t) => t.status === 'done'),
+    in_progress: tasks.filter((tk) => tk.status === 'in_progress'),
+    open:        tasks.filter((tk) => tk.status === 'open'),
+    done:        tasks.filter((tk) => tk.status === 'done'),
   }
 
   return (
     <Html>
       <Head />
-      <Preview>
-        {isEn ? `Activity summary · ${activity.name}` : `活動進度摘要 · ${activity.name}`}
-      </Preview>
+      <Preview>{t(lang, 'Activity Summary', '活動摘要')} · {activity.name}</Preview>
       <Body style={styles.body}>
         <Container style={styles.container}>
           <Heading style={styles.h1}>
-            {isEn ? 'Activity summary' : '活動進度摘要'}
+            {t(lang, 'Activity summary', '活動進度摘要')}
           </Heading>
           <Text style={styles.subtitle}>{activity.name}</Text>
           <Text style={styles.intro}>
-            {isEn
-              ? `Hi ${user.name ?? user.email}, here is the current status of tasks in your activity.`
-              : `${user.name ?? user.email} 您好，以下是您負責活動的最新任務狀態。`}
+            {t(lang,
+              `Hi ${user.name ?? user.email}, here is the current status of tasks in your activity.`,
+              `${user.name ?? user.email} 您好，以下是您負責活動的最新任務狀態。`
+            )}
           </Text>
 
           {tasks.length === 0 ? (
             <Text style={styles.muted}>
-              {isEn ? 'No tasks in this activity yet.' : '此活動目前尚無任務。'}
+              {t(lang, 'No tasks in this activity yet.', '此活動目前尚無任務。')}
             </Text>
           ) : (
             Object.entries(byStatus).map(([statusKey, group]) =>
@@ -54,11 +55,11 @@ export default function LeadDigestEmail({ user = {}, activity = {}, tasks = [], 
                       <Text style={styles.cardTitle}>{task.title}</Text>
                       <Text style={styles.cardMeta}>
                         {task.due_date
-                          ? `${isEn ? 'Due' : '到期'}: ${new Date(task.due_date + 'T00:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' })}`
-                          : (isEn ? 'No due date' : '無到期日')}
+                          ? `${t(lang, 'Due', '到期')}: ${new Date(task.due_date + 'T00:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' })}`
+                          : t(lang, 'No due date', '無到期日')}
                       </Text>
                       <Link href={`${base}/${slug}/tasks?id=${task.id}`} style={styles.link}>
-                        {isEn ? 'View task →' : '查看任務 →'}
+                        {t(lang, 'View task →', '查看任務 →')}
                       </Link>
                     </div>
                   ))}
@@ -69,7 +70,7 @@ export default function LeadDigestEmail({ user = {}, activity = {}, tasks = [], 
 
           <Hr style={styles.hr} />
           <Text style={styles.footer}>
-            {isEn ? 'Reply to this email to contact admin.' : '如有問題，請回覆此郵件聯繫管理員。'}
+            {t(lang, 'Reply to this email to contact admin.', '如有問題，請回覆此郵件聯繫管理員。')}
           </Text>
         </Container>
       </Body>

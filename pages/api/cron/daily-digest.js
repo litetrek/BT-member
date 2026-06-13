@@ -66,7 +66,7 @@ export default async function handler(req, res) {
 
     const { data: users } = await supabase
       .from('users')
-      .select('id, name, email, lang')
+      .select('id, name, email, preferred_lang')
       .in('id', members.map((m) => m.user_id))
       .not('name', 'is', null) // skip placeholder invited users
 
@@ -84,7 +84,7 @@ export default async function handler(req, res) {
 
     for (const [uid, tasks] of Object.entries(overdueByUser)) {
       if (alreadySent.has(`${uid}:overdue_reminder`)) continue
-      await sendOverdueReminder(userMap[uid], tasks, event.slug, event.id)
+      await sendOverdueReminder(userMap[uid], tasks, event.slug, event.id, userMap[uid].preferred_lang ?? 'zh')
       alreadySent.add(`${uid}:overdue_reminder`)
       totalSent++
     }
@@ -98,7 +98,7 @@ export default async function handler(req, res) {
       const userTasks = allTasks.filter(
         (t) => t.assignee_1_id === user.id || t.assignee_2_id === user.id
       )
-      await sendDailyDigest(user, userTasks, event.slug, event.id)
+      await sendDailyDigest(user, userTasks, event.slug, event.id, user.preferred_lang ?? 'zh')
       alreadySent.add(`${user.id}:daily_digest`)
       totalSent++
     }
@@ -112,7 +112,7 @@ export default async function handler(req, res) {
         if (alreadySent.has(key)) continue
 
         const activityTasks = allTasks.filter((t) => t.activity_id === activity.id)
-        await sendLeadDigest(user, activity, activityTasks, event.slug, event.id)
+        await sendLeadDigest(user, activity, activityTasks, event.slug, event.id, user.preferred_lang ?? 'zh')
         alreadySent.add(key)
         totalSent++
       }

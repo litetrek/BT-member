@@ -2,28 +2,27 @@ import {
   Html, Head, Body, Container, Preview,
   Heading, Text, Section, Hr, Link,
 } from '@react-email/components'
+import { t } from '@/lib/lang'
 
 const base = process.env.NEXT_PUBLIC_APP_URL || 'https://bt.cyber-tech.com'
 
 export default function OverdueReminderEmail({ user = {}, tasks = [], slug = '', lang = 'zh' }) {
-  const isEn = lang === 'en'
-  const locale = isEn ? 'en-US' : 'zh-TW'
+  const locale = lang === 'en' ? 'en-US' : 'zh-TW'
 
   return (
     <Html>
       <Head />
-      <Preview>
-        {isEn ? 'Action needed — overdue tasks · BT Annual Event' : '注意：逾期任務提醒 · BT 年度活動'}
-      </Preview>
+      <Preview>{t(lang, '⚠️ Overdue Tasks', '⚠️ 逾期任務提醒')}</Preview>
       <Body style={styles.body}>
         <Container style={styles.container}>
           <Heading style={styles.h1}>
-            {isEn ? 'Action needed — overdue tasks' : '注意：您有逾期任務'}
+            {t(lang, 'Action needed — overdue tasks', '注意：您有逾期任務')}
           </Heading>
           <Text style={styles.intro}>
-            {isEn
-              ? `Hi ${user.name ?? user.email}, the following tasks are past their due date and still open.`
-              : `${user.name ?? user.email} 您好，以下任務已逾期且尚未完成，請盡快處理。`}
+            {t(lang,
+              `Hi ${user.name ?? user.email}, the following tasks are past their due date and still open.`,
+              `${user.name ?? user.email} 您好，以下任務已逾期且尚未完成，請盡快處理。`
+            )}
           </Text>
 
           <Section>
@@ -31,7 +30,7 @@ export default function OverdueReminderEmail({ user = {}, tasks = [], slug = '',
               <div key={task.id} style={styles.card}>
                 <Text style={styles.cardTitle}>{task.title}</Text>
                 <Text style={styles.cardMeta}>
-                  {isEn ? 'Due:' : '到期日：'}{' '}
+                  {t(lang, 'Due:', '到期日：')}{' '}
                   <span style={{ color: '#dc2626' }}>
                     {task.due_date
                       ? new Date(task.due_date + 'T00:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })
@@ -39,7 +38,7 @@ export default function OverdueReminderEmail({ user = {}, tasks = [], slug = '',
                   </span>
                 </Text>
                 <Link href={`${base}/${slug}/tasks?id=${task.id}`} style={styles.link}>
-                  {isEn ? 'View task →' : '查看任務 →'}
+                  {t(lang, 'View task →', '查看任務 →')}
                 </Link>
               </div>
             ))}
@@ -47,7 +46,7 @@ export default function OverdueReminderEmail({ user = {}, tasks = [], slug = '',
 
           <Hr style={styles.hr} />
           <Text style={styles.footer}>
-            {isEn ? 'Reply to this email to contact admin.' : '如有問題，請回覆此郵件聯繫管理員。'}
+            {t(lang, 'Reply to this email to contact admin.', '如有問題，請回覆此郵件聯繫管理員。')}
           </Text>
         </Container>
       </Body>
