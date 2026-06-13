@@ -52,12 +52,12 @@ export default function Home() {
 
   return (
     <>
-      <Head><title>佛誕活動</title></Head>
+      <Head><title>聖天湖佛教城</title></Head>
       <div className="min-h-screen bg-gray-50">
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             <div>
-              <h1 className="font-semibold text-gray-900">佛誕活動</h1>
+              <h1 className="font-semibold text-gray-900">聖天湖佛教城</h1>
               <p className="text-xs text-gray-500">bt.cyber-tech.com</p>
             </div>
             {session?.user?.role === 'admin' && (

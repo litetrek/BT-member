@@ -30,7 +30,7 @@ export default function EventLogin() {
 
   return (
     <>
-      <Head><title>{event?.name ?? slug} · 佛誕活動</title></Head>
+      <Head><title>{event?.name ?? slug} · 聖天湖佛教城</title></Head>
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
         <div className="bg-white border border-gray-200 rounded-xl p-8 w-full max-w-sm text-center">
           <Link href="/" className="text-xs text-gray-400 hover:text-gray-600 block mb-6">

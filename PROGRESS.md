@@ -228,7 +228,7 @@ CREATE POLICY "log_insert" ON activity_log FOR INSERT WITH CHECK (auth.role() = 
 - `components/TaskDetail.jsx` — all labels; history descriptions in Chinese; relative time in Chinese
 - `components/AISummary.jsx` — time ranges: 最近 4 小時 / 最近 24 小時 / 最近 7 天
 - `components/Layout.jsx` — desktop nav uses Chinese labels; 登出
-- `pages/index.jsx` — 佛誕活動, 進行中/已結束 status badges, 載入中…, 尚無活動
+- `pages/index.jsx` — 聖天湖佛教城, 進行中/已結束 status badges, 載入中…, 尚無活動
 - `pages/[slug]/index.jsx` — 以 Google 帳號登入, 僅限團隊成員 · 需要邀請
 - `pages/[slug]/dashboard.jsx` — 總覽, 總任務/已完成/進行中/逾期, 我的任務, 活動進度
 - `pages/[slug]/activities.jsx` — 活動, 狀態更新 (was Announcements), 發佈, 新增活動
