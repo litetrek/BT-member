@@ -1,4 +1,6 @@
-export default function StatusBadge({ status, dueDate }) {
+import { t } from '@/lib/i18n'
+
+export default function StatusBadge({ status, dueDate, lang = 'zh' }) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -15,10 +17,10 @@ export default function StatusBadge({ status, dueDate }) {
   }
 
   const labels = {
-    open:        '未開始',
-    in_progress: '進行中',
-    done:        '已完成',
-    overdue:     '逾期',
+    open:        t(lang, 'Not Started', '未開始'),
+    in_progress: t(lang, 'In Progress', '進行中'),
+    done:        t(lang, 'Done',        '已完成'),
+    overdue:     t(lang, 'Overdue',     '逾期'),
   }
 
   return (

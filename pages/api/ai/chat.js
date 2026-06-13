@@ -17,15 +17,17 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Forbidden' })
   }
 
-  const { event_id, question, conversation_history = [] } = req.body
+  const { event_id, question, conversation_history = [], lang: bodyLang } = req.body
   if (!event_id || !question) {
     return res.status(400).json({ error: 'event_id and question are required' })
   }
 
+  // Accept lang from request body; fallback to session, then 'zh'
+  const lang = (bodyLang === 'en' || bodyLang === 'zh') ? bodyLang : (session.user?.lang ?? 'zh')
+
   const supabase = createServerClient()
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-  // Fetch activities first to get their IDs
   const { data: activities } = await supabase
     .from('activities')
     .select('id, name, icon')
@@ -34,7 +36,6 @@ export default async function handler(req, res) {
 
   const activityIds = (activities ?? []).map((a) => a.id)
 
-  // Parallel fetch of tasks, log, and announcements
   const [tasksResult, logResult, announcementsResult] = await Promise.all([
     activityIds.length > 0
       ? supabase
@@ -64,35 +65,52 @@ export default async function handler(req, res) {
   const log           = logResult.data ?? []
   const announcements = announcementsResult.data ?? []
 
-  // Build context sections
   const activityMap = Object.fromEntries((activities ?? []).map((a) => [a.id, a.name]))
 
-  const taskLines = tasks.map((t) => {
-    const act   = activityMap[t.activity_id] ?? '未知活動'
-    const a1    = t.assignee1?.name ?? '—'
-    const a2    = t.assignee2?.name
-    const who   = a2 ? `${a1}、${a2}` : a1
-    const due   = t.due_date ?? '無'
-    const desc  = t.description ? `；描述：${t.description.substring(0, 60)}` : ''
-    const note  = t.note       ? `；備注：${t.note.substring(0, 60)}`       : ''
-    return `[${act}] ${t.title}（${t.status}，負責：${who}，到期：${due}${desc}${note}）`
+  const dateLocale = lang === 'en' ? 'en-US' : 'zh-TW'
+
+  const taskLines = tasks.map((tk) => {
+    const act  = activityMap[tk.activity_id] ?? (lang === 'en' ? 'Unknown Activity' : '未知活動')
+    const a1   = tk.assignee1?.name ?? '—'
+    const a2   = tk.assignee2?.name
+    const who  = a2 ? `${a1}, ${a2}` : a1
+    const due  = tk.due_date ?? (lang === 'en' ? 'none' : '無')
+    const desc = tk.description ? `; desc: ${tk.description.substring(0, 60)}` : ''
+    const note = tk.note       ? `; note: ${tk.note.substring(0, 60)}`       : ''
+    return `[${act}] ${tk.title} (${tk.status}, assignee: ${who}, due: ${due}${desc}${note})`
   }).join('\n')
 
   const logLines = log.map((e) => {
-    const actor  = e.actor?.name ?? '某人'
-    const dt     = new Date(e.created_at).toLocaleDateString('zh-TW')
+    const actor  = e.actor?.name ?? (lang === 'en' ? 'Someone' : '某人')
+    const dt     = new Date(e.created_at).toLocaleDateString(dateLocale)
     const detail = e.field_changed
-      ? `，${e.field_changed}：${e.old_value ?? ''} → ${e.new_value ?? ''}`
-      : e.note ? `，備注：${e.note}` : ''
-    return `${dt} ${actor} ${e.action}「${e.entity_name ?? ''}」${detail}`
+      ? `, ${e.field_changed}: ${e.old_value ?? ''} → ${e.new_value ?? ''}`
+      : e.note ? `, note: ${e.note}` : ''
+    return `${dt} ${actor} ${e.action} "${e.entity_name ?? ''}"${detail}`
   }).join('\n')
 
   const annLines = announcements.map((a) => {
-    const dt = new Date(a.created_at).toLocaleDateString('zh-TW')
-    return `${dt}：${a.message}`
+    const dt = new Date(a.created_at).toLocaleDateString(dateLocale)
+    return `${dt}: ${a.message}`
   }).join('\n')
 
-  const systemPrompt = `你是一位活動管理助理，負責協助團隊負責人了解活動進度。
+  const systemPrompt = lang === 'en'
+    ? `You are an event management assistant helping team leads understand event progress.
+Use the data below to answer questions. Respond in English, concisely (under 150 words).
+If a question is outside the available data, say so.
+
+[Activities]
+${(activities ?? []).map((a) => a.name).join(', ') || '(none)'}
+
+[Tasks]
+${taskLines || '(none)'}
+
+[Recent Log — 30 days]
+${logLines || '(none)'}
+
+[Recent Announcements]
+${annLines || '(none)'}`
+    : `你是一位活動管理助理，負責協助團隊負責人了解活動進度。
 以下是目前活動的完整資料，請根據這些資料回答問題。
 回答請使用繁體中文，簡潔清楚，不超過 150 字。
 如果問題超出資料範圍，請說明你無法從現有資料中找到答案。
@@ -109,12 +127,15 @@ ${logLines || '（無紀錄）'}
 [最近公告]
 ${annLines || '（無公告）'}`
 
-  // Slice history to last 10 and append current question
   const trimmedHistory = conversation_history.slice(-10)
   const messages = [
     ...trimmedHistory,
     { role: 'user', content: question },
   ]
+
+  const fallbackError = lang === 'en'
+    ? 'Sorry, unable to get a response.'
+    : '抱歉，無法取得回應。'
 
   const response = await client.messages.create({
     model:      'claude-sonnet-4-6',
@@ -123,7 +144,7 @@ ${annLines || '（無公告）'}`
     messages,
   })
 
-  const answer = response.content[0]?.text ?? '抱歉，無法取得回應。'
+  const answer = response.content[0]?.text ?? fallbackError
   const updated_history = [
     ...trimmedHistory,
     { role: 'user',      content: question },

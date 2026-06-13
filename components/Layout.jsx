@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
 import Avatar from './Avatar'
+import { t } from '@/lib/i18n'
 
 function Icon({ name, className = '' }) {
   const icons = {
@@ -57,21 +58,25 @@ function Icon({ name, className = '' }) {
   return icons[name] ?? null
 }
 
-export default function Layout({ children, slug, activePage, user, userRole }) {
+export default function Layout({ children, slug, activePage, user, userRole, lang = 'zh', onLangChange }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   const canSeeAI = ['admin', 'lead'].includes(userRole)
 
   const nav = [
-    { key: 'dashboard',  labelZh: '總覽',   icon: 'dashboard',  href: `/${slug}/dashboard` },
-    { key: 'activities', labelZh: '活動',   icon: 'activities', href: `/${slug}/activities` },
-    { key: 'tasks',      labelZh: '任務',   icon: 'tasks',      href: `/${slug}/tasks` },
+    { key: 'dashboard',  label: t(lang, 'Overview',    '總覽'),   icon: 'dashboard',  href: `/${slug}/dashboard` },
+    { key: 'activities', label: t(lang, 'Activities',  '活動'),   icon: 'activities', href: `/${slug}/activities` },
+    { key: 'tasks',      label: t(lang, 'Tasks',       '任務'),   icon: 'tasks',      href: `/${slug}/tasks` },
     ...(canSeeAI
-      ? [{ key: 'ai', labelZh: 'AI 助理', icon: 'ai', href: `/${slug}/ai` }]
+      ? [{ key: 'ai', label: t(lang, 'AI Assistant', 'AI 助理'), icon: 'ai', href: `/${slug}/ai` }]
       : []),
-    { key: 'users',      labelZh: '成員',   icon: 'users',      href: `/${slug}/admin/users`,
-      adminOnly: true },
+    { key: 'users', label: t(lang, 'Members', '成員'), icon: 'users', href: `/${slug}/admin/users`, adminOnly: true },
   ].filter((item) => !item.adminOnly || userRole === 'admin')
+
+  async function handleLangToggle() {
+    const newLang = lang === 'zh' ? 'en' : 'zh'
+    if (onLangChange) onLangChange(newLang)
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -84,11 +89,10 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
             <a
               href="https://bt.cyber-tech.com"
               className="hidden sm:flex items-center text-gray-400 hover:text-gray-700 transition-colors shrink-0"
-              title="返回首頁"
+              title={t(lang, 'Back to Home', '返回首頁')}
             >
               <Icon name="home" />
             </a>
-            {/* Mobile: show slug as brand */}
             <span className="text-sm font-semibold text-gray-800 truncate sm:hidden">{slug}</span>
           </div>
 
@@ -104,12 +108,12 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
                     : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
-                {item.labelZh}
+                {item.label}
               </Link>
             ))}
           </div>
 
-          {/* Right: avatar */}
+          {/* Right: avatar + dropdown */}
           {user && (
             <div className="relative shrink-0">
               <button
@@ -124,17 +128,31 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
               {menuOpen && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1">
+                  <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1">
                     <div className="px-4 py-2 border-b border-gray-100 sm:hidden">
                       <p className="text-xs font-medium text-gray-800 truncate">{user.name}</p>
                       <p className="text-xs text-gray-400 truncate">{userRole}</p>
                     </div>
+
+                    {/* Language toggle */}
+                    {onLangChange && (
+                      <button
+                        onClick={() => { handleLangToggle(); setMenuOpen(false) }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+                      >
+                        <span>{t(lang, 'Language', '語言')}</span>
+                        <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                          {lang === 'zh' ? 'EN' : '中文'}
+                        </span>
+                      </button>
+                    )}
+
                     <button
                       onClick={() => signOut({ callbackUrl: '/' })}
                       className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                     >
                       <Icon name="logout" className="text-gray-400" />
-                      登出
+                      {t(lang, 'Sign Out', '登出')}
                     </button>
                   </div>
                 </>
@@ -151,13 +169,12 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
 
       {/* ── Mobile bottom tab bar ── */}
       <nav className="sm:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 z-30 flex">
-        {/* Home tab — leftmost */}
         <a
           href="https://bt.cyber-tech.com"
           className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-gray-400 hover:text-gray-700 transition-colors"
         >
           <Icon name="home" className="text-gray-400" />
-          <span className="text-[10px] font-medium">首頁</span>
+          <span className="text-[10px] font-medium">{t(lang, 'Home', '首頁')}</span>
         </a>
 
         {nav.map((item) => {
@@ -171,7 +188,7 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
               }`}
             >
               <Icon name={item.icon} className={active ? 'text-blue-600' : 'text-gray-400'} />
-              <span className="text-[10px] font-medium">{item.labelZh}</span>
+              <span className="text-[10px] font-medium">{item.label}</span>
             </Link>
           )
         })}

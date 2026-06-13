@@ -7,10 +7,13 @@ import ActivityCard from '@/components/ActivityCard'
 import ActivityForm from '@/components/ActivityForm'
 import StatusUpdateForm from '@/components/StatusUpdateForm'
 import Avatar from '@/components/Avatar'
+import { useLang } from '@/lib/useLang'
+import { t } from '@/lib/i18n'
 
-function formatDateZh(ts) {
+function formatDate(ts, lang) {
   if (!ts) return ''
-  return new Date(ts).toLocaleString('zh-TW', {
+  const locale = lang === 'en' ? 'en-US' : 'zh-TW'
+  return new Date(ts).toLocaleString(locale, {
     year: 'numeric', month: 'long', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
   })
@@ -20,6 +23,7 @@ export default function ActivitiesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { slug } = router.query
+  const [lang, updateLang] = useLang()
 
   const [activities, setActivities] = useState([])
   const [announcements, setAnnouncements] = useState([])
@@ -71,7 +75,7 @@ export default function ActivitiesPage() {
   }, [slug, status])
 
   async function handleDelete(id) {
-    if (!confirm('確定要刪除此活動嗎？')) return
+    if (!confirm(t(lang, 'Delete this activity?', '確定要刪除此活動嗎？'))) return
     await fetch(`/api/activities/${id}`, { method: 'DELETE' })
     load()
   }
@@ -88,22 +92,22 @@ export default function ActivitiesPage() {
 
   return (
     <>
-      <Head><title>活動 · {slug}</title></Head>
-      <Layout slug={slug} activePage="activities" user={session?.user} userRole={session?.user?.role}>
+      <Head><title>{t(lang, 'Activities', '活動')} · {slug}</title></Head>
+      <Layout slug={slug} activePage="activities" user={session?.user} userRole={session?.user?.role} lang={lang} onLangChange={updateLang}>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-lg font-semibold text-gray-900">活動</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t(lang, 'Activities', '活動')}</h1>
           {isAdmin && (
             <button
               onClick={() => { setEditActivity(null); setShowForm(true) }}
               className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
             >
-              + 新增活動
+              + {t(lang, 'Add Activity', '新增活動')}
             </button>
           )}
         </div>
 
         {activities.length === 0 ? (
-          <p className="text-sm text-gray-400 mb-8">尚無活動。</p>
+          <p className="text-sm text-gray-400 mb-8">{t(lang, 'No activities yet.', '尚無活動。')}</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
             {activities.map((a) => {
@@ -118,7 +122,7 @@ export default function ActivitiesPage() {
                 >
                   {isSelected && (
                     <span className="absolute top-2 right-2 z-10 text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded-full">
-                      ✓ 已選取
+                      ✓ {t(lang, 'Selected', '已選取')}
                     </span>
                   )}
                   <ActivityCard
@@ -126,6 +130,7 @@ export default function ActivitiesPage() {
                     isAdmin={isAdmin}
                     onEdit={(act) => { setEditActivity(act); setShowForm(true) }}
                     onDelete={handleDelete}
+                    lang={lang}
                   />
                 </div>
               )
@@ -137,21 +142,21 @@ export default function ActivitiesPage() {
         <section>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <h2 className="text-sm font-medium text-gray-700">狀態更新</h2>
+              <h2 className="text-sm font-medium text-gray-700">{t(lang, 'Status Updates', '狀態更新')}</h2>
               {selectedActivityId ? (
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-blue-600">
-                    顯示：{selectedActivity?.name} 的狀態更新
+                    {t(lang, `Showing: ${selectedActivity?.name}`, `顯示：${selectedActivity?.name} 的狀態更新`)}
                   </span>
                   <button
                     onClick={() => setSelectedActivityId(null)}
                     className="text-xs text-gray-400 hover:text-gray-600"
                   >
-                    × 清除篩選
+                    × {t(lang, 'Clear filter', '清除篩選')}
                   </button>
                 </div>
               ) : (
-                <span className="text-xs text-gray-400">所有狀態更新</span>
+                <span className="text-xs text-gray-400">{t(lang, 'All updates', '所有狀態更新')}</span>
               )}
             </div>
             {canPost && (
@@ -159,13 +164,13 @@ export default function ActivitiesPage() {
                 onClick={() => setShowStatusForm(true)}
                 className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
               >
-                + 新增狀態更新
+                + {t(lang, 'Add Status Update', '新增狀態更新')}
               </button>
             )}
           </div>
 
           {visibleAnnouncements.length === 0 ? (
-            <p className="text-sm text-gray-400">尚無狀態更新。</p>
+            <p className="text-sm text-gray-400">{t(lang, 'No status updates yet.', '尚無狀態更新。')}</p>
           ) : (
             <div className="flex flex-col gap-3">
               {visibleAnnouncements.map((a) => {
@@ -188,7 +193,7 @@ export default function ActivitiesPage() {
                           )}
                           className="text-blue-600 hover:underline"
                         >
-                          相關活動：{activityName}
+                          {t(lang, `Activity: ${activityName}`, `相關活動：${activityName}`)}
                         </button>
                       )}
                       {reporterName && (
@@ -198,15 +203,15 @@ export default function ActivitiesPage() {
                             avatarUrl={a.reporter?.avatar_url}
                             size="xs"
                           />
-                          回報人：{reporterName}
+                          {t(lang, `Reporter: ${reporterName}`, `回報人：${reporterName}`)}
                         </span>
                       )}
                       <span>
-                        回報時間：{formatDateZh(a.reported_at ?? a.created_at)}
+                        {t(lang, 'Time:', '回報時間：')}{formatDate(a.reported_at ?? a.created_at, lang)}
                       </span>
                       {showOnBehalf && (
                         <span className="text-gray-400 italic">
-                          由 {posterName} 代為發佈
+                          {t(lang, `Posted by ${posterName}`, `由 ${posterName} 代為發佈`)}
                         </span>
                       )}
                     </div>
@@ -223,6 +228,7 @@ export default function ActivitiesPage() {
             activity={editActivity}
             onClose={() => setShowForm(false)}
             onSaved={() => { setShowForm(false); load() }}
+            lang={lang}
           />
         )}
 
@@ -234,6 +240,7 @@ export default function ActivitiesPage() {
             defaultActivityId={selectedActivityId}
             onClose={() => setShowStatusForm(false)}
             onSaved={() => { setShowStatusForm(false); loadAnnouncements(eventId) }}
+            lang={lang}
           />
         )}
       </Layout>

@@ -1,6 +1,6 @@
 # BT-Member Event Management — Progress Snapshot
 
-## Day 5 Complete — AI Page, Voice Input, Status Update Modal, Activity Filter, Nav Redesign, Task Tabs, Task Types
+## Day 6 Complete — Per-Member Language Preference (EN / ZH)
 
 ---
 
@@ -423,13 +423,103 @@ ALTER TABLE announcements ADD COLUMN IF NOT EXISTS reported_at timestamptz;
 
 ---
 
+## What Was Built — Day 6
+
+### Per-Member Language Preference (EN / ZH)
+
+**System default remains `zh` (Traditional Chinese). All existing behavior preserved.**
+
+#### Schema (apply via `scripts/migrate-day6.js` or Supabase SQL Editor)
+```sql
+ALTER TABLE users ADD COLUMN IF NOT EXISTS lang text NOT NULL DEFAULT 'zh';
+```
+
+#### New Files
+
+**`lib/i18n.js`**
+- `export const t = (lang, en, zh) => lang === 'en' ? en : zh`
+- Zero-dependency translation helper; `lang` defaults to `'zh'` everywhere
+
+**`lib/useLang.js`**
+- `useLang()` hook — reads `session.user.lang`, manages local state
+- `[lang, updateLang]` — `updateLang(newLang)` persists to DB via API, reflects immediately in UI
+
+**`pages/api/users/me/lang.js`**
+- `PUT /api/users/me/lang` — any authenticated user can update their own lang
+- Accepts `{ lang: 'en' | 'zh' }`, updates `users.lang`
+- No admin required (self-service)
+
+**`scripts/migrate-day6.js`**
+- One-time migration: adds `lang text NOT NULL DEFAULT 'zh'` to `users` table
+
+#### Infrastructure Changes
+
+**`lib/auth.js`** — session callback now selects `id, lang` from users:
+- `session.user.lang = dbUser.lang ?? 'zh'`
+
+**`components/Layout.jsx`** — new props: `lang`, `onLangChange`
+- Avatar dropdown shows Language toggle: clicking switches EN ↔ 中文
+- Nav labels (`Overview`, `Activities`, `Tasks`, `AI Assistant`, `Members`, `Home`, `Sign Out`) translate per lang
+- Bottom tab bar labels translate per lang
+
+#### Components Updated (all accept `lang` prop)
+
+| Component | Changes |
+|---|---|
+| `StatusBadge` | Status labels bilingual |
+| `ActivityCard` | "tasks done" / edit / delete bilingual |
+| `TaskItem` | Date locale: `en-US` or `zh-TW` per lang |
+| `ConfirmDialog` | Cancel / default delete label bilingual |
+| `TaskDetail` | All labels + history descriptions + relative time bilingual; reads lang from `useSession()` |
+| `TaskForm` | All form labels bilingual |
+| `ActivityForm` | All form labels bilingual |
+| `StatusUpdateForm` | All form labels bilingual |
+| `InviteForm` | All form labels + role labels bilingual |
+| `AISummary` | All UI text bilingual; TTS lang switches to `en-US` for EN users |
+| `AIChat` | All UI text bilingual; voice input lang switches to `en-US` for EN users |
+
+#### Pages Updated
+
+All pages now use `useLang()` and pass `lang` + `onLangChange` to Layout and components:
+
+- `pages/[slug]/dashboard.jsx` — stat labels, section headers, empty states
+- `pages/[slug]/activities.jsx` — activity/status update UI, date format per locale
+- `pages/[slug]/tasks.jsx` — all tabs, filters, section headers, empty states
+- `pages/[slug]/admin/users.jsx` — table headers, role labels, status badges, task type section
+- `pages/[slug]/ai.jsx` — passes lang to AISummary and AIChat
+
+#### AI APIs
+
+**`pages/api/ai/summary.js`** — reads `lang` from query string (sent by AISummary):
+- `lang=en`: English prompt → English summary
+- `lang=zh` (default): Chinese prompt → Chinese summary
+
+**`pages/api/ai/chat.js`** — reads `lang` from request body (sent by AIChat):
+- `lang=en`: English system prompt → English Q&A
+- `lang=zh` (default): Chinese system prompt → Chinese Q&A
+
+#### Email System
+
+**`emails/DailyDigest.jsx`** — accepts `lang` prop; all text bilingual
+**`emails/LeadDigest.jsx`** — accepts `lang` prop; all text bilingual
+**`emails/OverdueReminder.jsx`** — accepts `lang` prop; all text bilingual
+**`lib/email.js`** — reads `user.lang` to set bilingual subject lines and pass `lang` to templates
+**`pages/api/cron/daily-digest.js`** — now fetches `lang` from users table for each recipient
+
+---
+
 ## Current State
 
-- Full Traditional Chinese UI across all pages and components
+- Per-user language preference: `zh` (Traditional Chinese, default) or `en` (English)
+- Language toggle in avatar dropdown on every page — persists to DB immediately
+- Full Traditional Chinese UI across all pages and components (unchanged for zh users)
+- Full English UI available for `en` users across all pages, components, AI responses, emails
+- AI summary and chat respond in the user's chosen language
+- Email digests and overdue reminders use the recipient's chosen language
 - Three-tier task permission model: admin/lead → assignee → creator
 - Task description + title inline editing
 - AI 助理 page (separate from dashboard) — admin/lead only
-- Voice input in AI Chat (zh-TW, Web Speech API)
+- Voice input in AI Chat (zh-TW or en-US per lang)
 - Status updates: modal form with activity/reporter/time fields; clickable activity filter
 - Nav: home icon (left) + centered links + avatar (right); AI tab for admin/lead only
 - Task tabs: 全部任務 / 我的任務（按狀態）/ 我的任務（按活動）
@@ -440,6 +530,11 @@ ALTER TABLE announcements ADD COLUMN IF NOT EXISTS reported_at timestamptz;
 
 ## Pending / Supabase Manual Steps
 
+- **Run Day 6 migration BEFORE deploying:** `node scripts/migrate-day6.js`
+  OR paste into Supabase SQL Editor:
+  ```sql
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS lang text NOT NULL DEFAULT 'zh';
+  ```
 - **`ANTHROPIC_API_KEY`** must be set in `.env.local` and Vercel env vars
 - **`CRON_SECRET`** must be set in Vercel environment variables
 - Trigger announcement emails from Activities page (currently only posted to DB)

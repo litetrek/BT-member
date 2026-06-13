@@ -7,15 +7,23 @@ import Avatar from '@/components/Avatar'
 import InviteForm from '@/components/InviteForm'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import Spinner from '@/components/Spinner'
+import { useLang } from '@/lib/useLang'
+import { t } from '@/lib/i18n'
 
-const ROLES = ['admin', 'lead', 'member']
-const ROLE_LABELS = { admin: '管理員', lead: '負責人', member: '一般成員' }
 const DEFAULT_TYPE_NAMES = ['一般', '採購', '聯絡溝通', '現場工作']
 
 export default function AdminUsersPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { slug } = router.query
+  const [lang, updateLang] = useLang()
+
+  const ROLES = ['admin', 'lead', 'member']
+  const ROLE_LABELS = {
+    admin:  t(lang, 'Admin',  '管理員'),
+    lead:   t(lang, 'Lead',   '負責人'),
+    member: t(lang, 'Member', '一般成員'),
+  }
 
   const [members, setMembers] = useState([])
   const [eventId, setEventId] = useState(null)
@@ -27,7 +35,6 @@ export default function AdminUsersPage() {
   const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
-  // Task types
   const [taskTypes, setTaskTypes] = useState([])
   const [newTypeName, setNewTypeName] = useState('')
   const [addingType, setAddingType] = useState(false)
@@ -90,14 +97,14 @@ export default function AdminUsersPage() {
       loadTaskTypes(eventId)
     } else {
       const d = await res.json().catch(() => ({}))
-      setTypeError(d.error ?? '新增失敗')
+      setTypeError(d.error ?? t(lang, 'Add failed', '新增失敗'))
     }
     setAddingType(false)
   }
 
   async function handleDeleteType(id, name) {
     if (DEFAULT_TYPE_NAMES.includes(name)) return
-    if (!confirm(`確定要刪除「${name}」類型嗎？`)) return
+    if (!confirm(t(lang, `Delete type "${name}"?`, `確定要刪除「${name}」類型嗎？`))) return
     const res = await fetch(`/api/task-types/${id}`, { method: 'DELETE' })
     if (res.ok) loadTaskTypes(eventId)
   }
@@ -121,7 +128,7 @@ export default function AdminUsersPage() {
       loadMembers(eventId)
     } else {
       const d = await res.json().catch(() => ({}))
-      setEditError(d.error ?? '儲存失敗')
+      setEditError(d.error ?? t(lang, 'Save failed', '儲存失敗'))
     }
     setSaving(false)
   }
@@ -139,31 +146,31 @@ export default function AdminUsersPage() {
 
   return (
     <>
-      <Head><title>團隊 · {slug}</title></Head>
-      <Layout slug={slug} activePage="users" user={session?.user} userRole={userRole}>
+      <Head><title>{t(lang, 'Team', '團隊')} · {slug}</title></Head>
+      <Layout slug={slug} activePage="users" user={session?.user} userRole={userRole} lang={lang} onLangChange={updateLang}>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-lg font-semibold text-gray-900">團隊成員</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t(lang, 'Team Members', '團隊成員')}</h1>
           <button
             onClick={() => setShowAdd(true)}
             className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
           >
-            + 新增成員
+            + {t(lang, 'Add Member', '新增成員')}
           </button>
         </div>
 
         {loading ? (
           <div className="flex justify-center py-16"><Spinner /></div>
         ) : active.length === 0 && pending.length === 0 ? (
-          <p className="text-sm text-gray-400">尚無團隊成員。</p>
+          <p className="text-sm text-gray-400">{t(lang, 'No team members yet.', '尚無團隊成員。')}</p>
         ) : (
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">成員</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">電子郵件</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">角色</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">狀態</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{t(lang, 'Member', '成員')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{t(lang, 'Email', '電子郵件')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{t(lang, 'Role', '角色')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{t(lang, 'Status', '狀態')}</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -188,7 +195,7 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
-                        活躍
+                        {t(lang, 'Active', '活躍')}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -197,7 +204,7 @@ export default function AdminUsersPage() {
                           <button
                             onClick={(e) => { e.stopPropagation(); setRemoveTarget(m) }}
                             className="text-gray-400 hover:text-red-500"
-                            title="移除成員"
+                            title={t(lang, 'Remove member', '移除成員')}
                           >
                             <span className="ti ti-trash text-sm" />
                           </button>
@@ -212,7 +219,7 @@ export default function AdminUsersPage() {
                     <tr>
                       <td colSpan={5} className="px-4 py-2 bg-gray-50">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                          尚未登入
+                          {t(lang, 'Not Yet Signed In', '尚未登入')}
                         </span>
                       </td>
                     </tr>
@@ -236,14 +243,14 @@ export default function AdminUsersPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                            待確認
+                            {t(lang, 'Pending', '待確認')}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <button
                             onClick={() => setRemoveTarget(m)}
                             className="text-gray-400 hover:text-red-500"
-                            title="移除"
+                            title={t(lang, 'Remove', '移除')}
                           >
                             <span className="ti ti-trash text-sm" />
                           </button>
@@ -256,12 +263,13 @@ export default function AdminUsersPage() {
             </table>
           </div>
         )}
+
         {/* Task Type Management */}
         <section className="mt-10">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">任務類型管理</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-4">{t(lang, 'Task Type Management', '任務類型管理')}</h2>
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mb-4">
             {taskTypes.length === 0 ? (
-              <p className="text-sm text-gray-400 px-4 py-3">尚無類型。</p>
+              <p className="text-sm text-gray-400 px-4 py-3">{t(lang, 'No types yet.', '尚無類型。')}</p>
             ) : (
               <ul className="divide-y divide-gray-50">
                 {taskTypes.map((tt) => {
@@ -270,12 +278,12 @@ export default function AdminUsersPage() {
                     <li key={tt.id} className="flex items-center justify-between px-4 py-2.5">
                       <span className="text-sm text-gray-800">{tt.name}</span>
                       {isDefault ? (
-                        <span className="text-xs text-gray-400">預設</span>
+                        <span className="text-xs text-gray-400">{t(lang, 'Default', '預設')}</span>
                       ) : (
                         <button
                           onClick={() => handleDeleteType(tt.id, tt.name)}
                           className="text-gray-400 hover:text-red-500 text-xs"
-                          title="刪除類型"
+                          title={t(lang, 'Delete type', '刪除類型')}
                         >
                           <span className="ti ti-trash text-sm" />
                         </button>
@@ -292,7 +300,7 @@ export default function AdminUsersPage() {
               type="text"
               value={newTypeName}
               onChange={(e) => setNewTypeName(e.target.value)}
-              placeholder="新類型名稱"
+              placeholder={t(lang, 'New type name', '新類型名稱')}
               className="flex-1 border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
             />
             <button
@@ -300,7 +308,7 @@ export default function AdminUsersPage() {
               disabled={addingType || !newTypeName.trim()}
               className="text-sm bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 disabled:opacity-50 shrink-0"
             >
-              + 新增類型
+              + {t(lang, 'Add Type', '新增類型')}
             </button>
           </form>
           {typeError && <p className="text-xs text-red-500 mt-1">{typeError}</p>}
@@ -313,6 +321,7 @@ export default function AdminUsersPage() {
           eventId={eventId}
           onClose={() => setShowAdd(false)}
           onSaved={() => { setShowAdd(false); loadMembers(eventId) }}
+          lang={lang}
         />
       )}
 
@@ -320,16 +329,16 @@ export default function AdminUsersPage() {
       {editTarget && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-lg">
-            <h2 className="font-semibold text-gray-900 mb-4">編輯成員</h2>
+            <h2 className="font-semibold text-gray-900 mb-4">{t(lang, 'Edit Member', '編輯成員')}</h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">電子郵件</label>
+                <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Email', '電子郵件')}</label>
                 <p className="text-sm text-gray-400 px-3 py-2 bg-gray-50 rounded border border-gray-100">
                   {editTarget.email}
                 </p>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">姓名</label>
+                <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Name', '姓名')}</label>
                 <input
                   type="text"
                   value={editForm.name}
@@ -338,7 +347,7 @@ export default function AdminUsersPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">角色</label>
+                <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Role', '角色')}</label>
                 <select
                   value={editForm.role}
                   onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}
@@ -355,14 +364,14 @@ export default function AdminUsersPage() {
                   onClick={() => setEditTarget(null)}
                   className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
                 >
-                  取消
+                  {t(lang, 'Cancel', '取消')}
                 </button>
                 <button
                   onClick={handleSaveEdit}
                   disabled={saving}
                   className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {saving ? '儲存中…' : '儲存'}
+                  {saving ? t(lang, 'Saving…', '儲存中…') : t(lang, 'Save', '儲存')}
                 </button>
               </div>
             </div>
@@ -373,10 +382,14 @@ export default function AdminUsersPage() {
       {/* Remove confirm */}
       {removeTarget && (
         <ConfirmDialog
-          message={`確定要從此活動移除 ${removeTarget.name ?? removeTarget.email} 嗎？`}
-          confirmLabel="移除"
+          message={t(lang,
+            `Remove ${removeTarget.name ?? removeTarget.email} from this event?`,
+            `確定要從此活動移除 ${removeTarget.name ?? removeTarget.email} 嗎？`
+          )}
+          confirmLabel={t(lang, 'Remove', '移除')}
           onConfirm={() => handleRemove(removeTarget.id)}
           onCancel={() => setRemoveTarget(null)}
+          lang={lang}
         />
       )}
     </>

@@ -5,10 +5,15 @@ import {
 
 const base = process.env.NEXT_PUBLIC_APP_URL || 'https://bt.cyber-tech.com'
 
-const STATUS_LABEL = { open: 'Open', in_progress: 'In Progress', done: 'Done' }
-const STATUS_COLOR = { open: '#6b7280', in_progress: '#d97706', done: '#16a34a' }
+export default function LeadDigestEmail({ user = {}, activity = {}, tasks = [], slug = '', lang = 'zh' }) {
+  const isEn = lang === 'en'
+  const locale = isEn ? 'en-US' : 'zh-TW'
 
-export default function LeadDigestEmail({ user = {}, activity = {}, tasks = [], slug = '' }) {
+  const STATUS_LABEL = isEn
+    ? { open: 'Not Started', in_progress: 'In Progress', done: 'Done' }
+    : { open: '未開始', in_progress: '進行中', done: '已完成' }
+  const STATUS_COLOR = { open: '#6b7280', in_progress: '#d97706', done: '#16a34a' }
+
   const byStatus = {
     in_progress: tasks.filter((t) => t.status === 'in_progress'),
     open:        tasks.filter((t) => t.status === 'open'),
@@ -18,17 +23,25 @@ export default function LeadDigestEmail({ user = {}, activity = {}, tasks = [], 
   return (
     <Html>
       <Head />
-      <Preview>Activity summary · {activity.name}</Preview>
+      <Preview>
+        {isEn ? `Activity summary · ${activity.name}` : `活動進度摘要 · ${activity.name}`}
+      </Preview>
       <Body style={styles.body}>
         <Container style={styles.container}>
-          <Heading style={styles.h1}>Activity summary</Heading>
+          <Heading style={styles.h1}>
+            {isEn ? 'Activity summary' : '活動進度摘要'}
+          </Heading>
           <Text style={styles.subtitle}>{activity.name}</Text>
           <Text style={styles.intro}>
-            Hi {user.name ?? user.email}, here is the current status of tasks in your activity.
+            {isEn
+              ? `Hi ${user.name ?? user.email}, here is the current status of tasks in your activity.`
+              : `${user.name ?? user.email} 您好，以下是您負責活動的最新任務狀態。`}
           </Text>
 
           {tasks.length === 0 ? (
-            <Text style={styles.muted}>No tasks in this activity yet.</Text>
+            <Text style={styles.muted}>
+              {isEn ? 'No tasks in this activity yet.' : '此活動目前尚無任務。'}
+            </Text>
           ) : (
             Object.entries(byStatus).map(([statusKey, group]) =>
               group.length > 0 ? (
@@ -41,11 +54,11 @@ export default function LeadDigestEmail({ user = {}, activity = {}, tasks = [], 
                       <Text style={styles.cardTitle}>{task.title}</Text>
                       <Text style={styles.cardMeta}>
                         {task.due_date
-                          ? `Due: ${new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-                          : 'No due date'}
+                          ? `${isEn ? 'Due' : '到期'}: ${new Date(task.due_date + 'T00:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' })}`
+                          : (isEn ? 'No due date' : '無到期日')}
                       </Text>
                       <Link href={`${base}/${slug}/tasks?id=${task.id}`} style={styles.link}>
-                        View task →
+                        {isEn ? 'View task →' : '查看任務 →'}
                       </Link>
                     </div>
                   ))}
@@ -55,7 +68,9 @@ export default function LeadDigestEmail({ user = {}, activity = {}, tasks = [], 
           )}
 
           <Hr style={styles.hr} />
-          <Text style={styles.footer}>Reply to this email to contact admin.</Text>
+          <Text style={styles.footer}>
+            {isEn ? 'Reply to this email to contact admin.' : '如有問題，請回覆此郵件聯繫管理員。'}
+          </Text>
         </Container>
       </Body>
     </Html>

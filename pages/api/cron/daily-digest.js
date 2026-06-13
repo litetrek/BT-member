@@ -66,7 +66,7 @@ export default async function handler(req, res) {
 
     const { data: users } = await supabase
       .from('users')
-      .select('id, name, email')
+      .select('id, name, email, lang')
       .in('id', members.map((m) => m.user_id))
       .not('name', 'is', null) // skip placeholder invited users
 

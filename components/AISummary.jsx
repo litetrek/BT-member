@@ -1,12 +1,13 @@
 import { useState, useRef } from 'react'
+import { t } from '@/lib/i18n'
 
-const RANGES = [
-  { value: '4',   label: '最近 4 小時' },
-  { value: '24',  label: '最近 24 小時' },
-  { value: '168', label: '最近 7 天' },
+const RANGES = (lang) => [
+  { value: '4',   label: t(lang, 'Last 4 hrs',  '最近 4 小時') },
+  { value: '24',  label: t(lang, 'Last 24 hrs', '最近 24 小時') },
+  { value: '168', label: t(lang, 'Last 7 days', '最近 7 天') },
 ]
 
-export default function AISummary({ eventId }) {
+export default function AISummary({ eventId, lang = 'zh' }) {
   const [hours, setHours]     = useState('24')
   const [summary, setSummary] = useState('')
   const [loading, setLoading] = useState(false)
@@ -22,11 +23,11 @@ export default function AISummary({ eventId }) {
     setCount(null)
     stopSpeaking()
 
-    const res = await fetch(`/api/ai/summary?event_id=${eventId}&hours=${hours}`)
+    const res = await fetch(`/api/ai/summary?event_id=${eventId}&hours=${hours}&lang=${lang}`)
     const d = await res.json().catch(() => ({}))
 
     if (!res.ok) {
-      setError(d.error ?? 'Failed to generate summary')
+      setError(d.error ?? t(lang, 'Failed to generate summary', '摘要生成失敗'))
     } else {
       setSummary(d.summary ?? '')
       setCount(d.entry_count ?? null)
@@ -39,7 +40,7 @@ export default function AISummary({ eventId }) {
     stopSpeaking()
 
     const utterance = new SpeechSynthesisUtterance(summary)
-    utterance.lang = 'zh-TW'
+    utterance.lang = lang === 'en' ? 'en-US' : 'zh-TW'
     utterance.rate = 0.9
 
     utterance.onstart = () => setSpeaking(true)
@@ -55,12 +56,14 @@ export default function AISummary({ eventId }) {
     setSpeaking(false)
   }
 
+  const ranges = RANGES(lang)
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4">
       <div className="flex items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
           <span className="ti ti-brain text-purple-500" />
-          <h3 className="text-sm font-medium text-gray-800">AI 活動摘要</h3>
+          <h3 className="text-sm font-medium text-gray-800">{t(lang, 'AI Activity Summary', 'AI 活動摘要')}</h3>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -68,7 +71,7 @@ export default function AISummary({ eventId }) {
             onChange={(e) => setHours(e.target.value)}
             className="border border-gray-200 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-purple-400"
           >
-            {RANGES.map((r) => (
+            {ranges.map((r) => (
               <option key={r.value} value={r.value}>{r.label}</option>
             ))}
           </select>
@@ -80,9 +83,9 @@ export default function AISummary({ eventId }) {
             {loading ? (
               <>
                 <span className="ti ti-loader-2 animate-spin text-xs" />
-                <span>思考中…</span>
+                <span>{t(lang, 'Thinking…', '思考中…')}</span>
               </>
-            ) : '生成'}
+            ) : t(lang, 'Generate', '生成')}
           </button>
         </div>
       </div>
@@ -94,7 +97,9 @@ export default function AISummary({ eventId }) {
           <p className="text-sm text-gray-700 leading-relaxed">{summary}</p>
           <div className="flex items-center justify-between mt-3">
             {count !== null && (
-              <p className="text-xs text-gray-400">{count} 筆記錄已分析</p>
+              <p className="text-xs text-gray-400">
+                {lang === 'en' ? `${count} records analyzed` : `${count} 筆記錄已分析`}
+              </p>
             )}
             <button
               onClick={speaking ? stopSpeaking : speak}
@@ -105,14 +110,19 @@ export default function AISummary({ eventId }) {
               }`}
             >
               <span className={`ti ${speaking ? 'ti-player-stop' : 'ti-volume'} text-xs`} />
-              {speaking ? '停止' : '朗讀'}
+              {speaking ? t(lang, 'Stop', '停止') : t(lang, 'Read Aloud', '朗讀')}
             </button>
           </div>
         </div>
       )}
 
       {!summary && !loading && !error && (
-        <p className="text-xs text-gray-400">選擇時間範圍並點擊「生成」以摘要近期活動。</p>
+        <p className="text-xs text-gray-400">
+          {t(lang,
+            'Select a time range and click "Generate" to summarize recent activity.',
+            '選擇時間範圍並點擊「生成」以摘要近期活動。'
+          )}
+        </p>
       )}
     </div>
   )

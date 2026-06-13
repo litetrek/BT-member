@@ -1,7 +1,7 @@
 import Avatar from './Avatar'
 import StatusBadge from './StatusBadge'
 
-export default function TaskItem({ task, currentUserId, userRole, onStatusChange, onEdit, onOpen, highlighted }) {
+export default function TaskItem({ task, currentUserId, userRole, onStatusChange, onEdit, onOpen, highlighted, lang = 'zh' }) {
   const isAssignee = task.assignee_1_id === currentUserId || task.assignee_2_id === currentUserId
   const canCheck = isAssignee
   const canEdit = ['admin', 'lead'].includes(userRole)
@@ -12,6 +12,8 @@ export default function TaskItem({ task, currentUserId, userRole, onStatusChange
     if (!canCheck) return
     onStatusChange(task.id, isDone ? 'open' : 'done')
   }
+
+  const dateLocale = lang === 'en' ? 'en-US' : 'zh-TW'
 
   return (
     <div
@@ -50,11 +52,11 @@ export default function TaskItem({ task, currentUserId, userRole, onStatusChange
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        <StatusBadge status={task.status} dueDate={task.due_date} />
+        <StatusBadge status={task.status} dueDate={task.due_date} lang={lang} />
 
         {task.due_date && (
           <span className="text-xs text-gray-400 hidden sm:block">
-            {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            {new Date(task.due_date + 'T00:00:00').toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}
           </span>
         )}
 
@@ -79,7 +81,7 @@ export default function TaskItem({ task, currentUserId, userRole, onStatusChange
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(task) }}
             className="text-gray-400 hover:text-gray-700 ml-1"
-            title="Edit task"
+            title={lang === 'en' ? 'Edit task' : '編輯任務'}
           >
             <span className="ti ti-pencil text-sm" />
           </button>

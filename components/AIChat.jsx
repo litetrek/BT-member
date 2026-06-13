@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { t } from '@/lib/i18n'
 
 function MicIcon({ recording, className = '' }) {
   if (recording) {
@@ -21,7 +22,7 @@ function MicIcon({ recording, className = '' }) {
   )
 }
 
-export default function AIChat({ eventId }) {
+export default function AIChat({ eventId, lang = 'zh' }) {
   const [messages, setMessages] = useState([])
   const [history,  setHistory]  = useState([])
   const [input,    setInput]    = useState('')
@@ -31,7 +32,6 @@ export default function AIChat({ eventId }) {
   const bottomRef = useRef(null)
   const recognitionRef = useRef(null)
 
-  // Check for SpeechRecognition support
   useEffect(() => {
     const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
     setHasSpeech(!!SR)
@@ -45,7 +45,7 @@ export default function AIChat({ eventId }) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) return
     const rec = new SR()
-    rec.lang = 'zh-TW'
+    rec.lang = lang === 'en' ? 'en-US' : 'zh-TW'
     rec.continuous = false
     rec.interimResults = false
 
@@ -72,6 +72,11 @@ export default function AIChat({ eventId }) {
     if (recording) { stopRecording() } else { startRecording() }
   }
 
+  const errMsg = t(lang,
+    'Sorry, unable to get a response. Please try again.',
+    '抱歉，無法取得回應，請再試一次。'
+  )
+
   async function send() {
     const q = input.trim()
     if (!q || loading) return
@@ -86,14 +91,14 @@ export default function AIChat({ eventId }) {
       const res = await fetch('/api/ai/chat', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ event_id: eventId, question: q, conversation_history: history }),
+        body:    JSON.stringify({ event_id: eventId, question: q, conversation_history: history, lang }),
       })
       const data = await res.json()
-      const answer = res.ok ? (data.answer ?? '抱歉，無法取得回應，請再試一次。') : '抱歉，無法取得回應，請再試一次。'
+      const answer = res.ok ? (data.answer ?? errMsg) : errMsg
       if (res.ok && data.updated_history) setHistory(data.updated_history)
       setMessages((m) => m.map((msg) => msg === pending ? { ...msg, content: answer } : msg))
     } catch {
-      setMessages((m) => m.map((msg) => msg === pending ? { ...msg, content: '抱歉，無法取得回應，請再試一次。' } : msg))
+      setMessages((m) => m.map((msg) => msg === pending ? { ...msg, content: errMsg } : msg))
     }
     setLoading(false)
   }
@@ -116,14 +121,14 @@ export default function AIChat({ eventId }) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <span className="ti ti-message-chatbot text-blue-500 text-lg" />
-          <span className="text-sm font-medium text-gray-800">AI 問答助理</span>
+          <span className="text-sm font-medium text-gray-800">{t(lang, 'AI Q&A Assistant', 'AI 問答助理')}</span>
         </div>
         {messages.length > 0 && (
           <button
             onClick={clearChat}
             className="text-xs text-gray-400 hover:text-gray-600"
           >
-            清除對話
+            {t(lang, 'Clear Chat', '清除對話')}
           </button>
         )}
       </div>
@@ -131,7 +136,12 @@ export default function AIChat({ eventId }) {
       {/* Messages */}
       <div className="px-4 py-3 flex flex-col gap-3 min-h-[120px] max-h-80 overflow-y-auto">
         {messages.length === 0 && (
-          <p className="text-xs text-gray-400 text-center mt-4">請輸入問題，例如：「有哪些任務逾期？」</p>
+          <p className="text-xs text-gray-400 text-center mt-4">
+            {t(lang,
+              'Ask a question, e.g. "Which tasks are overdue?"',
+              '請輸入問題，例如：「有哪些任務逾期？」'
+            )}
+          </p>
         )}
         {messages.map((msg, i) => {
           const isUser = msg.role === 'user'
@@ -145,7 +155,7 @@ export default function AIChat({ eventId }) {
                 }`}
               >
                 {msg.content === null ? (
-                  <span className="text-gray-400 italic">思考中…</span>
+                  <span className="text-gray-400 italic">{t(lang, 'Thinking…', '思考中…')}</span>
                 ) : msg.content}
               </div>
             </div>
@@ -161,7 +171,7 @@ export default function AIChat({ eventId }) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           rows={1}
-          placeholder="輸入問題… (Enter 送出)"
+          placeholder={t(lang, 'Enter question… (Enter to send)', '輸入問題… (Enter 送出)')}
           disabled={loading}
           className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none disabled:opacity-50"
         />
@@ -170,7 +180,7 @@ export default function AIChat({ eventId }) {
           <button
             type="button"
             onClick={toggleMic}
-            title="語音輸入"
+            title={t(lang, 'Voice Input', '語音輸入')}
             className={`p-2 rounded-lg border transition-colors shrink-0 ${
               recording
                 ? 'border-red-400 bg-red-50 text-red-500 animate-pulse'
@@ -186,7 +196,7 @@ export default function AIChat({ eventId }) {
           disabled={loading || !input.trim()}
           className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 shrink-0"
         >
-          送出
+          {t(lang, 'Send', '送出')}
         </button>
       </div>
     </div>

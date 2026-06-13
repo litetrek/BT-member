@@ -1,9 +1,10 @@
 import Avatar from './Avatar'
+import { t } from '@/lib/i18n'
 
-export default function ActivityCard({ activity, onEdit, onDelete, isAdmin }) {
+export default function ActivityCard({ activity, onEdit, onDelete, isAdmin, lang = 'zh' }) {
   const tasks = activity.tasks ?? []
   const total = tasks.length
-  const done = tasks.filter((t) => t.status === 'done').length
+  const done = tasks.filter((tk) => tk.status === 'done').length
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
 
   return (
@@ -27,7 +28,11 @@ export default function ActivityCard({ activity, onEdit, onDelete, isAdmin }) {
 
       <div>
         <div className="flex justify-between text-xs text-gray-500 mb-1">
-          <span>{done}/{total} 個任務已完成</span>
+          <span>
+            {lang === 'en'
+              ? `${done}/${total} tasks done`
+              : `${done}/${total} 個任務已完成`}
+          </span>
           <span>{pct}%</span>
         </div>
         <div className="w-full bg-gray-100 rounded-full h-1.5">
@@ -44,13 +49,13 @@ export default function ActivityCard({ activity, onEdit, onDelete, isAdmin }) {
             onClick={(e) => { e.stopPropagation(); onEdit(activity) }}
             className="text-xs text-blue-600 hover:underline"
           >
-            編輯
+            {t(lang, 'Edit', '編輯')}
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(activity.id) }}
             className="text-xs text-red-500 hover:underline"
           >
-            刪除
+            {t(lang, 'Delete', '刪除')}
           </button>
         </div>
       )}

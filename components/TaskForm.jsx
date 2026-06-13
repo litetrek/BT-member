@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
+import { t } from '@/lib/i18n'
 
-const STATUS_OPTIONS = [
-  { value: 'open',        label: '未開始' },
-  { value: 'in_progress', label: '進行中' },
-  { value: 'done',        label: '已完成' },
-]
-
-export default function TaskForm({ slug, eventId, task, activities, onClose, onSaved, onDelete }) {
+export default function TaskForm({ slug, eventId, task, activities, onClose, onSaved, onDelete, lang = 'zh' }) {
   const isEdit = !!task
+
+  const STATUS_OPTIONS = [
+    { value: 'open',        label: t(lang, 'Not Started', '未開始') },
+    { value: 'in_progress', label: t(lang, 'In Progress', '進行中') },
+    { value: 'done',        label: t(lang, 'Done',        '已完成') },
+  ]
 
   const [form, setForm] = useState({
     title: '',
@@ -88,7 +89,7 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
       onSaved()
     } else {
       const d = await res.json().catch(() => ({}))
-      setError(d.error ?? '儲存失敗')
+      setError(d.error ?? t(lang, 'Save failed', '儲存失敗'))
     }
     setSaving(false)
   }
@@ -98,10 +99,12 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-lg max-h-[90vh] overflow-y-auto">
-        <h2 className="font-semibold text-gray-900 mb-4">{isEdit ? '編輯任務' : '新增任務'}</h2>
+        <h2 className="font-semibold text-gray-900 mb-4">
+          {isEdit ? t(lang, 'Edit Task', '編輯任務') : t(lang, 'New Task', '新增任務')}
+        </h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">標題</label>
+            <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Title', '標題')}</label>
             <input
               type="text"
               required
@@ -112,25 +115,25 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">任務描述</label>
+            <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Description', '任務描述')}</label>
             <textarea
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
               rows={3}
-              placeholder="請輸入任務說明（選填）"
+              placeholder={t(lang, 'Enter task description (optional)', '請輸入任務說明（選填）')}
               className={`${inputCls} resize-none`}
             />
           </div>
 
           {taskTypes.length > 0 && (
             <div>
-              <label className="block text-xs text-gray-500 mb-1">任務類型</label>
+              <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Task Type', '任務類型')}</label>
               <select
                 value={form.task_type}
                 onChange={(e) => set('task_type', e.target.value)}
                 className={inputCls}
               >
-                <option value="">不指定</option>
+                <option value="">{t(lang, 'None', '不指定')}</option>
                 {taskTypes.map((tt) => (
                   <option key={tt.id} value={tt.name}>{tt.name}</option>
                 ))}
@@ -139,14 +142,14 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
           )}
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">活動</label>
+            <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Activity', '活動')}</label>
             <select
               value={form.activity_id}
               onChange={(e) => set('activity_id', e.target.value)}
               required
               className={inputCls}
             >
-              <option value="">選擇活動…</option>
+              <option value="">{t(lang, 'Select activity…', '選擇活動…')}</option>
               {activities.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
@@ -154,7 +157,7 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">狀態</label>
+            <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Status', '狀態')}</label>
             <select value={form.status} onChange={(e) => set('status', e.target.value)} className={inputCls}>
               {STATUS_OPTIONS.map((s) => (
                 <option key={s.value} value={s.value}>{s.label}</option>
@@ -163,14 +166,14 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">負責人一</label>
+            <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Assignee 1', '負責人一')}</label>
             <select
               value={form.assignee_1_id}
               onChange={(e) => set('assignee_1_id', e.target.value)}
               required
               className={inputCls}
             >
-              <option value="">選擇負責人…</option>
+              <option value="">{t(lang, 'Select assignee…', '選擇負責人…')}</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>{u.name ?? u.email}</option>
               ))}
@@ -178,13 +181,13 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">負責人二（選填）</label>
+            <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Assignee 2 (optional)', '負責人二（選填）')}</label>
             <select
               value={form.assignee_2_id}
               onChange={(e) => set('assignee_2_id', e.target.value)}
               className={inputCls}
             >
-              <option value="">無</option>
+              <option value="">{t(lang, 'None', '無')}</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>{u.name ?? u.email}</option>
               ))}
@@ -192,7 +195,7 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">到期日</label>
+            <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Due Date', '到期日')}</label>
             <input
               type="date"
               value={form.due_date}
@@ -210,7 +213,7 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
                 onClick={onDelete}
                 className="text-xs text-red-500 hover:text-red-700"
               >
-                刪除任務
+                {t(lang, 'Delete Task', '刪除任務')}
               </button>
             )}
             <div className="flex gap-2 ml-auto">
@@ -219,14 +222,14 @@ export default function TaskForm({ slug, eventId, task, activities, onClose, onS
                 onClick={onClose}
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
               >
-                取消
+                {t(lang, 'Cancel', '取消')}
               </button>
               <button
                 type="submit"
                 disabled={saving}
                 className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
               >
-                {saving ? '儲存中…' : '儲存'}
+                {saving ? t(lang, 'Saving…', '儲存中…') : t(lang, 'Save', '儲存')}
               </button>
             </div>
           </div>

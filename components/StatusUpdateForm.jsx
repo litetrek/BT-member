@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { t } from '@/lib/i18n'
 
 function nowLocalDatetime() {
   const d = new Date()
@@ -6,7 +7,7 @@ function nowLocalDatetime() {
   return d.toISOString().slice(0, 16)
 }
 
-export default function StatusUpdateForm({ eventId, activities, currentUserId, defaultActivityId, onClose, onSaved }) {
+export default function StatusUpdateForm({ eventId, activities, currentUserId, defaultActivityId, onClose, onSaved, lang = 'zh' }) {
   const [members, setMembers] = useState([])
   const [form, setForm] = useState({
     message: '',
@@ -51,7 +52,7 @@ export default function StatusUpdateForm({ eventId, activities, currentUserId, d
       onSaved()
     } else {
       const d = await res.json().catch(() => ({}))
-      setError(d.error ?? '發佈失敗')
+      setError(d.error ?? t(lang, 'Post failed', '發佈失敗'))
     }
     setSaving(false)
   }
@@ -61,30 +62,30 @@ export default function StatusUpdateForm({ eventId, activities, currentUserId, d
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-lg max-h-[90vh] overflow-y-auto">
-        <h2 className="font-semibold text-gray-900 mb-4">新增狀態更新</h2>
+        <h2 className="font-semibold text-gray-900 mb-4">{t(lang, 'New Status Update', '新增狀態更新')}</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">狀態更新內容</label>
+            <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Update Content', '狀態更新內容')}</label>
             <textarea
               required
               rows={4}
               value={form.message}
               onChange={(e) => set('message', e.target.value)}
-              placeholder="請輸入狀態更新…"
+              placeholder={t(lang, 'Enter status update…', '請輸入狀態更新…')}
               className={`${inputCls} resize-none`}
             />
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">相關活動</label>
+            <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Related Activity', '相關活動')}</label>
             <select
               required
               value={form.activity_id}
               onChange={(e) => set('activity_id', e.target.value)}
               className={inputCls}
             >
-              <option value="">選擇活動…</option>
+              <option value="">{t(lang, 'Select activity…', '選擇活動…')}</option>
               {activities.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
@@ -92,13 +93,13 @@ export default function StatusUpdateForm({ eventId, activities, currentUserId, d
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">回報人</label>
+            <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Reporter', '回報人')}</label>
             <select
               value={form.reporter_id}
               onChange={(e) => set('reporter_id', e.target.value)}
               className={inputCls}
             >
-              <option value="">不指定</option>
+              <option value="">{t(lang, 'Unspecified', '不指定')}</option>
               {members.map((u) => (
                 <option key={u.id} value={u.id}>{u.name ?? u.email}</option>
               ))}
@@ -106,7 +107,7 @@ export default function StatusUpdateForm({ eventId, activities, currentUserId, d
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">回報時間</label>
+            <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Report Time', '回報時間')}</label>
             <input
               type="datetime-local"
               value={form.reported_at}
@@ -123,14 +124,14 @@ export default function StatusUpdateForm({ eventId, activities, currentUserId, d
               onClick={onClose}
               className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
             >
-              取消
+              {t(lang, 'Cancel', '取消')}
             </button>
             <button
               type="submit"
               disabled={saving || !form.message.trim() || !form.activity_id}
               className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
-              {saving ? '發佈中…' : '發佈'}
+              {saving ? t(lang, 'Posting…', '發佈中…') : t(lang, 'Post', '發佈')}
             </button>
           </div>
         </form>

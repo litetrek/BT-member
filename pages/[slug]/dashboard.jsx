@@ -5,6 +5,8 @@ import Head from 'next/head'
 import Layout from '@/components/Layout'
 import StatusBadge from '@/components/StatusBadge'
 import Link from 'next/link'
+import { useLang } from '@/lib/useLang'
+import { t } from '@/lib/i18n'
 
 function StatCard({ label, value, color }) {
   return (
@@ -19,6 +21,7 @@ export default function Dashboard() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { slug } = router.query
+  const [lang, updateLang] = useLang()
 
   const [activities, setActivities] = useState([])
   const [myTasks, setMyTasks] = useState([])
@@ -47,9 +50,9 @@ export default function Dashboard() {
         const list = Array.isArray(tasks) ? tasks : []
         setMyTasks(
           list.filter(
-            (t) =>
-              t.assignee_1_id === session.user.id ||
-              t.assignee_2_id === session.user.id
+            (tk) =>
+              tk.assignee_1_id === session.user.id ||
+              tk.assignee_2_id === session.user.id
           )
         )
         setLoading(false)
@@ -61,37 +64,37 @@ export default function Dashboard() {
   const allTasks = activities.flatMap((a) => a.tasks ?? [])
   const stats = {
     total:       allTasks.length,
-    done:        allTasks.filter((t) => t.status === 'done').length,
-    in_progress: allTasks.filter((t) => t.status === 'in_progress').length,
-    overdue:     allTasks.filter((t) => t.status !== 'done' && t.due_date && new Date(t.due_date) < today).length,
+    done:        allTasks.filter((tk) => tk.status === 'done').length,
+    in_progress: allTasks.filter((tk) => tk.status === 'in_progress').length,
+    overdue:     allTasks.filter((tk) => tk.status !== 'done' && tk.due_date && new Date(tk.due_date) < today).length,
   }
 
   return (
     <>
-      <Head><title>總覽 · {slug}</title></Head>
-      <Layout slug={slug} activePage="dashboard" user={session?.user} userRole={userRole}>
-        <h1 className="text-lg font-semibold text-gray-900 mb-6">總覽</h1>
+      <Head><title>{t(lang, 'Overview', '總覽')} · {slug}</title></Head>
+      <Layout slug={slug} activePage="dashboard" user={session?.user} userRole={userRole} lang={lang} onLangChange={updateLang}>
+        <h1 className="text-lg font-semibold text-gray-900 mb-6">{t(lang, 'Overview', '總覽')}</h1>
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
-          <StatCard label="總任務"  value={stats.total}       />
-          <StatCard label="已完成"  value={stats.done}        color="text-green-600" />
-          <StatCard label="進行中"  value={stats.in_progress} color="text-amber-600" />
-          <StatCard label="逾期"    value={stats.overdue}     color="text-red-600" />
+          <StatCard label={t(lang, 'Total Tasks',  '總任務')}  value={stats.total}       />
+          <StatCard label={t(lang, 'Done',         '已完成')}  value={stats.done}        color="text-green-600" />
+          <StatCard label={t(lang, 'In Progress',  '進行中')}  value={stats.in_progress} color="text-amber-600" />
+          <StatCard label={t(lang, 'Overdue',      '逾期')}    value={stats.overdue}     color="text-red-600" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* My Tasks */}
           <section>
-            <h2 className="text-sm font-medium text-gray-700 mb-3">我的任務</h2>
+            <h2 className="text-sm font-medium text-gray-700 mb-3">{t(lang, 'My Tasks', '我的任務')}</h2>
             {myTasks.length === 0 ? (
-              <p className="text-sm text-gray-400">目前沒有指派給您的任務。</p>
+              <p className="text-sm text-gray-400">{t(lang, 'No tasks assigned to you.', '目前沒有指派給您的任務。')}</p>
             ) : (
               <div className="flex flex-col gap-2">
-                {myTasks.map((t) => (
-                  <div key={t.id} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center justify-between gap-2">
-                    <span className="text-sm text-gray-800 truncate">{t.title}</span>
-                    <StatusBadge status={t.status} dueDate={t.due_date} />
+                {myTasks.map((tk) => (
+                  <div key={tk.id} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center justify-between gap-2">
+                    <span className="text-sm text-gray-800 truncate">{tk.title}</span>
+                    <StatusBadge status={tk.status} dueDate={tk.due_date} lang={lang} />
                   </div>
                 ))}
               </div>
@@ -102,16 +105,16 @@ export default function Dashboard() {
           <section>
             <h2 className="text-sm font-medium text-gray-700 mb-3">
               <Link href={`/${slug}/activities`} className="hover:text-blue-600">
-                活動進度 →
+                {t(lang, 'Activity Progress →', '活動進度 →')}
               </Link>
             </h2>
             {activities.length === 0 ? (
-              <p className="text-sm text-gray-400">尚無活動。</p>
+              <p className="text-sm text-gray-400">{t(lang, 'No activities yet.', '尚無活動。')}</p>
             ) : (
               <div className="flex flex-col gap-3">
                 {activities.map((a) => {
                   const tasks = a.tasks ?? []
-                  const done  = tasks.filter((t) => t.status === 'done').length
+                  const done  = tasks.filter((tk) => tk.status === 'done').length
                   const pct   = tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0
                   return (
                     <div key={a.id} className="bg-white border border-gray-200 rounded-lg p-3">
