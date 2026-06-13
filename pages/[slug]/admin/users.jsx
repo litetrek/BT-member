@@ -387,7 +387,6 @@ export default function AdminUsersPage() {
           confirmLabel={t(lang, 'Remove', '移除')}
           onConfirm={() => handleRemove(removeTarget.id)}
           onCancel={() => setRemoveTarget(null)}
-          lang={lang}
         />
       )}
     </LangProvider>

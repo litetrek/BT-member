@@ -1,6 +1,8 @@
-import { t } from '@/lib/i18n'
+import { useLang } from '@/context/LangContext'
+import { t } from '@/lib/lang'
 
-export default function ConfirmDialog({ message, confirmLabel, onConfirm, onCancel, lang = 'zh' }) {
+export default function ConfirmDialog({ message, confirmLabel, onConfirm, onCancel }) {
+  const lang = useLang()
   const label = confirmLabel ?? t(lang, 'Delete', '刪除')
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">

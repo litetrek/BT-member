@@ -332,7 +332,6 @@ export default function TasksPage() {
           confirmLabel={t(lang, 'Delete', '刪除')}
           onConfirm={() => handleDelete(deleteTarget.id)}
           onCancel={() => setDeleteTarget(null)}
-          lang={lang}
         />
       )}
     </LangProvider>
