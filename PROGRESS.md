@@ -409,6 +409,20 @@ ALTER TABLE announcements ADD COLUMN IF NOT EXISTS reported_at timestamptz;
 
 ---
 
+## Day 5 Patches
+
+### Member Row Click-to-Edit (`fa9daed4`)
+- `pages/[slug]/admin/users.jsx` — entire active member row is now clickable to open edit modal
+- Trash button uses `e.stopPropagation()` so it doesn't also trigger the edit modal
+- Pencil icon removed (row itself is the click target)
+
+### Status Update Form Defaults to Selected Activity (`8b0db9c7`)
+- `components/StatusUpdateForm.jsx` — accepts `defaultActivityId` prop
+- `pages/[slug]/activities.jsx` — passes `selectedActivityId` as `defaultActivityId`
+- When an activity card is selected (blue ring) before clicking "+ 新增狀態更新", the modal pre-selects that activity in the 相關活動 dropdown
+
+---
+
 ## Current State
 
 - Full Traditional Chinese UI across all pages and components
