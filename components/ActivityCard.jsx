@@ -1,7 +1,9 @@
 import Avatar from './Avatar'
-import { t } from '@/lib/i18n'
+import { useLang } from '@/context/LangContext'
+import { t } from '@/lib/lang'
 
-export default function ActivityCard({ activity, onEdit, onDelete, isAdmin, lang = 'zh' }) {
+export default function ActivityCard({ activity, onEdit, onDelete, isAdmin }) {
+  const lang = useLang()
   const tasks = activity.tasks ?? []
   const total = tasks.length
   const done = tasks.filter((tk) => tk.status === 'done').length

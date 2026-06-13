@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import IconPicker from './IconPicker'
-import { t } from '@/lib/i18n'
+import { useLang } from '@/context/LangContext'
+import { t } from '@/lib/lang'
 
-export default function ActivityForm({ eventId, activity, onClose, onSaved, lang = 'zh' }) {
+export default function ActivityForm({ eventId, activity, onClose, onSaved }) {
   const isEdit = !!activity
+  const lang = useLang()
 
   const [form, setForm] = useState({
     name: '',

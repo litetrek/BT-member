@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { t } from '@/lib/i18n'
+import { useLang } from '@/context/LangContext'
+import { t } from '@/lib/lang'
 
 function nowLocalDatetime() {
   const d = new Date()
@@ -7,7 +8,8 @@ function nowLocalDatetime() {
   return d.toISOString().slice(0, 16)
 }
 
-export default function StatusUpdateForm({ eventId, activities, currentUserId, defaultActivityId, onClose, onSaved, lang = 'zh' }) {
+export default function StatusUpdateForm({ eventId, activities, currentUserId, defaultActivityId, onClose, onSaved }) {
+  const lang = useLang()
   const [members, setMembers] = useState([])
   const [form, setForm] = useState({
     message: '',

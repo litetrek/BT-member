@@ -130,7 +130,6 @@ export default function ActivitiesPage() {
                     isAdmin={isAdmin}
                     onEdit={(act) => { setEditActivity(act); setShowForm(true) }}
                     onDelete={handleDelete}
-                    lang={lang}
                   />
                 </div>
               )
@@ -228,7 +227,6 @@ export default function ActivitiesPage() {
             activity={editActivity}
             onClose={() => setShowForm(false)}
             onSaved={() => { setShowForm(false); load() }}
-            lang={lang}
           />
         )}
 
@@ -240,7 +238,6 @@ export default function ActivitiesPage() {
             defaultActivityId={selectedActivityId}
             onClose={() => setShowStatusForm(false)}
             onSaved={() => { setShowStatusForm(false); loadAnnouncements(eventId) }}
-            lang={lang}
           />
         )}
       </Layout>
