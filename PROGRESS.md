@@ -429,93 +429,111 @@ ALTER TABLE announcements ADD COLUMN IF NOT EXISTS reported_at timestamptz;
 
 **System default remains `zh` (Traditional Chinese). All existing behavior preserved.**
 
-#### Schema (apply via `scripts/migrate-day6.js` or Supabase SQL Editor)
-```sql
-ALTER TABLE users ADD COLUMN IF NOT EXISTS lang text NOT NULL DEFAULT 'zh';
-```
+#### Schema
+
+`users.preferred_lang` column (`text NOT NULL DEFAULT 'zh'`) was already present in the DB. No new migration required.
+
+#### Architecture
+
+Language preference uses a **React context pattern**, not prop drilling:
+
+- Pages read `session.user.preferred_lang` and wrap their return in `<LangProvider lang={lang}>`
+- All components call `useLang()` to read lang from context — no `lang` prop needed
+- `Layout.jsx` is inside the provider and also uses `useLang()` internally
+- The toggle in the Layout avatar dropdown calls `PUT /api/users/[id]` with `{ preferred_lang }`, then `router.reload()` — the reload fetches a fresh session from DB so the change is immediate
 
 #### New Files
 
-**`lib/i18n.js`**
-- `export const t = (lang, en, zh) => lang === 'en' ? en : zh`
-- Zero-dependency translation helper; `lang` defaults to `'zh'` everywhere
+**`lib/lang.js`**
+- `export const t = (lang, en, zh) => lang === 'en' ? en : zh` — core translation helper
+- `export const UI` — object of shared string functions (`UI.statusOpen(lang)`, `UI.navDashboard(lang)`, etc.)
+- `export const LANGS = { ZH: 'zh', EN: 'en' }`
 
-**`lib/useLang.js`**
-- `useLang()` hook — reads `session.user.lang`, manages local state
-- `[lang, updateLang]` — `updateLang(newLang)` persists to DB via API, reflects immediately in UI
+**`context/LangContext.jsx`**
+- `LangContext` — React context, default value `'zh'`
+- `useLang()` — hook that reads from context; used by all components
+- `LangProvider` — `<LangContext.Provider value={lang}>` wrapper used by all pages
 
-**`pages/api/users/me/lang.js`**
-- `PUT /api/users/me/lang` — any authenticated user can update their own lang
-- Accepts `{ lang: 'en' | 'zh' }`, updates `users.lang`
-- No admin required (self-service)
+#### Files Deleted
 
-**`scripts/migrate-day6.js`**
-- One-time migration: adds `lang text NOT NULL DEFAULT 'zh'` to `users` table
+- `lib/useLang.js` — old stateful hook reading `session.user.lang`; replaced by `useLang()` from context
+- `pages/api/users/me/lang.js` — old self-service endpoint writing to `lang` column; replaced by `PUT /api/users/[id]`
 
 #### Infrastructure Changes
 
-**`lib/auth.js`** — session callback now selects `id, lang` from users:
-- `session.user.lang = dbUser.lang ?? 'zh'`
+**`lib/auth.js`** — session callback selects `id, preferred_lang` from users:
+- `session.user.preferred_lang = dbUser.preferred_lang ?? 'zh'`
+- Always fresh from DB on every session check (not cached in JWT)
 
-**`components/Layout.jsx`** — new props: `lang`, `onLangChange`
-- Avatar dropdown shows Language toggle: clicking switches EN ↔ 中文
-- Nav labels (`Overview`, `Activities`, `Tasks`, `AI Assistant`, `Members`, `Home`, `Sign Out`) translate per lang
-- Bottom tab bar labels translate per lang
+**`pages/api/users/[id].js`** — PUT now handles `preferred_lang`:
+- Any authenticated user can update their own `preferred_lang` (self-or-admin gate)
+- Logs the change to `activity_log`
 
-#### Components Updated (all accept `lang` prop)
+**`components/Layout.jsx`** — uses `useLang()` internally; no `lang` prop
+- Avatar dropdown language row: shows current language (`English` or `中文`) with `⇄` swap indicator
+- Clicking calls `handleLangToggle()` → `PUT /api/users/${user.id}` → `router.reload()`
+- Nav labels and bottom tab bar labels all bilingual via `t(lang, ...)`
 
-| Component | Changes |
+#### Components Migrated to `useLang()` Context
+
+All components removed their `lang = 'zh'` prop and call `useLang()` internally:
+
+| Component | Notes |
 |---|---|
 | `StatusBadge` | Status labels bilingual |
-| `ActivityCard` | "tasks done" / edit / delete bilingual |
-| `TaskItem` | Date locale: `en-US` or `zh-TW` per lang |
-| `ConfirmDialog` | Cancel / default delete label bilingual |
-| `TaskDetail` | All labels + history descriptions + relative time bilingual; reads lang from `useSession()` |
+| `TaskItem` | Date locale `en-US` / `zh-TW`; edit tooltip bilingual |
+| `ConfirmDialog` | Cancel / delete labels bilingual |
+| `TaskDetail` | All labels, history descriptions, relative time bilingual |
 | `TaskForm` | All form labels bilingual |
+| `ActivityCard` | Progress text, edit/delete bilingual |
 | `ActivityForm` | All form labels bilingual |
 | `StatusUpdateForm` | All form labels bilingual |
 | `InviteForm` | All form labels + role labels bilingual |
-| `AISummary` | All UI text bilingual; TTS lang switches to `en-US` for EN users |
-| `AIChat` | All UI text bilingual; voice input lang switches to `en-US` for EN users |
+| `AISummary` | UI text bilingual; TTS lang switches to `en-US`; time-range labels bilingual |
+| `AIChat` | UI text bilingual; voice input lang switches to `en-US` |
 
 #### Pages Updated
 
-All pages now use `useLang()` and pass `lang` + `onLangChange` to Layout and components:
+Each page wraps its return in `<LangProvider lang={lang}>` where `lang = session?.user?.preferred_lang ?? 'zh'`. No `lang` prop is passed to Layout or any migrated component.
 
-- `pages/[slug]/dashboard.jsx` — stat labels, section headers, empty states
-- `pages/[slug]/activities.jsx` — activity/status update UI, date format per locale
-- `pages/[slug]/tasks.jsx` — all tabs, filters, section headers, empty states
-- `pages/[slug]/admin/users.jsx` — table headers, role labels, status badges, task type section
-- `pages/[slug]/ai.jsx` — passes lang to AISummary and AIChat
+- `pages/[slug]/dashboard.jsx`
+- `pages/[slug]/activities.jsx`
+- `pages/[slug]/tasks.jsx` — internal `Section` component also uses `useLang()`
+- `pages/[slug]/admin/users.jsx`
+- `pages/[slug]/ai.jsx`
 
 #### AI APIs
 
-**`pages/api/ai/summary.js`** — reads `lang` from query string (sent by AISummary):
-- `lang=en`: English prompt → English summary
-- `lang=zh` (default): Chinese prompt → Chinese summary
+Both API routes now derive lang exclusively from the authenticated session — the client no longer sends a lang parameter:
 
-**`pages/api/ai/chat.js`** — reads `lang` from request body (sent by AIChat):
-- `lang=en`: English system prompt → English Q&A
-- `lang=zh` (default): Chinese system prompt → Chinese Q&A
+**`pages/api/ai/summary.js`** — `const lang = session.user?.preferred_lang ?? 'zh'`
+- English prompt → English summary; Chinese prompt → Chinese summary
+
+**`pages/api/ai/chat.js`** — `const lang = session.user?.preferred_lang ?? 'zh'`
+- Bilingual system prompt; bilingual fallback error messages
 
 #### Email System
 
-**`emails/DailyDigest.jsx`** — accepts `lang` prop; all text bilingual
-**`emails/LeadDigest.jsx`** — accepts `lang` prop; all text bilingual
-**`emails/OverdueReminder.jsx`** — accepts `lang` prop; all text bilingual
-**`lib/email.js`** — reads `user.lang` to set bilingual subject lines and pass `lang` to templates
-**`pages/api/cron/daily-digest.js`** — now fetches `lang` from users table for each recipient
+**`lib/email.js`** — each send function now accepts explicit `lang` parameter:
+- `sendDailyDigest(user, tasks, slug, eventId, lang)` — subject: `t(lang, 'Your Daily Task Summary', '今日任務摘要')`
+- `sendLeadDigest(user, activity, tasks, slug, eventId, lang)` — subject: `t(lang, 'Activity Summary', '活動摘要')`
+- `sendOverdueReminder(user, tasks, slug, eventId, lang)` — subject: `t(lang, '⚠️ Overdue Tasks', '⚠️ 逾期任務提醒')`
+- `import { t } from '@/lib/lang'` added; no longer reads `user.lang` internally
+
+**`pages/api/cron/daily-digest.js`** — users query now selects `preferred_lang`; passes `user.preferred_lang ?? 'zh'` to each send function
+
+**`emails/DailyDigest.jsx`**, **`emails/LeadDigest.jsx`**, **`emails/OverdueReminder.jsx`** — converted from `isEn ? ... : ...` ternaries to `t(lang, en, zh)` calls; `import { t } from '@/lib/lang'` added
 
 ---
 
 ## Current State
 
 - Per-user language preference: `zh` (Traditional Chinese, default) or `en` (English)
-- Language toggle in avatar dropdown on every page — persists to DB immediately
+- Language toggle in avatar dropdown — shows current language with `⇄` indicator; persists to DB on click, page reloads with new language
 - Full Traditional Chinese UI across all pages and components (unchanged for zh users)
-- Full English UI available for `en` users across all pages, components, AI responses, emails
-- AI summary and chat respond in the user's chosen language
-- Email digests and overdue reminders use the recipient's chosen language
+- Full English UI for `en` users: all pages, components, AI responses, email subjects and body
+- AI summary and chat respond in the session user's `preferred_lang`
+- Email digests and overdue reminders sent in each recipient's `preferred_lang`
 - Three-tier task permission model: admin/lead → assignee → creator
 - Task description + title inline editing
 - AI 助理 page (separate from dashboard) — admin/lead only
@@ -528,15 +546,11 @@ All pages now use `useLang()` and pass `lang` + `onLangChange` to Layout and com
 
 ---
 
-## Pending / Supabase Manual Steps
+## Pending / Next Steps
 
-- **Run Day 6 migration BEFORE deploying:** `node scripts/migrate-day6.js`
-  OR paste into Supabase SQL Editor:
-  ```sql
-  ALTER TABLE users ADD COLUMN IF NOT EXISTS lang text NOT NULL DEFAULT 'zh';
-  ```
+- **Local testing:** `npm run dev` → verify language toggle, all pages in EN + ZH, email send
 - **`ANTHROPIC_API_KEY`** must be set in `.env.local` and Vercel env vars
 - **`CRON_SECRET`** must be set in Vercel environment variables
+- Production push to Vercel when local testing passes
 - Trigger announcement emails from Activities page (currently only posted to DB)
-- Test Google sign-in end-to-end with real user, verify role propagation
 - Consider per-event role context (currently uses highest role across all events)
