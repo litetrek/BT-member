@@ -99,9 +99,10 @@ export default function ActivitiesPage() {
           {isAdmin && (
             <button
               onClick={() => { setEditActivity(null); setShowForm(true) }}
-              className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
+              title={t(lang, 'Add Activity', '新增活動')}
+              className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl leading-none hover:bg-blue-700"
             >
-              + {t(lang, 'Add Activity', '新增活動')}
+              +
             </button>
           )}
         </div>

@@ -10,10 +10,28 @@ export default function ActivityCard({ activity, onEdit, onDelete, isAdmin }) {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col gap-3">
-      <div className="flex items-center gap-3">
-        <span className={`text-2xl text-blue-600 ti ${activity.icon}`} />
-        <h3 className="font-semibold text-gray-900 text-sm">{activity.name}</h3>
+    <div className="bg-white border border-gray-200 rounded-lg p-3.5 flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span className={`text-2xl text-blue-600 ti ${activity.icon} shrink-0`} />
+          <h3 className="font-semibold text-gray-900 text-sm leading-tight">{activity.name}</h3>
+        </div>
+        {isAdmin && (
+          <div className="flex gap-1.5 ml-2 shrink-0">
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(activity) }}
+              className="w-[30px] h-[30px] flex items-center justify-center border border-gray-200 rounded-[6px] text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            >
+              <i className="ti ti-edit text-sm" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(activity.id) }}
+              className="w-[30px] h-[30px] flex items-center justify-center border border-gray-200 rounded-[6px] text-red-600 hover:border-red-300"
+            >
+              <i className="ti ti-trash text-sm" />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -28,39 +46,17 @@ export default function ActivityCard({ activity, onEdit, onDelete, isAdmin }) {
         )}
       </div>
 
-      <div>
-        <div className="flex justify-between text-xs text-gray-500 mb-1">
-          <span>
-            {lang === 'en'
-              ? `${done}/${total} tasks done`
-              : `${done}/${total} 個任務已完成`}
-          </span>
-          <span>{pct}%</span>
-        </div>
-        <div className="w-full bg-gray-100 rounded-full h-1.5">
+      <div className="flex items-center gap-2">
+        <div className="flex-1 bg-gray-100 rounded-full h-1.5">
           <div
-            className="bg-green-500 h-1.5 rounded-full transition-all"
+            className={`h-1.5 rounded-full transition-all ${
+              pct > 0 ? 'bg-green-500' : total > 0 ? 'bg-red-400' : 'bg-gray-300'
+            }`}
             style={{ width: `${pct}%` }}
           />
         </div>
+        <span className="text-xs text-gray-400 whitespace-nowrap">{done} / {total}</span>
       </div>
-
-      {isAdmin && (
-        <div className="flex gap-2 pt-1 border-t border-gray-100">
-          <button
-            onClick={(e) => { e.stopPropagation(); onEdit(activity) }}
-            className="text-xs text-blue-600 hover:underline"
-          >
-            {t(lang, 'Edit', '編輯')}
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(activity.id) }}
-            className="text-xs text-red-500 hover:underline"
-          >
-            {t(lang, 'Delete', '刪除')}
-          </button>
-        </div>
-      )}
     </div>
   )
 }
