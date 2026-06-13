@@ -9,8 +9,8 @@ import TaskDetail from '@/components/TaskDetail'
 import Spinner from '@/components/Spinner'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import { useLang } from '@/lib/useLang'
-import { t } from '@/lib/i18n'
+import { LangProvider } from '@/context/LangContext'
+import { t } from '@/lib/lang'
 
 function Section({ title, tasks, currentUserId, userRole, onStatusChange, onEdit, onOpen, highlightId, lang }) {
   if (!tasks.length) return (
@@ -35,7 +35,6 @@ function Section({ title, tasks, currentUserId, userRole, onStatusChange, onEdit
             onEdit={onEdit}
             onOpen={onOpen}
             highlighted={tk.id === highlightId}
-            lang={lang}
           />
         ))}
       </div>
@@ -55,7 +54,7 @@ export default function TasksPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { slug, id: highlightId } = router.query
-  const [lang, updateLang] = useLang()
+  const lang = session?.user?.preferred_lang ?? 'zh'
 
   const [tasks, setTasks] = useState([])
   const [activities, setActivities] = useState([])
@@ -242,7 +241,6 @@ export default function TasksPage() {
                     onEdit={(tt) => { setEditTask(tt); setShowForm(true) }}
                     onOpen={setDetailTask}
                     highlighted={tk.id === highlightId}
-                    lang={lang}
                   />
                 ))}
               </div>
@@ -254,9 +252,9 @@ export default function TasksPage() {
   }
 
   return (
-    <>
+    <LangProvider lang={lang}>
       <Head><title>{t(lang, 'Tasks', '任務')} · {slug}</title></Head>
-      <Layout slug={slug} activePage="tasks" user={session?.user} userRole={userRole} lang={lang} onLangChange={updateLang}>
+      <Layout slug={slug} activePage="tasks" user={session?.user} userRole={userRole} lang={lang}>
         <ErrorBoundary>
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-lg font-semibold text-gray-900">{t(lang, 'Tasks', '任務')}</h1>
@@ -337,6 +335,6 @@ export default function TasksPage() {
           lang={lang}
         />
       )}
-    </>
+    </LangProvider>
   )
 }

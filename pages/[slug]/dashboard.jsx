@@ -5,8 +5,8 @@ import Head from 'next/head'
 import Layout from '@/components/Layout'
 import StatusBadge from '@/components/StatusBadge'
 import Link from 'next/link'
-import { useLang } from '@/lib/useLang'
-import { t } from '@/lib/i18n'
+import { LangProvider } from '@/context/LangContext'
+import { t } from '@/lib/lang'
 
 function StatCard({ label, value, color }) {
   return (
@@ -21,7 +21,7 @@ export default function Dashboard() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { slug } = router.query
-  const [lang, updateLang] = useLang()
+  const lang = session?.user?.preferred_lang ?? 'zh'
 
   const [activities, setActivities] = useState([])
   const [myTasks, setMyTasks] = useState([])
@@ -70,9 +70,9 @@ export default function Dashboard() {
   }
 
   return (
-    <>
+    <LangProvider lang={lang}>
       <Head><title>{t(lang, 'Overview', '總覽')} · {slug}</title></Head>
-      <Layout slug={slug} activePage="dashboard" user={session?.user} userRole={userRole} lang={lang} onLangChange={updateLang}>
+      <Layout slug={slug} activePage="dashboard" user={session?.user} userRole={userRole} lang={lang}>
         <h1 className="text-lg font-semibold text-gray-900 mb-6">{t(lang, 'Overview', '總覽')}</h1>
 
         {/* Stat cards */}
@@ -94,7 +94,7 @@ export default function Dashboard() {
                 {myTasks.map((tk) => (
                   <div key={tk.id} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center justify-between gap-2">
                     <span className="text-sm text-gray-800 truncate">{tk.title}</span>
-                    <StatusBadge status={tk.status} dueDate={tk.due_date} lang={lang} />
+                    <StatusBadge status={tk.status} dueDate={tk.due_date} />
                   </div>
                 ))}
               </div>
@@ -134,6 +134,6 @@ export default function Dashboard() {
           </section>
         </div>
       </Layout>
-    </>
+    </LangProvider>
   )
 }

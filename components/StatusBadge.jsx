@@ -1,6 +1,8 @@
-import { t } from '@/lib/i18n'
+import { useLang } from '@/context/LangContext'
+import { UI } from '@/lib/lang'
 
-export default function StatusBadge({ status, dueDate, lang = 'zh' }) {
+export default function StatusBadge({ status, dueDate }) {
+  const lang = useLang()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -17,10 +19,10 @@ export default function StatusBadge({ status, dueDate, lang = 'zh' }) {
   }
 
   const labels = {
-    open:        t(lang, 'Not Started', '未開始'),
-    in_progress: t(lang, 'In Progress', '進行中'),
-    done:        t(lang, 'Done',        '已完成'),
-    overdue:     t(lang, 'Overdue',     '逾期'),
+    open:        UI.statusOpen(lang),
+    in_progress: UI.statusInProgress(lang),
+    done:        UI.statusDone(lang),
+    overdue:     UI.statusOverdue(lang),
   }
 
   return (

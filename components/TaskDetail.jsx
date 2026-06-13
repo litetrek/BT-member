@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import Avatar from './Avatar'
 import StatusBadge from './StatusBadge'
-import { t } from '@/lib/i18n'
+import { useLang } from '@/context/LangContext'
+import { t } from '@/lib/lang'
 
 function relativeTime(ts, lang) {
   const diff = Date.now() - new Date(ts).getTime()
@@ -56,7 +57,7 @@ const STATUS_OPTIONS = (lang) => [
 
 export default function TaskDetail({ task, onClose, onSaved }) {
   const { data: session } = useSession()
-  const lang = session?.user?.lang ?? 'zh'
+  const lang = useLang()
 
   const [displayTitle, setDisplayTitle] = useState(task.title)
   const [editingTitle, setEditingTitle] = useState(false)
@@ -188,7 +189,7 @@ export default function TaskDetail({ task, onClose, onSaved }) {
           <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap gap-4 text-sm">
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-gray-400">{t(lang, 'Status', '狀態')}</span>
-              <StatusBadge status={task.status} dueDate={task.due_date} lang={lang} />
+              <StatusBadge status={task.status} dueDate={task.due_date} />
             </div>
             {task.task_type && (
               <div className="flex items-center gap-1.5">

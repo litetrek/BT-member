@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { useRouter } from 'next/router'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
 import Avatar from './Avatar'
-import { t } from '@/lib/i18n'
+import { t } from '@/lib/lang'
 
 function Icon({ name, className = '' }) {
   const icons = {
@@ -58,7 +59,8 @@ function Icon({ name, className = '' }) {
   return icons[name] ?? null
 }
 
-export default function Layout({ children, slug, activePage, user, userRole, lang = 'zh', onLangChange }) {
+export default function Layout({ children, slug, activePage, user, userRole, lang = 'zh' }) {
+  const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const canSeeAI = ['admin', 'lead'].includes(userRole)
@@ -75,7 +77,13 @@ export default function Layout({ children, slug, activePage, user, userRole, lan
 
   async function handleLangToggle() {
     const newLang = lang === 'zh' ? 'en' : 'zh'
-    if (onLangChange) onLangChange(newLang)
+    if (!user?.id) return
+    await fetch(`/api/users/${user.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preferred_lang: newLang }),
+    })
+    router.reload()
   }
 
   return (
@@ -135,17 +143,15 @@ export default function Layout({ children, slug, activePage, user, userRole, lan
                     </div>
 
                     {/* Language toggle */}
-                    {onLangChange && (
-                      <button
-                        onClick={() => { handleLangToggle(); setMenuOpen(false) }}
-                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
-                      >
-                        <span>{t(lang, 'Language', '語言')}</span>
-                        <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-                          {lang === 'zh' ? 'EN' : '中文'}
-                        </span>
-                      </button>
-                    )}
+                    <button
+                      onClick={() => { handleLangToggle(); setMenuOpen(false) }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+                    >
+                      <span>{t(lang, 'Language', '語言')}</span>
+                      <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                        {lang === 'zh' ? 'EN' : '中文'}
+                      </span>
+                    </button>
 
                     <button
                       onClick={() => signOut({ callbackUrl: '/' })}
