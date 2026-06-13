@@ -31,7 +31,7 @@ export default function AdminUsersPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [removeTarget, setRemoveTarget] = useState(null)
   const [editTarget, setEditTarget] = useState(null)
-  const [editForm, setEditForm] = useState({ name: '', role: 'member' })
+  const [editForm, setEditForm] = useState({ name: '', role: 'member', preferred_lang: 'zh' })
   const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
@@ -111,7 +111,7 @@ export default function AdminUsersPage() {
 
   function openEdit(m) {
     setEditTarget(m)
-    setEditForm({ name: m.name ?? '', role: m.role })
+    setEditForm({ name: m.name ?? '', role: m.role, preferred_lang: m.preferred_lang ?? 'zh' })
     setEditError('')
   }
 
@@ -121,7 +121,7 @@ export default function AdminUsersPage() {
     const res = await fetch(`/api/users/${editTarget.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: editForm.name, role: editForm.role, event_id: eventId }),
+      body: JSON.stringify({ name: editForm.name, role: editForm.role, preferred_lang: editForm.preferred_lang, event_id: eventId }),
     })
     if (res.ok) {
       setEditTarget(null)
@@ -353,6 +353,17 @@ export default function AdminUsersPage() {
                   {ROLES.map((r) => (
                     <option key={r} value={r}>{ROLE_LABELS[r]}</option>
                   ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">{t(lang, 'Language', '語言')}</label>
+                <select
+                  value={editForm.preferred_lang}
+                  onChange={(e) => setEditForm((f) => ({ ...f, preferred_lang: e.target.value }))}
+                  className={inputCls}
+                >
+                  <option value="zh">中文</option>
+                  <option value="en">English</option>
                 </select>
               </div>
               {editError && <p className="text-xs text-red-500">{editError}</p>}

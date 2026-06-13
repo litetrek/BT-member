@@ -31,7 +31,7 @@ export default async function handler(req, res) {
   const userIds = members.map((m) => m.user_id)
   const { data: users, error: uErr } = await supabase
     .from('users')
-    .select('id, name, email, avatar_url')
+    .select('id, name, email, avatar_url, preferred_lang')
     .in('id', userIds)
   if (uErr) return res.status(500).json({ error: uErr.message })
 
