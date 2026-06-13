@@ -147,7 +147,7 @@ export default function AdminUsersPage() {
   return (
     <LangProvider lang={lang}>
       <Head><title>{t(lang, 'Team', '團隊')} · {slug}</title></Head>
-      <Layout slug={slug} activePage="users" user={session?.user} userRole={userRole} lang={lang}>
+      <Layout slug={slug} activePage="users" user={session?.user} userRole={userRole}>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-lg font-semibold text-gray-900">{t(lang, 'Team Members', '團隊成員')}</h1>
           <button
@@ -320,7 +320,6 @@ export default function AdminUsersPage() {
           eventId={eventId}
           onClose={() => setShowAdd(false)}
           onSaved={() => { setShowAdd(false); loadMembers(eventId) }}
-          lang={lang}
         />
       )}
 

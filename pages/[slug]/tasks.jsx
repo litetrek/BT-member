@@ -255,7 +255,7 @@ export default function TasksPage() {
   return (
     <LangProvider lang={lang}>
       <Head><title>{t(lang, 'Tasks', '任務')} · {slug}</title></Head>
-      <Layout slug={slug} activePage="tasks" user={session?.user} userRole={userRole} lang={lang}>
+      <Layout slug={slug} activePage="tasks" user={session?.user} userRole={userRole}>
         <ErrorBoundary>
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-lg font-semibold text-gray-900">{t(lang, 'Tasks', '任務')}</h1>

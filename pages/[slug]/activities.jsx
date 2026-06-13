@@ -93,7 +93,7 @@ export default function ActivitiesPage() {
   return (
     <LangProvider lang={lang}>
       <Head><title>{t(lang, 'Activities', '活動')} · {slug}</title></Head>
-      <Layout slug={slug} activePage="activities" user={session?.user} userRole={session?.user?.role} lang={lang}>
+      <Layout slug={slug} activePage="activities" user={session?.user} userRole={session?.user?.role}>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-lg font-semibold text-gray-900">{t(lang, 'Activities', '活動')}</h1>
           {isAdmin && (

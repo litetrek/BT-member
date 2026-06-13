@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { t } from '@/lib/i18n'
+import { useLang } from '@/context/LangContext'
+import { t } from '@/lib/lang'
 
-export default function InviteForm({ eventId, onClose, onSaved, lang = 'zh' }) {
+export default function InviteForm({ eventId, onClose, onSaved }) {
+  const lang = useLang()
   const ROLES = [
     { value: 'member', label: t(lang, 'Member',    '一般成員') },
     { value: 'lead',   label: t(lang, 'Lead',      '負責人') },

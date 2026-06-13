@@ -72,7 +72,7 @@ export default function Dashboard() {
   return (
     <LangProvider lang={lang}>
       <Head><title>{t(lang, 'Overview', '總覽')} · {slug}</title></Head>
-      <Layout slug={slug} activePage="dashboard" user={session?.user} userRole={userRole} lang={lang}>
+      <Layout slug={slug} activePage="dashboard" user={session?.user} userRole={userRole}>
         <h1 className="text-lg font-semibold text-gray-900 mb-6">{t(lang, 'Overview', '總覽')}</h1>
 
         {/* Stat cards */}

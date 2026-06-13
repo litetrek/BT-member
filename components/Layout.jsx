@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
 import Avatar from './Avatar'
+import { useLang } from '@/context/LangContext'
 import { t } from '@/lib/lang'
 
 function Icon({ name, className = '' }) {
@@ -59,7 +60,8 @@ function Icon({ name, className = '' }) {
   return icons[name] ?? null
 }
 
-export default function Layout({ children, slug, activePage, user, userRole, lang = 'zh' }) {
+export default function Layout({ children, slug, activePage, user, userRole }) {
+  const lang = useLang()
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
 

@@ -38,7 +38,7 @@ export default function AIPage() {
   return (
     <LangProvider lang={lang}>
       <Head><title>{t(lang, 'AI Assistant', 'AI 助理')} · {slug}</title></Head>
-      <Layout slug={slug} activePage="ai" user={session?.user} userRole={userRole} lang={lang}>
+      <Layout slug={slug} activePage="ai" user={session?.user} userRole={userRole}>
         <h1 className="text-lg font-semibold text-gray-900 mb-6">{t(lang, 'AI Assistant', 'AI 助理')}</h1>
         {eventId ? (
           <div className="flex flex-col gap-6">
