@@ -7,8 +7,8 @@ import ActivityCard from '@/components/ActivityCard'
 import ActivityForm from '@/components/ActivityForm'
 import StatusUpdateForm from '@/components/StatusUpdateForm'
 import Avatar from '@/components/Avatar'
-import { useLang } from '@/lib/useLang'
-import { t } from '@/lib/i18n'
+import { LangProvider } from '@/context/LangContext'
+import { t } from '@/lib/lang'
 
 function formatDate(ts, lang) {
   if (!ts) return ''
@@ -23,7 +23,7 @@ export default function ActivitiesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { slug } = router.query
-  const [lang, updateLang] = useLang()
+  const lang = session?.user?.preferred_lang ?? 'zh'
 
   const [activities, setActivities] = useState([])
   const [announcements, setAnnouncements] = useState([])
@@ -91,9 +91,9 @@ export default function ActivitiesPage() {
     : announcements
 
   return (
-    <>
+    <LangProvider lang={lang}>
       <Head><title>{t(lang, 'Activities', '活動')} · {slug}</title></Head>
-      <Layout slug={slug} activePage="activities" user={session?.user} userRole={session?.user?.role} lang={lang} onLangChange={updateLang}>
+      <Layout slug={slug} activePage="activities" user={session?.user} userRole={session?.user?.role} lang={lang}>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-lg font-semibold text-gray-900">{t(lang, 'Activities', '活動')}</h1>
           {isAdmin && (
@@ -244,6 +244,6 @@ export default function ActivitiesPage() {
           />
         )}
       </Layout>
-    </>
+    </LangProvider>
   )
 }

@@ -7,8 +7,8 @@ import Avatar from '@/components/Avatar'
 import InviteForm from '@/components/InviteForm'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import Spinner from '@/components/Spinner'
-import { useLang } from '@/lib/useLang'
-import { t } from '@/lib/i18n'
+import { LangProvider } from '@/context/LangContext'
+import { t } from '@/lib/lang'
 
 const DEFAULT_TYPE_NAMES = ['一般', '採購', '聯絡溝通', '現場工作']
 
@@ -16,7 +16,7 @@ export default function AdminUsersPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { slug } = router.query
-  const [lang, updateLang] = useLang()
+  const lang = session?.user?.preferred_lang ?? 'zh'
 
   const ROLES = ['admin', 'lead', 'member']
   const ROLE_LABELS = {
@@ -145,9 +145,9 @@ export default function AdminUsersPage() {
   const inputCls = 'w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400'
 
   return (
-    <>
+    <LangProvider lang={lang}>
       <Head><title>{t(lang, 'Team', '團隊')} · {slug}</title></Head>
-      <Layout slug={slug} activePage="users" user={session?.user} userRole={userRole} lang={lang} onLangChange={updateLang}>
+      <Layout slug={slug} activePage="users" user={session?.user} userRole={userRole} lang={lang}>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-lg font-semibold text-gray-900">{t(lang, 'Team Members', '團隊成員')}</h1>
           <button
@@ -315,7 +315,6 @@ export default function AdminUsersPage() {
         </section>
       </Layout>
 
-      {/* Add Member modal */}
       {showAdd && eventId && (
         <InviteForm
           eventId={eventId}
@@ -325,7 +324,6 @@ export default function AdminUsersPage() {
         />
       )}
 
-      {/* Edit modal */}
       {editTarget && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-lg">
@@ -392,6 +390,6 @@ export default function AdminUsersPage() {
           lang={lang}
         />
       )}
-    </>
+    </LangProvider>
   )
 }

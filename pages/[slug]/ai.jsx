@@ -5,15 +5,15 @@ import Head from 'next/head'
 import Layout from '@/components/Layout'
 import AISummary from '@/components/AISummary'
 import AIChat from '@/components/AIChat'
-import { useLang } from '@/lib/useLang'
-import { t } from '@/lib/i18n'
+import { LangProvider } from '@/context/LangContext'
+import { t } from '@/lib/lang'
 
 export default function AIPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { slug } = router.query
   const [eventId, setEventId] = useState(null)
-  const [lang, updateLang] = useLang()
+  const lang = session?.user?.preferred_lang ?? 'zh'
 
   const userRole = session?.user?.role
 
@@ -36,9 +36,9 @@ export default function AIPage() {
   }, [slug, status])
 
   return (
-    <>
+    <LangProvider lang={lang}>
       <Head><title>{t(lang, 'AI Assistant', 'AI 助理')} · {slug}</title></Head>
-      <Layout slug={slug} activePage="ai" user={session?.user} userRole={userRole} lang={lang} onLangChange={updateLang}>
+      <Layout slug={slug} activePage="ai" user={session?.user} userRole={userRole} lang={lang}>
         <h1 className="text-lg font-semibold text-gray-900 mb-6">{t(lang, 'AI Assistant', 'AI 助理')}</h1>
         {eventId ? (
           <div className="flex flex-col gap-6">
@@ -49,6 +49,6 @@ export default function AIPage() {
           <p className="text-sm text-gray-400">{t(lang, 'Loading…', '載入中…')}</p>
         )}
       </Layout>
-    </>
+    </LangProvider>
   )
 }
