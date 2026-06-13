@@ -1,13 +1,14 @@
 import { useState, useRef } from 'react'
-import { t } from '@/lib/i18n'
+import { useLang } from '@/context/LangContext'
+import { t } from '@/lib/lang'
 
-const RANGES = (lang) => [
-  { value: '4',   label: t(lang, 'Last 4 hrs',  '最近 4 小時') },
-  { value: '24',  label: t(lang, 'Last 24 hrs', '最近 24 小時') },
-  { value: '168', label: t(lang, 'Last 7 days', '最近 7 天') },
-]
-
-export default function AISummary({ eventId, lang = 'zh' }) {
+export default function AISummary({ eventId }) {
+  const lang = useLang()
+  const RANGES = [
+    { value: '4',   label: t(lang, 'Last 4 hrs',  '最近 4 小時') },
+    { value: '24',  label: t(lang, 'Last 24 hrs', '最近 24 小時') },
+    { value: '168', label: t(lang, 'Last 7 days', '最近 7 天') },
+  ]
   const [hours, setHours]     = useState('24')
   const [summary, setSummary] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,7 +24,7 @@ export default function AISummary({ eventId, lang = 'zh' }) {
     setCount(null)
     stopSpeaking()
 
-    const res = await fetch(`/api/ai/summary?event_id=${eventId}&hours=${hours}&lang=${lang}`)
+    const res = await fetch(`/api/ai/summary?event_id=${eventId}&hours=${hours}`)
     const d = await res.json().catch(() => ({}))
 
     if (!res.ok) {
@@ -56,8 +57,6 @@ export default function AISummary({ eventId, lang = 'zh' }) {
     setSpeaking(false)
   }
 
-  const ranges = RANGES(lang)
-
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4">
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -71,7 +70,7 @@ export default function AISummary({ eventId, lang = 'zh' }) {
             onChange={(e) => setHours(e.target.value)}
             className="border border-gray-200 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-purple-400"
           >
-            {ranges.map((r) => (
+            {RANGES.map((r) => (
               <option key={r.value} value={r.value}>{r.label}</option>
             ))}
           </select>

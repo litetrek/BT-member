@@ -52,9 +52,8 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Forbidden' })
   }
 
-  const { event_id, hours = '24', lang: queryLang } = req.query
-  // Accept lang from query param (sent by client), fallback to session
-  const lang = (queryLang === 'en' || queryLang === 'zh') ? queryLang : (session.user?.lang ?? 'zh')
+  const { event_id, hours = '24' } = req.query
+  const lang = session.user?.preferred_lang ?? 'zh'
 
   if (!event_id) return res.status(400).json({ error: 'event_id required' })
 

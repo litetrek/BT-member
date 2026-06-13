@@ -17,13 +17,12 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Forbidden' })
   }
 
-  const { event_id, question, conversation_history = [], lang: bodyLang } = req.body
+  const { event_id, question, conversation_history = [] } = req.body
   if (!event_id || !question) {
     return res.status(400).json({ error: 'event_id and question are required' })
   }
 
-  // Accept lang from request body; fallback to session, then 'zh'
-  const lang = (bodyLang === 'en' || bodyLang === 'zh') ? bodyLang : (session.user?.lang ?? 'zh')
+  const lang = session.user?.preferred_lang ?? 'zh'
 
   const supabase = createServerClient()
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()

@@ -42,8 +42,8 @@ export default function AIPage() {
         <h1 className="text-lg font-semibold text-gray-900 mb-6">{t(lang, 'AI Assistant', 'AI 助理')}</h1>
         {eventId ? (
           <div className="flex flex-col gap-6">
-            <AISummary eventId={eventId} lang={lang} />
-            <AIChat eventId={eventId} lang={lang} />
+            <AISummary eventId={eventId} />
+            <AIChat eventId={eventId} />
           </div>
         ) : (
           <p className="text-sm text-gray-400">{t(lang, 'Loading…', '載入中…')}</p>

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { t } from '@/lib/i18n'
+import { useLang } from '@/context/LangContext'
+import { t } from '@/lib/lang'
 
 function MicIcon({ recording, className = '' }) {
   if (recording) {
@@ -22,7 +23,8 @@ function MicIcon({ recording, className = '' }) {
   )
 }
 
-export default function AIChat({ eventId, lang = 'zh' }) {
+export default function AIChat({ eventId }) {
+  const lang = useLang()
   const [messages, setMessages] = useState([])
   const [history,  setHistory]  = useState([])
   const [input,    setInput]    = useState('')
@@ -91,7 +93,7 @@ export default function AIChat({ eventId, lang = 'zh' }) {
       const res = await fetch('/api/ai/chat', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ event_id: eventId, question: q, conversation_history: history, lang }),
+        body:    JSON.stringify({ event_id: eventId, question: q, conversation_history: history }),
       })
       const data = await res.json()
       const answer = res.ok ? (data.answer ?? errMsg) : errMsg
