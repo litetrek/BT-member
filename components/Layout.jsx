@@ -150,8 +150,9 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
                       className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
                     >
                       <span>{t(lang, 'Language', '語言')}</span>
-                      <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-                        {lang === 'zh' ? 'EN' : '中文'}
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-gray-600">
+                        {lang === 'en' ? 'English' : '中文'}
+                        <span className="text-gray-400">⇄</span>
                       </span>
                     </button>
 
