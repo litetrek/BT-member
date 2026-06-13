@@ -77,9 +77,8 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
     { key: 'users', label: t(lang, 'Members', '成員'), icon: 'users', href: `/${slug}/admin/users`, adminOnly: true },
   ].filter((item) => !item.adminOnly || userRole === 'admin')
 
-  async function handleLangToggle() {
-    const newLang = lang === 'zh' ? 'en' : 'zh'
-    if (!user?.id) return
+  async function handleLangChange(newLang) {
+    if (newLang === lang || !user?.id) return
     await fetch(`/api/users/${user.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -144,17 +143,19 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
                       <p className="text-xs text-gray-400 truncate">{userRole}</p>
                     </div>
 
-                    {/* Language toggle */}
-                    <button
-                      onClick={() => { handleLangToggle(); setMenuOpen(false) }}
-                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
-                    >
-                      <span>{t(lang, 'Language', '語言')}</span>
-                      <span className="flex items-center gap-1.5 text-xs font-medium text-gray-600">
-                        {lang === 'en' ? 'English' : '中文'}
-                        <span className="text-gray-400">⇄</span>
-                      </span>
-                    </button>
+                    {/* Language select */}
+                    <div className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50">
+                      <span className="text-sm text-gray-700">{t(lang, 'Language', '語言')}</span>
+                      <select
+                        value={lang}
+                        onChange={(e) => handleLangChange(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs border border-gray-200 rounded px-1.5 py-0.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
+                      >
+                        <option value="zh">中文</option>
+                        <option value="en">English</option>
+                      </select>
+                    </div>
 
                     <button
                       onClick={() => signOut({ callbackUrl: '/' })}
