@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import { t } from '@/lib/i18n'
+import { useLang } from '@/context/LangContext'
+import { t } from '@/lib/lang'
 
-export default function TaskForm({ slug, eventId, task, activities, onClose, onSaved, onDelete, lang = 'zh' }) {
+export default function TaskForm({ slug, eventId, task, activities, onClose, onSaved, onDelete }) {
+  const lang = useLang()
   const isEdit = !!task
 
   const STATUS_OPTIONS = [

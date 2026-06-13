@@ -9,10 +9,11 @@ import TaskDetail from '@/components/TaskDetail'
 import Spinner from '@/components/Spinner'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import { LangProvider } from '@/context/LangContext'
+import { LangProvider, useLang } from '@/context/LangContext'
 import { t } from '@/lib/lang'
 
-function Section({ title, tasks, currentUserId, userRole, onStatusChange, onEdit, onOpen, highlightId, lang }) {
+function Section({ title, tasks, currentUserId, userRole, onStatusChange, onEdit, onOpen, highlightId }) {
+  const lang = useLang()
   if (!tasks.length) return (
     <div className="mb-4">
       <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{title}</h3>
@@ -185,10 +186,10 @@ export default function TasksPage() {
           <p className="text-sm text-gray-400">{t(lang, 'No tasks match the current filters.', '目前篩選條件下沒有任務。')}</p>
         ) : (
           <>
-            <Section title={t(lang, 'OVERDUE',      '逾期')}   tasks={overdue}    currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} lang={lang} />
-            <Section title={t(lang, 'IN PROGRESS',  '進行中')} tasks={inProgress} currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} lang={lang} />
-            <Section title={t(lang, 'NOT STARTED',  '未開始')} tasks={open}       currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} lang={lang} />
-            <Section title={t(lang, 'DONE',         '已完成')} tasks={done}       currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} lang={lang} />
+            <Section title={t(lang, 'OVERDUE',      '逾期')}   tasks={overdue}    currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} />
+            <Section title={t(lang, 'IN PROGRESS',  '進行中')} tasks={inProgress} currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} />
+            <Section title={t(lang, 'NOT STARTED',  '未開始')} tasks={open}       currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} />
+            <Section title={t(lang, 'DONE',         '已完成')} tasks={done}       currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} />
           </>
         )}
       </>
@@ -200,10 +201,10 @@ export default function TasksPage() {
     const { overdue, inProgress, open, done } = groupByStatus(myTasks, today)
     return (
       <>
-        <Section title={t(lang, 'OVERDUE',     '逾期')}   tasks={overdue}    currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} lang={lang} />
-        <Section title={t(lang, 'IN PROGRESS', '進行中')} tasks={inProgress} currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} lang={lang} />
-        <Section title={t(lang, 'NOT STARTED', '未開始')} tasks={open}       currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} lang={lang} />
-        <Section title={t(lang, 'DONE',        '已完成')} tasks={done}       currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} lang={lang} />
+        <Section title={t(lang, 'OVERDUE',     '逾期')}   tasks={overdue}    currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} />
+        <Section title={t(lang, 'IN PROGRESS', '進行中')} tasks={inProgress} currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} />
+        <Section title={t(lang, 'NOT STARTED', '未開始')} tasks={open}       currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} />
+        <Section title={t(lang, 'DONE',        '已完成')} tasks={done}       currentUserId={userId} userRole={userRole} onStatusChange={handleStatusChange} onEdit={(tk) => { setEditTask(tk); setShowForm(true) }} onOpen={setDetailTask} highlightId={highlightId} />
       </>
     )
   }
@@ -319,7 +320,6 @@ export default function TasksPage() {
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); loadTasks() }}
           onDelete={editTask ? () => setDeleteTarget(editTask) : undefined}
-          lang={lang}
         />
       )}
 
