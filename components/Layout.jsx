@@ -90,7 +90,7 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ── Top header ── */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+      <header className="bg-blue-100 sm:bg-white border-b border-gray-200 sticky top-0 z-30">
         <nav className="flex items-center justify-between px-4 sm:px-6 h-14">
 
           {/* Left: home icon (desktop) + slug (mobile only) */}
@@ -102,7 +102,7 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
             >
               <Icon name="home" />
             </a>
-            <span className="text-sm font-semibold text-gray-800 truncate sm:hidden">{slug}</span>
+            <span className="text-sm font-semibold text-[#1E3A5F] truncate sm:hidden">{slug}</span>
           </div>
 
           {/* Center: desktop nav links */}
@@ -178,12 +178,12 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
       </main>
 
       {/* ── Mobile bottom tab bar ── */}
-      <nav className="sm:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 z-30 flex">
+      <nav className="sm:hidden fixed bottom-0 inset-x-0 bg-blue-700 z-30 flex">
         <a
           href="https://bt.cyber-tech.com"
-          className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-gray-400 hover:text-gray-700 transition-colors"
+          className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-white transition-colors"
         >
-          <Icon name="home" className="text-gray-400" />
+          <Icon name="home" className="text-white" />
           <span className="text-[10px] font-medium">{t(lang, 'Home', '首頁')}</span>
         </a>
 
@@ -194,10 +194,10 @@ export default function Layout({ children, slug, activePage, user, userRole }) {
               key={item.key}
               href={item.href}
               className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-                active ? 'text-blue-600' : 'text-gray-400 hover:text-gray-700'
+                active ? 'text-blue-300' : 'text-white'
               }`}
             >
-              <Icon name={item.icon} className={active ? 'text-blue-600' : 'text-gray-400'} />
+              <Icon name={item.icon} className={active ? 'text-blue-300' : 'text-white'} />
               <span className="text-[10px] font-medium">{item.label}</span>
             </Link>
           )
