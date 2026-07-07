@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createServerClient } from '@/lib/supabase/server'
+import { query } from '@/lib/db'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -14,27 +14,37 @@ export default async function handler(req, res) {
   const { event_id, task_id, hours } = req.query
   if (!event_id && !task_id) return res.status(400).json({ error: 'event_id or task_id required' })
 
-  const supabase = createServerClient()
+  const conditions = []
+  const params     = []
 
-  let query = supabase
-    .from('activity_log')
-    .select('id, entity_type, entity_name, action, field_changed, old_value, new_value, note, created_at, actor:user_id(name, avatar_url)')
-    .order('created_at', { ascending: false })
-    .limit(200)
-
-  // task_id takes priority — filter by entity_id for this specific task
   if (task_id) {
-    query = query.eq('entity_id', task_id).eq('entity_type', 'task')
+    conditions.push(`al.entity_id = $${params.length + 1}`)
+    params.push(task_id)
+    conditions.push(`al.entity_type = 'task'`)
   } else {
-    query = query.eq('event_id', event_id)
+    conditions.push(`al.event_id = $${params.length + 1}`)
+    params.push(event_id)
   }
 
   if (hours) {
     const cutoff = new Date(Date.now() - Number(hours) * 3600 * 1000)
-    query = query.gte('created_at', cutoff.toISOString())
+    conditions.push(`al.created_at >= $${params.length + 1}`)
+    params.push(cutoff.toISOString())
   }
 
-  const { data, error } = await query
-  if (error) return res.status(500).json({ error: error.message })
-  return res.status(200).json(data ?? [])
+  const { rows } = await query(
+    `SELECT al.id, al.entity_type, al.entity_name, al.action, al.field_changed,
+            al.old_value, al.new_value, al.note, al.created_at,
+       CASE WHEN al.user_id IS NOT NULL
+         THEN json_build_object('name', u.name, 'avatar_url', u.avatar_url)
+         ELSE NULL END AS actor
+     FROM activity_log al
+     LEFT JOIN users u ON u.id = al.user_id
+     WHERE ${conditions.join(' AND ')}
+     ORDER BY al.created_at DESC
+     LIMIT 200`,
+    params
+  )
+
+  return res.status(200).json(rows ?? [])
 }

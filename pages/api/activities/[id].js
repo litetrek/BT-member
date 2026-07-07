@@ -1,9 +1,8 @@
-import { createServerClient } from '@/lib/supabase/server'
+import { query, insertLog } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
 export default async function handler(req, res) {
-  const supabase = createServerClient()
   const { id } = req.query
 
   const session = await getServerSession(req, res, authOptions)
@@ -14,17 +13,21 @@ export default async function handler(req, res) {
   if (req.method === 'PUT') {
     const { lead_id, co_lead_id, name, icon, sort_order } = req.body
 
-    const { data: act } = await supabase
-      .from('activities').select('event_id, name').eq('id', id).single()
+    const { rows: [act] } = await query(
+      'SELECT event_id, name FROM activities WHERE id = $1',
+      [id]
+    )
 
-    const { data, error } = await supabase
-      .from('activities')
-      .update({ lead_id, co_lead_id: co_lead_id || null, name, icon, sort_order })
-      .eq('id', id).select().single()
+    const { rows: [data], rowCount } = await query(
+      `UPDATE activities
+       SET lead_id = $1, co_lead_id = $2, name = $3, icon = $4, sort_order = $5
+       WHERE id = $6
+       RETURNING *`,
+      [lead_id, co_lead_id || null, name, icon, sort_order, id]
+    )
+    if (!rowCount) return res.status(500).json({ error: 'Update failed' })
 
-    if (error) return res.status(500).json({ error: error.message })
-
-    await supabase.from('activity_log').insert({
+    await insertLog({
       event_id:    act?.event_id ?? null,
       user_id:     session.user.id,
       entity_type: 'activity',
@@ -37,13 +40,15 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'DELETE') {
-    const { data: act } = await supabase
-      .from('activities').select('event_id, name').eq('id', id).single()
+    const { rows: [act] } = await query(
+      'SELECT event_id, name FROM activities WHERE id = $1',
+      [id]
+    )
 
-    const { error } = await supabase.from('activities').delete().eq('id', id)
-    if (error) return res.status(500).json({ error: error.message })
+    const { rowCount } = await query('DELETE FROM activities WHERE id = $1', [id])
+    if (!rowCount) return res.status(500).json({ error: 'Delete failed' })
 
-    await supabase.from('activity_log').insert({
+    await insertLog({
       event_id:    act?.event_id ?? null,
       user_id:     session.user.id,
       entity_type: 'activity',

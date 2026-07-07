@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createServerClient } from '@/lib/supabase/server'
+import { query } from '@/lib/db'
 import Anthropic from '@anthropic-ai/sdk'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -54,21 +54,23 @@ export default async function handler(req, res) {
 
   const { event_id, hours = '24' } = req.query
   const lang = session.user?.preferred_lang ?? 'zh'
-
   if (!event_id) return res.status(400).json({ error: 'event_id required' })
 
-  const supabase = createServerClient()
   const cutoff = new Date(Date.now() - Number(hours) * 3600 * 1000)
 
-  const { data: logs, error } = await supabase
-    .from('activity_log')
-    .select('entity_type, entity_name, action, field_changed, old_value, new_value, note, created_at, actor:user_id(name)')
-    .eq('event_id', event_id)
-    .gte('created_at', cutoff.toISOString())
-    .order('created_at', { ascending: false })
-    .limit(100)
-
-  if (error) return res.status(500).json({ error: error.message })
+  const { rows: logs } = await query(
+    `SELECT al.entity_type, al.entity_name, al.action, al.field_changed,
+            al.old_value, al.new_value, al.note, al.created_at,
+       CASE WHEN al.user_id IS NOT NULL
+         THEN json_build_object('name', u.name)
+         ELSE NULL END AS actor
+     FROM activity_log al
+     LEFT JOIN users u ON u.id = al.user_id
+     WHERE al.event_id = $1 AND al.created_at >= $2
+     ORDER BY al.created_at DESC
+     LIMIT 100`,
+    [event_id, cutoff.toISOString()]
+  )
 
   if (!logs || logs.length === 0) {
     const emptyMsg = lang === 'en'
@@ -95,11 +97,10 @@ ${lines.join('\n')}
 
   try {
     const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+      model:      'claude-sonnet-4-6',
       max_tokens: 400,
-      messages: [{ role: 'user', content: prompt }],
+      messages:   [{ role: 'user', content: prompt }],
     })
-
     const summary = message.content[0]?.text ?? (lang === 'en' ? 'Unable to generate summary.' : '無法生成摘要。')
     return res.status(200).json({ summary, entry_count: logs.length })
   } catch (err) {

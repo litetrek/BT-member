@@ -1,10 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
+import { query } from '@/lib/db'
 import { sendDailyDigest, sendLeadDigest, sendOverdueReminder } from '@/lib/email'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
 
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -19,58 +14,51 @@ export default async function handler(req, res) {
   today.setHours(0, 0, 0, 0)
   const todayStr = today.toISOString().split('T')[0]
 
-  const { data: events } = await supabase
-    .from('events')
-    .select('id, name, slug')
-    .eq('status', 'active')
-
+  const { rows: events } = await query(
+    "SELECT id, name, slug FROM events WHERE status = 'active'"
+  )
   if (!events?.length) return res.status(200).json({ ok: true, processed: 0 })
 
   let totalSent = 0
 
   for (const event of events) {
-    const { data: activities } = await supabase
-      .from('activities')
-      .select('id, name, lead_id, co_lead_id')
-      .eq('event_id', event.id)
-
-    const activityIds = (activities ?? []).map((a) => a.id)
+    const { rows: activities } = await query(
+      'SELECT id, name, lead_id, co_lead_id FROM activities WHERE event_id = $1',
+      [event.id]
+    )
+    const activityIds = activities.map((a) => a.id)
     if (!activityIds.length) continue
 
-    const { data: allTasks } = await supabase
-      .from('tasks')
-      .select('id, title, status, due_date, activity_id, assignee_1_id, assignee_2_id')
-      .in('activity_id', activityIds)
-
+    const { rows: allTasks } = await query(
+      `SELECT id, title, status, due_date, activity_id, assignee_1_id, assignee_2_id
+       FROM tasks WHERE activity_id = ANY($1)`,
+      [activityIds]
+    )
     if (!allTasks?.length) continue
 
     const overdueTasks = allTasks.filter(
       (t) => t.status !== 'done' && t.due_date && new Date(t.due_date) < today
     )
 
-    // Load already-sent log for today to avoid duplicates
-    const { data: sentToday } = await supabase
-      .from('email_log')
-      .select('user_id, type')
-      .eq('event_id', event.id)
-      .gte('sent_at', todayStr)
-
+    const { rows: sentToday } = await query(
+      'SELECT user_id, type FROM email_log WHERE event_id = $1 AND sent_at >= $2::date',
+      [event.id, todayStr]
+    )
     const alreadySent = new Set((sentToday ?? []).map((e) => `${e.user_id}:${e.type}`))
 
-    const { data: members } = await supabase
-      .from('event_members')
-      .select('user_id, role')
-      .eq('event_id', event.id)
-
+    const { rows: members } = await query(
+      'SELECT user_id, role FROM event_members WHERE event_id = $1',
+      [event.id]
+    )
     if (!members?.length) continue
 
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, name, email, preferred_lang')
-      .in('id', members.map((m) => m.user_id))
-      .not('name', 'is', null) // skip placeholder invited users
-
-    const userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u]))
+    const memberIds = members.map((m) => m.user_id)
+    const { rows: users } = await query(
+      `SELECT id, name, email, preferred_lang FROM users
+       WHERE id = ANY($1) AND name IS NOT NULL`,
+      [memberIds]
+    )
+    const userMap = Object.fromEntries(users.map((u) => [u.id, u]))
 
     // Overdue reminders — one email per assignee (consolidated)
     const overdueByUser = {}
@@ -81,7 +69,6 @@ export default async function handler(req, res) {
         overdueByUser[uid].push(task)
       }
     }
-
     for (const [uid, tasks] of Object.entries(overdueByUser)) {
       if (alreadySent.has(`${uid}:overdue_reminder`)) continue
       await sendOverdueReminder(userMap[uid], tasks, event.slug, event.id, userMap[uid].preferred_lang ?? 'zh')
@@ -94,7 +81,6 @@ export default async function handler(req, res) {
       const user = userMap[member.user_id]
       if (!user) continue
       if (alreadySent.has(`${user.id}:daily_digest`)) continue
-
       const userTasks = allTasks.filter(
         (t) => t.assignee_1_id === user.id || t.assignee_2_id === user.id
       )
@@ -104,13 +90,12 @@ export default async function handler(req, res) {
     }
 
     // Lead digest — per activity, to lead and co-lead
-    for (const activity of (activities ?? [])) {
+    for (const activity of activities) {
       for (const leadId of [activity.lead_id, activity.co_lead_id].filter(Boolean)) {
         const user = userMap[leadId]
         if (!user) continue
         const key = `${user.id}:lead:${activity.id}`
         if (alreadySent.has(key)) continue
-
         const activityTasks = allTasks.filter((t) => t.activity_id === activity.id)
         await sendLeadDigest(user, activity, activityTasks, event.slug, event.id, user.preferred_lang ?? 'zh')
         alreadySent.add(key)

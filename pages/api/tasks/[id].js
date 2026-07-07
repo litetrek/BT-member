@@ -1,10 +1,9 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createServerClient } from '@/lib/supabase/server'
+import { query, insertLog } from '@/lib/db'
 
 export default async function handler(req, res) {
   const { id } = req.query
-  const supabase = createServerClient()
   const session = await getServerSession(req, res, authOptions)
   if (!session) return res.status(401).json({ error: 'Unauthorized' })
 
@@ -14,28 +13,29 @@ export default async function handler(req, res) {
     const userRole      = session.user.role
     const isAdminOrLead = ['admin', 'lead'].includes(userRole)
 
-    // Fetch task upfront — need created_by, description, and old values for logging
-    const { data: task } = await supabase
-      .from('tasks')
-      .select('title, description, task_type, status, due_date, assignee_1_id, assignee_2_id, created_by, note, activity:activity_id(event_id)')
-      .eq('id', id)
-      .single()
+    const { rows: [task] } = await query(
+      `SELECT t.title, t.description, t.task_type, t.status, t.due_date,
+              t.assignee_1_id, t.assignee_2_id, t.created_by, t.note,
+              a.event_id AS activity_event_id
+       FROM tasks t
+       LEFT JOIN activities a ON a.id = t.activity_id
+       WHERE t.id = $1`,
+      [id]
+    )
     if (!task) return res.status(404).json({ error: 'Not found' })
 
     const isAssignee = task.assignee_1_id === userId || task.assignee_2_id === userId
     const isCreator  = task.created_by === userId
 
-    // Must be admin/lead, assignee, or creator
     if (!isAdminOrLead && !isAssignee && !isCreator) {
       return res.status(403).json({ error: 'Forbidden' })
     }
 
-    const eventId = task.activity?.event_id ?? null
-    const base    = { event_id: eventId, user_id: userId, entity_type: 'task', entity_id: id, entity_name: task.title }
-    const update  = { updated_at: new Date().toISOString() }
+    const eventId    = task.activity_event_id ?? null
+    const base       = { event_id: eventId, user_id: userId, entity_type: 'task', entity_id: id, entity_name: task.title }
+    const update     = { updated_at: new Date().toISOString() }
     const logEntries = []
 
-    // status — assignee or admin/lead only (creator without assignee role: silently ignored)
     if (status !== undefined) {
       if (isAssignee || isAdminOrLead) {
         update.status = status
@@ -45,7 +45,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // note — assignee or admin/lead only
     if (note !== undefined) {
       if (isAssignee || isAdminOrLead) {
         update.note = note
@@ -53,25 +52,22 @@ export default async function handler(req, res) {
       }
     }
 
-    // title — creator, assignee, or admin/lead
     if (title !== undefined && title !== task.title) {
       update.title = title
       logEntries.push({ ...base, action: 'updated', field_changed: 'title', old_value: task.title, new_value: title })
     }
 
-    // description — creator, assignee, or admin/lead
     if (description !== undefined && description !== (task.description ?? '')) {
       update.description = description || null
       logEntries.push({
         ...base,
-        action: 'updated',
+        action:        'updated',
         field_changed: 'description',
-        old_value: (task.description ?? '').substring(0, 100),
-        new_value: (description ?? '').substring(0, 100),
+        old_value:     (task.description ?? '').substring(0, 100),
+        new_value:     (description ?? '').substring(0, 100),
       })
     }
 
-    // task_type — admin/lead only
     if (task_type !== undefined && isAdminOrLead) {
       update.task_type = task_type || 'general'
       if (update.task_type !== (task.task_type ?? 'general')) {
@@ -79,9 +75,8 @@ export default async function handler(req, res) {
       }
     }
 
-    // Structural fields — admin/lead only
     if (isAdminOrLead) {
-      if (activity_id !== undefined)  update.activity_id   = activity_id
+      if (activity_id !== undefined)   update.activity_id   = activity_id
       if (assignee_1_id !== undefined) {
         update.assignee_1_id = assignee_1_id
         if (assignee_1_id !== task.assignee_1_id) {
@@ -100,9 +95,17 @@ export default async function handler(req, res) {
       }
     }
 
-    const { data, error } = await supabase.from('tasks').update(update).eq('id', id).select().single()
-    if (error) return res.status(500).json({ error: error.message })
-    if (logEntries.length) await supabase.from('activity_log').insert(logEntries)
+    const fields      = Object.keys(update)
+    const setClauses  = fields.map((f, i) => `${f} = $${i + 2}`).join(', ')
+    const { rows: [data], rowCount } = await query(
+      `UPDATE tasks SET ${setClauses} WHERE id = $1 RETURNING *`,
+      [id, ...Object.values(update)]
+    )
+    if (!rowCount) return res.status(500).json({ error: 'Update failed' })
+
+    if (logEntries.length) {
+      for (const entry of logEntries) await insertLog(entry)
+    }
 
     return res.status(200).json(data)
   }
@@ -110,14 +113,16 @@ export default async function handler(req, res) {
   if (req.method === 'DELETE') {
     if (session.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' })
 
-    const { data: taskMeta } = await supabase
-      .from('tasks')
-      .select('title, activity:activity_id(event_id)')
-      .eq('id', id)
-      .single()
+    const { rows: [taskMeta] } = await query(
+      `SELECT t.title, a.event_id AS activity_event_id
+       FROM tasks t
+       LEFT JOIN activities a ON a.id = t.activity_id
+       WHERE t.id = $1`,
+      [id]
+    )
 
-    await supabase.from('activity_log').insert({
-      event_id:    taskMeta?.activity?.event_id ?? null,
+    await insertLog({
+      event_id:    taskMeta?.activity_event_id ?? null,
       user_id:     session.user.id,
       entity_type: 'task',
       entity_id:   id,
@@ -125,8 +130,9 @@ export default async function handler(req, res) {
       action:      'deleted',
     })
 
-    const { error } = await supabase.from('tasks').delete().eq('id', id)
-    if (error) return res.status(500).json({ error: error.message })
+    const { rowCount } = await query('DELETE FROM tasks WHERE id = $1', [id])
+    if (!rowCount) return res.status(500).json({ error: 'Delete failed' })
+
     return res.status(204).end()
   }
 

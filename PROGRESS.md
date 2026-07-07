@@ -567,6 +567,49 @@ Both API routes now derive lang exclusively from the authenticated session — t
 
 **Remaining Supabase surface (Stage 3b):** `lib/supabase/server.js` and 13 API route files that call `createServerClient()` + 2 API routes with direct `createClient()` calls — all still pointing at Supabase until Stage 3b rewrites each route to raw SQL.
 
+### Stage 3a Addendum — Post-Deploy Sign-In Verified
+
+- Production deployment at `https://bt.cyber-tech.com` (Vercel, commit `0e995fd0`)
+- Sign-in at Jul 06 20:33:10 Pacific confirmed complete OAuth flow hitting Neon (no Supabase in logs)
+- Neon row verified: `id=7f006f4d`, `name=Vincent Lin`, `email=vlin77@gmail.com`, `preferred_lang=zh`
+- Schema gap flagged: `users` table has no `updated_at` column — addressed in Stage 3b with `last_signed_in_at`
+
+### Stage 3b — All API Routes Migrated to Neon
+
+**`lib/db.js`** — added `insertLog(entry)` export: single-row INSERT into `activity_log` with all 10 columns, null-coalesced. Used by 6 API route files.
+
+**`prisma/schema.prisma`** — added `last_signed_in_at DateTime? @db.Timestamptz(6)` to User model; pushed to Neon.
+
+**`lib/auth.js`** — `signIn()` upsert now sets `last_signed_in_at = NOW()` on both INSERT and ON CONFLICT UPDATE, providing an audit timestamp for every sign-in.
+
+**All 15 API routes rewritten** from Supabase client to raw pg queries via `lib/db.js`:
+
+| Route | Methods | Key SQL patterns |
+|---|---|---|
+| `events/index` | GET, POST | SELECT *, INSERT RETURNING * |
+| `users/index` | GET | WHERE name IS NOT NULL; ANY($1) array param |
+| `users/[id]` | PUT, DELETE | UPDATE users; UPDATE event_members; DELETE from event_members |
+| `users/invite` | POST | SELECT by email; INSERT ON CONFLICT DO UPDATE for event_members |
+| `task-types/index` | GET, POST | Auto-seed 4 defaults on empty; INSERT per type in loop |
+| `task-types/[id]` | DELETE | Fetch name, guard DEFAULT_NAMES, DELETE |
+| `activities/index` | GET, POST | Separate queries + in-JS join; insertLog on POST |
+| `activities/[id]` | PUT, DELETE | Fetch for logging; UPDATE/DELETE RETURNING *; insertLog |
+| `announcements/index` | GET, POST | 3-table LEFT JOIN with CASE WHEN json_build_object; insertLog |
+| `log/index` | GET | Dynamic WHERE (event_id vs task_id + optional hours); LEFT JOIN actor |
+| `tasks/index` | GET, POST | 3-table LEFT JOIN (activity, assignee1, assignee2) with CASE WHEN; multi-entry insertLog |
+| `tasks/[id]` | PUT, DELETE | Fetch with activity JOIN; dynamic SET clause builder from update object; insertLog |
+| `ai/summary` | GET | LEFT JOIN actor; json_build_object |
+| `ai/chat` | POST | 3 parallel queries (tasks with assignee joins, log with actor, announcements) |
+| `cron/daily-digest` | GET, POST | All queries via pg; sent_at >= $2::date dedup; WHERE name IS NOT NULL |
+
+**Deleted:** `lib/supabase/server.js`, `lib/supabase/client.js`
+
+**Removed from `package.json`:** `@supabase/supabase-js`, `@auth/supabase-adapter`
+
+**Zero Supabase imports remain** anywhere in `pages/` or `lib/` — confirmed by grep.
+
+**Build:** `npm run build` passes cleanly (0 errors, all 15 API routes compiled as dynamic routes).
+
 ---
 
 ## Current State
@@ -591,9 +634,8 @@ Both API routes now derive lang exclusively from the authenticated session — t
 
 ## Pending / Next Steps
 
-- **Local testing:** `npm run dev` → verify language toggle, all pages in EN + ZH, email send
-- **`ANTHROPIC_API_KEY`** must be set in `.env.local` and Vercel env vars
-- **`CRON_SECRET`** must be set in Vercel environment variables
-- Production push to Vercel when local testing passes
+- **Deploy Stage 3b** to production (push to main → Vercel auto-deploys)
+- **`ANTHROPIC_API_KEY`** must be set in Vercel env vars
+- **`CRON_SECRET`** must be set in Vercel env vars
 - Trigger announcement emails from Activities page (currently only posted to DB)
 - Consider per-event role context (currently uses highest role across all events)

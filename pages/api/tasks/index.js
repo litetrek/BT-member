@@ -1,31 +1,48 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createServerClient } from '@/lib/supabase/server'
+import { query, insertLog } from '@/lib/db'
 
 export default async function handler(req, res) {
-  const supabase = createServerClient()
-
   if (req.method === 'GET') {
     const { slug, activity_id, status } = req.query
     if (!slug) return res.status(400).json({ error: 'slug required' })
 
-    const { data: event } = await supabase.from('events').select('id').eq('slug', slug).single()
+    const { rows: [event] } = await query(
+      'SELECT id FROM events WHERE slug = $1',
+      [slug]
+    )
     if (!event) return res.status(404).json({ error: 'Event not found' })
 
-    const { data: activityRows } = await supabase.from('activities').select('id').eq('event_id', event.id)
-    const activityIds = (activityRows ?? []).map((a) => a.id)
+    const { rows: activityRows } = await query(
+      'SELECT id FROM activities WHERE event_id = $1',
+      [event.id]
+    )
+    const activityIds = activityRows.map((a) => a.id)
     if (!activityIds.length) return res.status(200).json([])
 
-    let query = supabase
-      .from('tasks')
-      .select('*, activity:activity_id(id, name), assignee1:assignee_1_id(id, name, email, avatar_url), assignee2:assignee_2_id(id, name, email, avatar_url)')
-      .in('activity_id', activityIds)
-      .order('created_at', { ascending: false })
+    const conditions = ['t.activity_id = ANY($1)']
+    const params     = [activityIds]
 
-    if (activity_id) query = query.eq('activity_id', activity_id)
+    if (activity_id) {
+      conditions.push(`t.activity_id = $${params.length + 1}`)
+      params.push(activity_id)
+    }
 
-    const { data, error } = await query
-    if (error) return res.status(500).json({ error: error.message })
+    const { rows: data } = await query(
+      `SELECT t.*,
+         json_build_object('id', a.id, 'name', a.name) AS activity,
+         json_build_object('id', u1.id, 'name', u1.name, 'email', u1.email, 'avatar_url', u1.avatar_url) AS assignee1,
+         CASE WHEN t.assignee_2_id IS NOT NULL
+           THEN json_build_object('id', u2.id, 'name', u2.name, 'email', u2.email, 'avatar_url', u2.avatar_url)
+           ELSE NULL END AS assignee2
+       FROM tasks t
+       LEFT JOIN activities a  ON a.id  = t.activity_id
+       LEFT JOIN users u1      ON u1.id = t.assignee_1_id
+       LEFT JOIN users u2      ON u2.id = t.assignee_2_id
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY t.created_at DESC`,
+      params
+    )
 
     const today = new Date(); today.setHours(0, 0, 0, 0)
     let tasks = data ?? []
@@ -50,21 +67,18 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'title, activity_id, assignee_1_id required' })
     }
 
-    const { data, error } = await supabase.from('tasks').insert({
-      title,
-      activity_id,
-      status,
-      assignee_1_id,
-      assignee_2_id: assignee_2_id || null,
-      due_date: due_date || null,
-      description: description || null,
-      task_type: task_type || 'general',
-      created_by: session.user.id,
-    }).select().single()
+    const { rows: [data] } = await query(
+      `INSERT INTO tasks (title, activity_id, status, assignee_1_id, assignee_2_id, due_date, description, task_type, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [title, activity_id, status, assignee_1_id, assignee_2_id || null, due_date || null, description || null, task_type || 'general', session.user.id]
+    )
 
-    if (error) return res.status(500).json({ error: error.message })
+    const { rows: [act] } = await query(
+      'SELECT event_id FROM activities WHERE id = $1',
+      [activity_id]
+    )
 
-    const { data: act } = await supabase.from('activities').select('event_id').eq('id', activity_id).single()
     const logEntries = [{
       event_id:    act?.event_id ?? null,
       user_id:     session.user.id,
@@ -77,18 +91,19 @@ export default async function handler(req, res) {
 
     if (description) {
       logEntries.push({
-        event_id:     act?.event_id ?? null,
-        user_id:      session.user.id,
-        entity_type:  'task',
-        entity_id:    data.id,
-        entity_name:  title,
-        action:       'updated',
+        event_id:      act?.event_id ?? null,
+        user_id:       session.user.id,
+        entity_type:   'task',
+        entity_id:     data.id,
+        entity_name:   title,
+        action:        'updated',
         field_changed: 'description',
-        new_value:    description.substring(0, 100),
+        new_value:     description.substring(0, 100),
       })
     }
 
-    await supabase.from('activity_log').insert(logEntries)
+    for (const entry of logEntries) await insertLog(entry)
+
     return res.status(201).json(data)
   }
 

@@ -39,8 +39,9 @@ model User {
   name           String?  // null = invited but never signed in (pending)
   email          String   @unique
   avatar_url     String?
-  preferred_lang String   @default("zh")
-  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  preferred_lang    String    @default("zh")
+  last_signed_in_at DateTime? @db.Timestamptz(6)
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
 
   memberships        EventMember[]
   led_activities     Activity[]    @relation("ActivityLead")

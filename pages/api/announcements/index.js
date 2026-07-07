@@ -1,27 +1,30 @@
-import { createServerClient } from '@/lib/supabase/server'
+import { query, insertLog } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
 export default async function handler(req, res) {
-  const supabase = createServerClient()
-
   if (req.method === 'GET') {
     const { event_id } = req.query
     if (!event_id) return res.status(400).json({ error: 'event_id is required' })
 
-    const { data, error } = await supabase
-      .from('announcements')
-      .select(`
-        *,
-        creator:created_by(name, avatar_url),
-        reporter:reporter_id(name, avatar_url),
-        activity:activity_id(name)
-      `)
-      .eq('event_id', event_id)
-      .order('created_at', { ascending: false })
-
-    if (error) return res.status(500).json({ error: error.message })
-    return res.status(200).json(data)
+    const { rows } = await query(
+      `SELECT ann.*,
+         json_build_object('name', u1.name, 'avatar_url', u1.avatar_url) AS creator,
+         CASE WHEN ann.reporter_id IS NOT NULL
+           THEN json_build_object('name', u2.name, 'avatar_url', u2.avatar_url)
+           ELSE NULL END AS reporter,
+         CASE WHEN ann.activity_id IS NOT NULL
+           THEN json_build_object('name', act.name)
+           ELSE NULL END AS activity
+       FROM announcements ann
+       LEFT JOIN users u1  ON u1.id  = ann.created_by
+       LEFT JOIN users u2  ON u2.id  = ann.reporter_id
+       LEFT JOIN activities act ON act.id = ann.activity_id
+       WHERE ann.event_id = $1
+       ORDER BY ann.created_at DESC`,
+      [event_id]
+    )
+    return res.status(200).json(rows)
   }
 
   if (req.method === 'POST') {
@@ -32,21 +35,14 @@ export default async function handler(req, res) {
 
     const { event_id, message, activity_id, reporter_id, reported_at } = req.body
 
-    const { data, error } = await supabase
-      .from('announcements')
-      .insert({
-        event_id,
-        message,
-        created_by:  session.user.id,
-        activity_id: activity_id || null,
-        reporter_id: reporter_id || null,
-        reported_at: reported_at || null,
-      })
-      .select().single()
+    const { rows: [data] } = await query(
+      `INSERT INTO announcements (event_id, message, created_by, activity_id, reporter_id, reported_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [event_id, message, session.user.id, activity_id || null, reporter_id || null, reported_at || null]
+    )
 
-    if (error) return res.status(500).json({ error: error.message })
-
-    await supabase.from('activity_log').insert({
+    await insertLog({
       event_id,
       user_id:     session.user.id,
       entity_type: 'announcement',

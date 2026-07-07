@@ -1,13 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
 import { requireAdmin } from '@/lib/auth'
-
-// Service role key bypasses RLS — required to insert placeholder users
-function adminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
-}
+import { query } from '@/lib/db'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -17,31 +9,33 @@ export default async function handler(req, res) {
 
   if (await requireAdmin(req, res)) return
 
-  const supabase = adminClient()
   const { name, email, role = 'member', event_id } = req.body
   if (!email || !event_id) return res.status(400).json({ error: 'email and event_id required' })
 
-  // Look up existing user or create with provided name
-  let { data: user } = await supabase.from('users').select('id').eq('email', email).single()
+  let { rows: [user] } = await query(
+    'SELECT id FROM users WHERE email = $1',
+    [email]
+  )
 
   if (!user) {
-    const { data: newUser, error: createErr } = await supabase
-      .from('users')
-      .insert({ email, name: name || null })
-      .select('id')
-      .single()
-    if (createErr) return res.status(500).json({ error: createErr.message })
+    const { rows: [newUser] } = await query(
+      'INSERT INTO users (email, name) VALUES ($1, $2) RETURNING id',
+      [email, name || null]
+    )
     user = newUser
   } else if (name) {
-    // Update name if admin provided one and user exists without a name
-    await supabase.from('users').update({ name }).eq('id', user.id).is('name', null)
+    await query(
+      'UPDATE users SET name = $1 WHERE id = $2 AND name IS NULL',
+      [name, user.id]
+    )
   }
 
-  // Add/update event membership
-  const { error } = await supabase
-    .from('event_members')
-    .upsert({ event_id, user_id: user.id, role }, { onConflict: 'event_id,user_id' })
-  if (error) return res.status(500).json({ error: error.message })
+  const { rowCount } = await query(
+    `INSERT INTO event_members (event_id, user_id, role) VALUES ($1, $2, $3)
+     ON CONFLICT (event_id, user_id) DO UPDATE SET role = EXCLUDED.role`,
+    [event_id, user.id, role]
+  )
+  if (!rowCount) return res.status(500).json({ error: 'Membership upsert failed' })
 
   return res.status(200).json({ ok: true })
 }

@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createServerClient } from '@/lib/supabase/server'
+import { query } from '@/lib/db'
 import Anthropic from '@anthropic-ai/sdk'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -22,51 +22,58 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'event_id and question are required' })
   }
 
-  const lang = session.user?.preferred_lang ?? 'zh'
-
-  const supabase = createServerClient()
+  const lang          = session.user?.preferred_lang ?? 'zh'
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-  const { data: activities } = await supabase
-    .from('activities')
-    .select('id, name, icon')
-    .eq('event_id', event_id)
-    .order('sort_order')
-
-  const activityIds = (activities ?? []).map((a) => a.id)
+  const { rows: activities } = await query(
+    'SELECT id, name, icon FROM activities WHERE event_id = $1 ORDER BY sort_order',
+    [event_id]
+  )
+  const activityIds = activities.map((a) => a.id)
 
   const [tasksResult, logResult, announcementsResult] = await Promise.all([
     activityIds.length > 0
-      ? supabase
-          .from('tasks')
-          .select('title, status, due_date, note, description, activity_id, assignee1:assignee_1_id(name), assignee2:assignee_2_id(name)')
-          .in('activity_id', activityIds)
-      : Promise.resolve({ data: [] }),
+      ? query(
+          `SELECT t.title, t.status, t.due_date, t.note, t.description, t.activity_id,
+             json_build_object('name', u1.name) AS assignee1,
+             CASE WHEN t.assignee_2_id IS NOT NULL
+               THEN json_build_object('name', u2.name)
+               ELSE NULL END AS assignee2
+           FROM tasks t
+           LEFT JOIN users u1 ON u1.id = t.assignee_1_id
+           LEFT JOIN users u2 ON u2.id = t.assignee_2_id
+           WHERE t.activity_id = ANY($1)`,
+          [activityIds]
+        )
+      : Promise.resolve({ rows: [] }),
 
-    supabase
-      .from('activity_log')
-      .select('action, field_changed, old_value, new_value, note, entity_name, created_at, actor:user_id(name)')
-      .eq('event_id', event_id)
-      .gte('created_at', thirtyDaysAgo)
-      .order('created_at', { ascending: false })
-      .limit(50),
+    query(
+      `SELECT al.action, al.field_changed, al.old_value, al.new_value, al.note, al.entity_name, al.created_at,
+         CASE WHEN al.user_id IS NOT NULL
+           THEN json_build_object('name', u.name)
+           ELSE NULL END AS actor
+       FROM activity_log al
+       LEFT JOIN users u ON u.id = al.user_id
+       WHERE al.event_id = $1 AND al.created_at >= $2
+       ORDER BY al.created_at DESC
+       LIMIT 50`,
+      [event_id, thirtyDaysAgo]
+    ),
 
-    supabase
-      .from('announcements')
-      .select('message, created_at')
-      .eq('event_id', event_id)
-      .gte('created_at', thirtyDaysAgo)
-      .order('created_at', { ascending: false })
-      .limit(20),
+    query(
+      `SELECT message, created_at FROM announcements
+       WHERE event_id = $1 AND created_at >= $2
+       ORDER BY created_at DESC LIMIT 20`,
+      [event_id, thirtyDaysAgo]
+    ),
   ])
 
-  const tasks         = tasksResult.data ?? []
-  const log           = logResult.data ?? []
-  const announcements = announcementsResult.data ?? []
+  const tasks         = tasksResult.rows ?? []
+  const log           = logResult.rows   ?? []
+  const announcements = announcementsResult.rows ?? []
 
-  const activityMap = Object.fromEntries((activities ?? []).map((a) => [a.id, a.name]))
-
-  const dateLocale = lang === 'en' ? 'en-US' : 'zh-TW'
+  const activityMap = Object.fromEntries(activities.map((a) => [a.id, a.name]))
+  const dateLocale  = lang === 'en' ? 'en-US' : 'zh-TW'
 
   const taskLines = tasks.map((tk) => {
     const act  = activityMap[tk.activity_id] ?? (lang === 'en' ? 'Unknown Activity' : '未知活動')
@@ -99,7 +106,7 @@ Use the data below to answer questions. Respond in English, concisely (under 150
 If a question is outside the available data, say so.
 
 [Activities]
-${(activities ?? []).map((a) => a.name).join(', ') || '(none)'}
+${activities.map((a) => a.name).join(', ') || '(none)'}
 
 [Tasks]
 ${taskLines || '(none)'}
@@ -115,7 +122,7 @@ ${annLines || '(none)'}`
 如果問題超出資料範圍，請說明你無法從現有資料中找到答案。
 
 [活動列表]
-${(activities ?? []).map((a) => a.name).join('、') || '（無活動）'}
+${activities.map((a) => a.name).join('、') || '（無活動）'}
 
 [任務列表]
 ${taskLines || '（無任務）'}
@@ -143,7 +150,7 @@ ${annLines || '（無公告）'}`
     messages,
   })
 
-  const answer = response.content[0]?.text ?? fallbackError
+  const answer          = response.content[0]?.text ?? fallbackError
   const updated_history = [
     ...trimmedHistory,
     { role: 'user',      content: question },
