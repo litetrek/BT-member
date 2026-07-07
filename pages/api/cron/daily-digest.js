@@ -94,7 +94,7 @@ export default async function handler(req, res) {
       for (const leadId of [activity.lead_id, activity.co_lead_id].filter(Boolean)) {
         const user = userMap[leadId]
         if (!user) continue
-        const key = `${user.id}:lead:${activity.id}`
+        const key = `${user.id}:lead_digest`
         if (alreadySent.has(key)) continue
         const activityTasks = allTasks.filter((t) => t.activity_id === activity.id)
         await sendLeadDigest(user, activity, activityTasks, event.slug, event.id, user.preferred_lang ?? 'zh')
