@@ -610,6 +610,46 @@ Both API routes now derive lang exclusively from the authenticated session — t
 
 **Build:** `npm run build` passes cleanly (0 errors, all 15 API routes compiled as dynamic routes).
 
+### Post-3b Fixes (commit `b7f4988a`)
+
+Two bugs discovered during verification, both pre-existing from original Supabase code:
+
+**Lead-digest dedup fix:**
+- `sendLeadDigest()` in `lib/email.js` was logging `type='daily_digest'` instead of `'lead_digest'`
+- Cron dedup key was `${user.id}:lead:${activity.id}` — never matched the DB-seeded `alreadySent` set
+- Fix: log `type='lead_digest'`; dedup key changed to `${user.id}:lead_digest`
+- Result: second consecutive cron run now sends 0 lead digests (confirmed)
+
+**CRON_SECRET local bypass fix:**
+- `CRON_SECRET` was absent from `.env.local`, so `undefined !== undefined` silently passed the auth check
+- Fix: added `CRON_SECRET=local-dev-placeholder` to `.env.local` and `.env.local.example`
+
+### Migration Cleanup (this commit)
+
+- Deleted `migration/data-dump-supabase.sql` from working tree (contained real user emails/UUIDs — SQL dump used during Stage 2 data migration; deferred git history purge is intentional)
+- `.gitignore` entry changed from `migration/` (whole directory) to `migration/*.sql` with explanatory comment
+- Confirmed: `lib/supabase/server.js` and `lib/supabase/client.js` already deleted in Stage 3b
+- Confirmed: `@supabase/supabase-js` and `@auth/supabase-adapter` already removed from `package.json` in Stage 3b
+- Final repo-wide grep: zero Supabase references remain in `pages/`, `lib/`, or `components/`
+
+**Supabase is fully decommissioned as a runtime dependency.** The app connects exclusively to Neon (PostgreSQL 17) via `pg` pool. Supabase project `wlratdydeubyehtudeyt` may be deleted or allowed to lapse — no runtime path depends on it.
+
+---
+
+## Supabase → Neon Migration: Complete Summary
+
+| Stage | What changed |
+|---|---|
+| **Schema** | `prisma db push` against Neon direct URL; `preferred_lang` schema drift corrected; `last_signed_in_at` added |
+| **Data** | Custom Node.js migrator (no pg_dump on Windows); FK-safe insert order; 75 rows migrated exact-match |
+| **Auth** | `lib/auth.js` rewritten from Supabase client to raw pg; `last_signed_in_at` now stamped on every sign-in |
+| **lib/email.js** | `logEmail()` rewritten from Supabase insert to raw pg |
+| **lib/db.js** | New singleton Pool + `query()` helper + `insertLog()` used by 6 routes |
+| **15 API routes** | All rewritten from `createServerClient()` / `createClient()` to raw pg SQL |
+| **Deleted** | `lib/supabase/server.js`, `lib/supabase/client.js`, `migration/data-dump-supabase.sql` |
+| **Removed** | `@supabase/supabase-js`, `@auth/supabase-adapter` from `package.json` |
+| **Bugs fixed** | `preferred_lang` schema drift (Stage 1); lead-digest dedup key mismatch (post-3b) |
+
 ---
 
 ## Current State
@@ -634,8 +674,8 @@ Both API routes now derive lang exclusively from the authenticated session — t
 
 ## Pending / Next Steps
 
-- **Deploy Stage 3b** to production (push to main → Vercel auto-deploys)
-- **`ANTHROPIC_API_KEY`** must be set in Vercel env vars
-- **`CRON_SECRET`** must be set in Vercel env vars
+- **`ANTHROPIC_API_KEY`** must be set in Vercel env vars (AI routes)
+- **`CRON_SECRET`** must be set in Vercel env vars (cron auth)
 - Trigger announcement emails from Activities page (currently only posted to DB)
 - Consider per-event role context (currently uses highest role across all events)
+- Purge git history of `migration/data-dump-supabase.sql` if PII scrubbing is required (e.g. `git filter-repo`)

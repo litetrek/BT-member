@@ -9,4 +9,5 @@ yarn-debug.log*
 yarn-error.log*
 .DS_Store
 
-migration/
+# SQL dumps may contain real user data (emails, names, UUIDs) — never commit
+migration/*.sql
