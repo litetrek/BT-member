@@ -35,11 +35,12 @@ model Event {
 }
 
 model User {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name       String?  // null = invited but never signed in (pending)
-  email      String   @unique
-  avatar_url String?
-  created_at DateTime @default(now()) @db.Timestamptz(6)
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String?  // null = invited but never signed in (pending)
+  email          String   @unique
+  avatar_url     String?
+  preferred_lang String   @default("zh")
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
 
   memberships        EventMember[]
   led_activities     Activity[]    @relation("ActivityLead")

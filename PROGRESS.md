@@ -526,6 +526,49 @@ Both API routes now derive lang exclusively from the authenticated session — t
 
 ---
 
+---
+
+## Neon Database Migration (Stages 1–3a) — July 2026
+
+### Stage 1 — Schema Push to Neon
+
+- Added `prisma` and `@prisma/client` (v5.22.0) as devDependencies for schema management
+- Added `preferred_lang String @default("zh")` to User model in `prisma/schema.prisma` (was in Supabase but missing from schema reference)
+- Ran `prisma db push` against Neon direct connection (PostgreSQL 17.10)
+- All 9 tables created on Neon: `events`, `users`, `event_members`, `activities`, `tasks`, `task_types`, `announcements`, `email_log`, `activity_log`
+- Full schema diff confirmed: `uuid_generate_v4()` → `gen_random_uuid()` (functionally identical), `now()` → `CURRENT_TIMESTAMP` (identical), 4 nullable-to-NOT-NULL tightening (no NULL data found in pre-flight check)
+- Stale `users.lang` column identified in Supabase (dead column, replaced by `preferred_lang` in Day 6) — intentionally excluded from Neon
+
+### Stage 2 — Data Migration
+
+- Custom Node.js migrator (using `pg` package) reading from Supabase session-mode pooler, writing to Neon direct URL
+- Insert order: `events → users → event_members → activities → task_types → email_log → activity_log → announcements → tasks` (FK-safe)
+- `users.lang` (Supabase-only stale column) filtered out by reading Neon's column list before SELECT
+- All 9 tables: exact row-count match (75 total rows)
+- FK spot-check on 3 random tasks: all `activity_id`, `assignee_1_id`, `created_by` references resolved
+- `preferred_lang` distribution: `en=1, zh=5` — copied correctly (not defaulted)
+- SQL dump written to `migration/data-dump-supabase.sql` (gitignored — contains user data)
+
+### Stage 3a — lib/ Layer Migrated to Neon
+
+**`pg` moved from devDependencies → dependencies** (required for Vercel production runtime)
+
+**`lib/db.js`** (new) — singleton `pg.Pool` using `DATABASE_URL` (Neon pooled connection string):
+- `globalThis.__pgPool` singleton prevents multiple pool instances during Next.js hot-reload
+- Exports `query(text, params)` helper and the pool itself
+- SSL: `rejectUnauthorized: false` (Neon hosted TLS)
+- Pool: max 10 connections, 30s idle timeout, 10s connection timeout
+
+**`lib/auth.js`** — Supabase client removed; replaced with raw pg queries via `lib/db.js`:
+- `signIn`: `INSERT INTO users ... ON CONFLICT (email) DO UPDATE SET name, avatar_url` — `preferred_lang` is never overwritten on sign-in (DB column default `'zh'` applies only on first insert)
+- `session`: `SELECT id, preferred_lang FROM users WHERE email = $1` + `SELECT role FROM event_members WHERE user_id = $1` — identical shape to previous Supabase queries
+
+**`lib/email.js`** — Supabase client removed; `logEmail()` now calls `INSERT INTO email_log ... VALUES ($1,$2,$3,$4)` via `lib/db.js`
+
+**Remaining Supabase surface (Stage 3b):** `lib/supabase/server.js` and 13 API route files that call `createServerClient()` + 2 API routes with direct `createClient()` calls — all still pointing at Supabase until Stage 3b rewrites each route to raw SQL.
+
+---
+
 ## Current State
 
 - Per-user language preference: `zh` (Traditional Chinese, default) or `en` (English)
