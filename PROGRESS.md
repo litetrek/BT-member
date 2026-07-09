@@ -654,28 +654,33 @@ Two bugs discovered during verification, both pre-existing from original Supabas
 
 ## Current State
 
+**Infrastructure**
+- **Database:** Neon PostgreSQL 17 — accessed exclusively via `pg` singleton pool (`lib/db.js`); no ORM at runtime
+- **Auth:** NextAuth v4, Google OAuth; sign-in upserts user row and stamps `last_signed_in_at`
+- **Hosting:** Vercel (auto-deploy on push to `main`); production at `https://bt.cyber-tech.com`
+- **Email:** Resend + React Email templates; cron at 14:00 UTC daily via `vercel.json`
+- **Supabase:** fully decommissioned — no packages, no imports, no runtime calls
+
+**Features**
 - Per-user language preference: `zh` (Traditional Chinese, default) or `en` (English)
-- Language toggle in avatar dropdown — shows current language with `⇄` indicator; persists to DB on click, page reloads with new language
-- Full Traditional Chinese UI across all pages and components (unchanged for zh users)
-- Full English UI for `en` users: all pages, components, AI responses, email subjects and body
-- AI summary and chat respond in the session user's `preferred_lang`
-- Email digests and overdue reminders sent in each recipient's `preferred_lang`
+- Language toggle in avatar dropdown — persists to DB on click, page reloads immediately
+- Full Traditional Chinese UI for `zh` users; full English UI for `en` users across all pages, components, AI responses, and email subjects/body
+- AI summary and chat respond in the session user's `preferred_lang`; voice input switches between zh-TW and en-US
+- Email digests and overdue reminders sent in each recipient's `preferred_lang`; lead digests properly deduped per user per day
 - Three-tier task permission model: admin/lead → assignee → creator
-- Task description + title inline editing
-- AI 助理 page (separate from dashboard) — admin/lead only
-- Voice input in AI Chat (zh-TW or en-US per lang)
-- Status updates: modal form with activity/reporter/time fields; clickable activity filter
-- Nav: home icon (left) + centered links + avatar (right); AI tab for admin/lead only
+- Task description + inline title editing; task types (event-scoped, admin-managed)
+- AI 助理 page (admin/lead only): AI summary with time range selector + multi-turn chat with voice input
+- Status updates: modal with activity/reporter/time; clickable activity filter on Activities page
+- Nav: home icon (left) + centered page links + avatar (right); AI tab for admin/lead only
 - Task tabs: 全部任務 / 我的任務（按狀態）/ 我的任務（按活動）
-- Task types: event-scoped admin-managed list; badge on TaskItem; field in TaskForm/TaskDetail
-- Mobile: bottom tab bar with HOME + event nav tabs
+- Mobile: fixed bottom tab bar with HOME + event nav tabs; +2px font on mobile
 
 ---
 
 ## Pending / Next Steps
 
-- **`ANTHROPIC_API_KEY`** must be set in Vercel env vars (AI routes)
-- **`CRON_SECRET`** must be set in Vercel env vars (cron auth)
-- Trigger announcement emails from Activities page (currently only posted to DB)
-- Consider per-event role context (currently uses highest role across all events)
-- Purge git history of `migration/data-dump-supabase.sql` if PII scrubbing is required (e.g. `git filter-repo`)
+- **`ANTHROPIC_API_KEY`** must be set in Vercel env vars (AI routes will 500 without it)
+- **`CRON_SECRET`** must be set in Vercel env vars (cron will be unprotected without it)
+- Trigger announcement emails from Activities page (announcements are posted to DB but no send button exists yet)
+- Consider per-event role context (currently session role = highest role across all events)
+- Purge git history of `migration/data-dump-supabase.sql` if PII scrubbing is ever required (`git filter-repo`)
