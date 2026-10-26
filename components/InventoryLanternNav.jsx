@@ -4,7 +4,7 @@ import { useRouter } from 'next/router'
 const TABS = [
   { key: 'list', name: '燈籠列表', nameEn: 'Lanterns', href: '/inventory/lanterns', ready: true },
   { key: 'locations', name: '地點', nameEn: 'Locations', href: '/inventory/lanterns/locations', ready: true },
-  { key: 'field', name: '現場模式', nameEn: 'Field', ready: false },
+  { key: 'field', name: '現場模式', nameEn: 'Field', href: '/inventory/lanterns/field', ready: true },
   { key: 'admin', name: '管理', nameEn: 'Admin', ready: false },
 ]
 

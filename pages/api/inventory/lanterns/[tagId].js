@@ -32,7 +32,16 @@ export default async function handler(req, res) {
       [lantern.id]
     )
 
-    return res.status(200).json({ ...lantern, photos, log })
+    const { rows: inspections } = await query(
+      `SELECT i.*, loc.code AS location_code
+       FROM inv_lantern_inspections i
+       LEFT JOIN inv_lantern_locations loc ON loc.id = i.location_id
+       WHERE i.lantern_id = $1
+       ORDER BY i.inspected_at DESC`,
+      [lantern.id]
+    )
+
+    return res.status(200).json({ ...lantern, photos, log, inspections })
   }
 
   if (req.method === 'PUT') {

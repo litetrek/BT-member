@@ -7,6 +7,7 @@ import { getInventoryRole } from '@/lib/inventory'
 import { uploadInventoryPhoto } from '@/lib/inventoryPhoto'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import Spinner from '@/components/Spinner'
+import InventoryQuickInspectSheet from '@/components/InventoryQuickInspectSheet'
 
 function Field({ label, value }) {
   return (
@@ -25,10 +26,12 @@ export default function LanternDetail() {
   const canEdit = role === 'admin' || role === 'editor'
 
   const [lantern, setLantern] = useState(null)
+  const [locations, setLocations] = useState([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [showInspect, setShowInspect] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.replace('/inventory')
@@ -50,6 +53,11 @@ export default function LanternDetail() {
   useEffect(() => {
     if (status === 'authenticated' && role) load()
   }, [status, role, tagId])
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !role) return
+    fetch('/api/inventory/locations').then((r) => r.json()).then((d) => setLocations(Array.isArray(d) ? d : []))
+  }, [status, role])
 
   async function handleAddPhoto(e) {
     const files = Array.from(e.target.files ?? [])
@@ -108,6 +116,9 @@ export default function LanternDetail() {
             </div>
             {canEdit && lantern && (
               <div className="flex gap-2 shrink-0">
+                <button onClick={() => setShowInspect(true)} className="text-base bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">
+                  記錄檢查
+                </button>
                 <Link href={`/inventory/lanterns/${tagId}/edit`} className="text-base bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50">
                   編輯
                 </Link>
@@ -188,6 +199,26 @@ export default function LanternDetail() {
                 )}
               </div>
 
+              {lantern.inspections.length > 0 && (
+                <div className="bg-white rounded-lg border border-gray-200 p-5">
+                  <h2 className="text-base font-semibold text-gray-700 mb-3">檢查歷史 Inspection History</h2>
+                  <ul className="space-y-3">
+                    {lantern.inspections.map((insp) => (
+                      <li key={insp.id} className="text-sm border-l-2 border-blue-200 pl-3">
+                        <p className="text-gray-700">
+                          {new Date(insp.inspected_at).toLocaleString('zh-TW')} · {insp.inspected_by ?? '—'}
+                        </p>
+                        <p className="text-gray-500">
+                          {insp.condition} · 布面 {insp.cloth_damage_pct}% · 骨架 {insp.frame_damage_pct}%
+                          {insp.location_code ? ` · ${insp.location_code}` : ''}
+                        </p>
+                        {insp.notes && <p className="text-gray-400">{insp.notes}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {lantern.log.length > 0 && (
                 <div className="bg-white rounded-lg border border-gray-200 p-5">
                   <h2 className="text-base font-semibold text-gray-700 mb-3">歷史紀錄 History</h2>
@@ -210,6 +241,15 @@ export default function LanternDetail() {
           message="確定要刪除此燈籠記錄嗎？此操作無法復原。"
           onConfirm={handleDeleteLantern}
           onCancel={() => setConfirmDelete(false)}
+        />
+      )}
+
+      {showInspect && lantern && (
+        <InventoryQuickInspectSheet
+          lantern={lantern}
+          locations={locations}
+          onClose={() => setShowInspect(false)}
+          onSaved={() => { setShowInspect(false); load() }}
         />
       )}
     </>
