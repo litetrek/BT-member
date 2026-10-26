@@ -6,7 +6,7 @@ const COLUMNS = [
   'tag_id', 'name_zh', 'name_en', 'category', 'qty', 'voltage', 'power_w',
   'height_ft', 'width_ft', 'depth_ft', 'location', 'condition',
   'cloth_damage_pct', 'frame_damage_pct', 'displayable', 'status',
-  'display_decision', 'notes',
+  'display_decision', 'notes', 'primary_photo_url', 'photo_urls',
 ]
 
 function csvEscape(value) {
@@ -30,7 +30,13 @@ export default async function handler(req, res) {
     `SELECT l.tag_id, l.name_zh, l.name_en, c.name_zh AS category, l.qty, l.voltage, l.power_w,
             l.height_ft, l.width_ft, l.depth_ft, loc.code AS location, l.condition,
             l.cloth_damage_pct, l.frame_damage_pct, l.displayable, l.status,
-            l.display_decision, l.notes
+            l.display_decision, l.notes,
+            (SELECT p.url FROM inv_lantern_photos p
+             WHERE p.owner_type = 'lantern' AND p.owner_id = l.id AND p.is_primary = true
+             LIMIT 1) AS primary_photo_url,
+            (SELECT string_agg(p2.url, ' | ' ORDER BY p2.is_primary DESC, p2.taken_at ASC)
+             FROM inv_lantern_photos p2
+             WHERE p2.owner_type = 'lantern' AND p2.owner_id = l.id) AS photo_urls
      FROM inv_lantern_lanterns l
      LEFT JOIN inv_lantern_categories c ON c.id = l.category_id
      LEFT JOIN inv_lantern_locations loc ON loc.id = l.location_id

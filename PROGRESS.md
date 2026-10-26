@@ -1,5 +1,24 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Lantern Inventory — Stage 4 Patch (Photo Links in CSV Export)
+
+Requested after trying Stage 4: the CSV export should include links to each lantern's
+photos, not just its data fields.
+
+**`pages/api/inventory/lanterns/export.js`** — two new columns:
+- `primary_photo_url` — the lantern's primary photo, via a correlated subquery
+- `photo_urls` — every photo's full-size URL, `" | "`-joined via `string_agg`, primary
+  first then by upload order
+
+Both are full-size Blob URLs (not thumbnails) so they're useful to click straight from
+the spreadsheet. No column needed for "no photos" — the cell is simply empty.
+
+**Verified**: `npm run build` passes clean. Direct SQL test against Neon: a test lantern
+with two photos (one primary) returned `primary_photo_url` = the primary photo's URL and
+`photo_urls` = both URLs in the expected order; test rows deleted after.
+
+---
+
 ## Lantern Inventory — Stage 4 Patch (Shortlist Excluded Undecided Lanterns)
 
 Bug reported after trying Stage 4: two displayable, Good/OK-condition lanterns weren't
