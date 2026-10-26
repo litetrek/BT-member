@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { getInventoryRole } from '@/lib/inventory'
 import InventoryLocationForm from '@/components/InventoryLocationForm'
 import InventoryLanternNav from '@/components/InventoryLanternNav'
+import InventoryPhotoLightbox from '@/components/InventoryPhotoLightbox'
 import Spinner from '@/components/Spinner'
 
 export default function LocationDetail() {
@@ -18,6 +19,7 @@ export default function LocationDetail() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [showPhoto, setShowPhoto] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.replace('/inventory')
@@ -77,7 +79,12 @@ export default function LocationDetail() {
             <div className="space-y-6">
               <div className="bg-white rounded-lg border border-gray-200 p-5 flex gap-5">
                 {location.photo_url ? (
-                  <img src={location.photo_url} alt={location.code} className="w-32 h-32 rounded object-cover shrink-0" />
+                  <img
+                    src={location.photo_url}
+                    alt={location.code}
+                    onClick={() => setShowPhoto(true)}
+                    className="w-32 h-32 rounded object-cover shrink-0 cursor-pointer"
+                  />
                 ) : (
                   <div className="w-32 h-32 rounded bg-gray-100 shrink-0 flex items-center justify-center text-gray-300 text-sm">
                     無照片
@@ -117,6 +124,13 @@ export default function LocationDetail() {
           location={location}
           onClose={() => setShowEdit(false)}
           onSaved={() => { setShowEdit(false); load() }}
+        />
+      )}
+
+      {showPhoto && location?.photo_url && (
+        <InventoryPhotoLightbox
+          urls={[location.photo_url]}
+          onClose={() => setShowPhoto(false)}
         />
       )}
     </>

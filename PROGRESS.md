@@ -1,5 +1,32 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Lantern Inventory — Stage 3 Patch (Zoomable Photo Lightbox)
+
+Requested after trying Stage 3 on-device: clicking a photo should show it big and
+zoomable, not just as a small thumbnail.
+
+**`components/InventoryPhotoLightbox.jsx`** (new) — full-screen overlay, tap the image
+to toggle a 200% zoom (scrollable container); native iOS pinch-zoom also still works
+since nothing disables viewport scaling. Tap the backdrop or × to close; prev/next
+arrows appear when there's more than one photo. No new dependency — plain component.
+
+Wired in two places where photos are purely informational (not already a navigation
+click target):
+- **Lantern detail page** (`[tagId].jsx`) — the photo gallery thumbnails now open the
+  lightbox at the tapped photo's index, cycling through all of that lantern's photos.
+  The existing "設為主要"/"刪除" buttons below each thumbnail are untouched.
+- **Location detail page** (`locations/[code].jsx`) — the single hero photo opens the
+  lightbox.
+
+Deliberately **not** added to the location-list and lantern-list thumbnails, or the
+Field mode lantern cards — those thumbnails are navigation/selection targets (clicking
+them already does something: go to detail, or open Quick Inspect), so overloading them
+with a lightbox would conflict with their existing purpose.
+
+**Verified**: `npm run build` passes clean; dev server confirms both pages still 200.
+
+---
+
 ## Lantern Inventory — Stage 3 Complete (Field Mode)
 
 Fourth of six staged builds. Delivers the on-site iPhone walkthrough: location-first

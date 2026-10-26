@@ -8,6 +8,7 @@ import { uploadInventoryPhoto } from '@/lib/inventoryPhoto'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import Spinner from '@/components/Spinner'
 import InventoryQuickInspectSheet from '@/components/InventoryQuickInspectSheet'
+import InventoryPhotoLightbox from '@/components/InventoryPhotoLightbox'
 
 function Field({ label, value }) {
   return (
@@ -32,6 +33,7 @@ export default function LanternDetail() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [showInspect, setShowInspect] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.replace('/inventory')
@@ -181,9 +183,14 @@ export default function LanternDetail() {
                   <p className="text-base text-gray-400">尚無照片。</p>
                 ) : (
                   <div className="flex flex-wrap gap-3">
-                    {lantern.photos.map((p) => (
+                    {lantern.photos.map((p, i) => (
                       <div key={p.id} className="relative">
-                        <img src={p.thumb_url} alt="" className={`w-24 h-24 rounded object-cover border-2 ${p.is_primary ? 'border-blue-500' : 'border-transparent'}`} />
+                        <img
+                          src={p.thumb_url}
+                          alt=""
+                          onClick={() => setLightboxIndex(i)}
+                          className={`w-24 h-24 rounded object-cover border-2 cursor-pointer ${p.is_primary ? 'border-blue-500' : 'border-transparent'}`}
+                        />
                         {p.is_primary && <span className="absolute top-1 left-1 text-xs bg-blue-600 text-white px-1 rounded">主要</span>}
                         {canEdit && (
                           <div className="flex gap-1 mt-1">
@@ -250,6 +257,14 @@ export default function LanternDetail() {
           locations={locations}
           onClose={() => setShowInspect(false)}
           onSaved={() => { setShowInspect(false); load() }}
+        />
+      )}
+
+      {lightboxIndex !== null && lantern && (
+        <InventoryPhotoLightbox
+          urls={lantern.photos.map((p) => p.url)}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
         />
       )}
     </>
