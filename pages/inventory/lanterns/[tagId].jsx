@@ -106,7 +106,7 @@ export default function LanternDetail() {
   return (
     <>
       <Head><title>{tagId ?? '燈籠'} · 燈籠庫存</title></Head>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-blue-50">
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -147,28 +147,6 @@ export default function LanternDetail() {
                 </div>
               )}
 
-              <div className="bg-white rounded-lg border border-gray-200 p-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <Field label="名稱 Name" value={`${lantern.name_zh}${lantern.name_en ? ' / ' + lantern.name_en : ''}`} />
-                <Field label="類別 Category" value={lantern.category_name_zh} />
-                <Field label="數量 QTY" value={lantern.qty} />
-                <Field label="地點 Location" value={lantern.location_code} />
-                <Field label="電壓 Voltage" value={lantern.voltage} />
-                <Field label="功率 Power" value={lantern.power_w ? `${lantern.power_w} W` : null} />
-                <Field label="尺寸 Dimensions (ft)" value={[lantern.height_ft, lantern.width_ft, lantern.depth_ft].some(Boolean) ? `${lantern.height_ft ?? '—'} × ${lantern.width_ft ?? '—'} × ${lantern.depth_ft ?? '—'}` : null} />
-                <Field label="狀況 Condition" value={lantern.condition} />
-                <Field label="布面損壞 Cloth damage" value={`${lantern.cloth_damage_pct}%`} />
-                <Field label="骨架損壞 Frame damage" value={`${lantern.frame_damage_pct}%`} />
-                <Field label="狀態 Status" value={lantern.status} />
-                <Field label="展示決定 Display decision" value={lantern.display_decision} />
-              </div>
-
-              {lantern.notes && (
-                <div className="bg-white rounded-lg border border-gray-200 p-5">
-                  <p className="text-sm text-gray-400 mb-1">備註 Notes</p>
-                  <p className="text-base text-gray-700 whitespace-pre-wrap">{lantern.notes}</p>
-                </div>
-              )}
-
               <div className="bg-white rounded-lg border border-gray-200 p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-base font-semibold text-gray-700">照片 Photos</h2>
@@ -205,6 +183,28 @@ export default function LanternDetail() {
                   </div>
                 )}
               </div>
+
+              <div className="bg-white rounded-lg border border-gray-200 p-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <Field label="名稱 Name" value={`${lantern.name_zh}${lantern.name_en ? ' / ' + lantern.name_en : ''}`} />
+                <Field label="類別 Category" value={lantern.category_name_zh ? `${lantern.category_name_zh}${lantern.category_name_en ? ' / ' + lantern.category_name_en : ''}` : null} />
+                <Field label="數量 QTY" value={lantern.qty} />
+                <Field label="地點 Location" value={lantern.location_code} />
+                <Field label="電壓 Voltage" value={lantern.voltage} />
+                <Field label="功率 Power" value={lantern.power_w ? `${lantern.power_w} W` : null} />
+                <Field label="尺寸 Dimensions (ft)" value={[lantern.height_ft, lantern.width_ft, lantern.depth_ft].some(Boolean) ? `${lantern.height_ft ?? '—'} × ${lantern.width_ft ?? '—'} × ${lantern.depth_ft ?? '—'}` : null} />
+                <Field label="狀況 Condition" value={lantern.condition} />
+                <Field label="布面損壞 Cloth damage" value={`${lantern.cloth_damage_pct}%`} />
+                <Field label="骨架損壞 Frame damage" value={`${lantern.frame_damage_pct}%`} />
+                <Field label="狀態 Status" value={lantern.status} />
+                <Field label="展示決定 Display decision" value={lantern.display_decision} />
+              </div>
+
+              {lantern.notes && (
+                <div className="bg-white rounded-lg border border-gray-200 p-5">
+                  <p className="text-sm text-gray-400 mb-1">備註 Notes</p>
+                  <p className="text-base text-gray-700 whitespace-pre-wrap">{lantern.notes}</p>
+                </div>
+              )}
 
               {lantern.inspections.length > 0 && (
                 <div className="bg-white rounded-lg border border-gray-200 p-5">

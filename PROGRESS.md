@@ -1,5 +1,22 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Lantern Detail Page Patch (Category Bilingual, Photos Reordered, Background)
+
+Three small requests after reviewing the detail page (`pages/inventory/lanterns/[tagId].jsx`):
+1. **類別 Category** field now shows `name_zh / name_en` (e.g. "海洋 / Ocean"), matching
+   how the Name field already displayed both languages — previously Category only showed
+   `category_name_zh`, even though the API response already carried `category_name_en`.
+2. **Photos moved above the field grid** — was below Name/Category/QTY/etc.; now the
+   first thing shown under the "不可展示" banner, so a photo is the first thing seen
+   when opening a lantern.
+3. **Background changed from `bg-gray-50` (grey) to `bg-blue-50` (light blue)** on this
+   page specifically — scoped to the detail page, not the rest of the Inventory Control
+   module, matching how this request was framed around what was on screen.
+
+**Verified**: `npm run build` passes clean; dev server confirms the page still 200.
+
+---
+
 ## Unified User Management (`/admin/users`) — New
 
 Requested as a follow-up beyond the Lantern Inventory spec: one admin screen to add and
