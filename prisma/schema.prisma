@@ -206,16 +206,17 @@ model InventoryCategory {
 }
 
 model InventoryLocation {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code        String   @unique // A1, B4, Cabin, E3, …
-  zone        String   // A | B | C | D | E | Cabin — for grouping
-  description String?
-  photo_url   String?
-  sort_order  Int      @default(0)
-  created_at  DateTime @default(now()) @db.Timestamptz(6)
-  created_by  String?  @db.Uuid
-  updated_at  DateTime @default(now()) @db.Timestamptz(6)
-  updated_by  String?  @db.Uuid
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code            String   @unique // A1, B4, Cabin, E3, …
+  zone            String   // A | B | C | D | E | Cabin — for grouping
+  description     String?
+  photo_url       String?  // Vercel Blob URL, full size
+  photo_thumb_url String?  // Vercel Blob URL, thumbnail (~400px) — used in the zone-grouped list
+  sort_order      Int      @default(0)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  created_by      String?  // user email from session — decoupled from the users table on purpose
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_by      String?  // user email from session
 
   lanterns    InventoryLantern[]
   inspections InventoryInspection[]
@@ -233,7 +234,7 @@ model InventoryPhoto {
   thumb_url   String   // Vercel Blob URL, thumbnail (~400px)
   is_primary  Boolean  @default(false)
   taken_at    DateTime @default(now()) @db.Timestamptz(6)
-  uploaded_by String?  @db.Uuid
+  uploaded_by String?  // user email from session
 
   @@map("inv_lantern_photos")
 }
@@ -262,9 +263,9 @@ model InventoryLantern {
   label_attached   Boolean  @default(false)
   notes            String?
   created_at       DateTime @default(now()) @db.Timestamptz(6)
-  created_by       String?  @db.Uuid
+  created_by       String?  // user email from session
   updated_at       DateTime @default(now()) @db.Timestamptz(6)
-  updated_by       String?  @db.Uuid
+  updated_by       String?  // user email from session
 
   category    InventoryCategory?    @relation(fields: [category_id], references: [id])
   location    InventoryLocation?    @relation(fields: [location_id], references: [id])

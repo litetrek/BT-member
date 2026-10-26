@@ -55,6 +55,32 @@ function PhotoUploadTest() {
   )
 }
 
+const SCREENS = [
+  { key: 'locations', name: '地點', nameEn: 'Locations', href: '/inventory/lanterns/locations', ready: true },
+  { key: 'list', name: '燈籠列表', nameEn: 'Lantern List', ready: false },
+  { key: 'field', name: '現場模式', nameEn: 'Field Mode', ready: false },
+  { key: 'admin', name: '管理', nameEn: 'Admin', ready: false },
+]
+
+function ScreenCard({ screen }) {
+  const content = (
+    <div
+      className={`bg-white rounded-lg border p-5 transition-all ${
+        screen.ready
+          ? 'border-gray-200 cursor-pointer hover:border-blue-400 hover:shadow-sm'
+          : 'border-gray-100 opacity-50 cursor-not-allowed'
+      }`}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-semibold text-gray-900 text-sm">{screen.name}</h3>
+        {!screen.ready && <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">即將推出</span>}
+      </div>
+      <p className="text-xs text-gray-400">{screen.nameEn}</p>
+    </div>
+  )
+  return screen.ready ? <Link href={screen.href}>{content}</Link> : content
+}
+
 export default function LanternInventory() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -81,9 +107,9 @@ export default function LanternInventory() {
           </div>
         </header>
 
-        <main className="max-w-6xl mx-auto px-6 py-10 space-y-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-            <p className="text-sm text-gray-400">功能開發中，敬請期待。</p>
+        <main className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {SCREENS.map((s) => <ScreenCard key={s.key} screen={s} />)}
           </div>
           <PhotoUploadTest />
         </main>

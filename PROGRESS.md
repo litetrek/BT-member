@@ -1,5 +1,62 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Lantern Inventory — Stage 1 Complete (Locations)
+
+Second of six staged builds. Delivers the Locations screens per the spec's Stage 1
+scope: zone-grouped list, location detail, admin add/edit with photo.
+
+**Schema tweak** (before building, via `prisma db push` again): added
+`inv_lantern_locations.photo_thumb_url` (list view needed a small image, not the full
+1600px one); changed `created_by`/`updated_by`/`uploaded_by` across `InventoryLocation`,
+`InventoryLantern`, `InventoryPhoto` from `uuid` to plain text (user email from session)
+— decouples the module from needing a `users.id` lookup, consistent with how
+`inv_lantern_inspections.inspected_by` was already speced as email text.
+
+**`lib/db.js`** — added `insertInventoryLog(entry)`, writing to
+`inv_lantern_activity_log` (table_name, record_id, record_name, action, field_changed,
+old_value, new_value, user_email) — the Inventory module's own audit log, separate from
+the event-scoped `activity_log`/`insertLog()`.
+
+**`lib/auth.js`** — `requireInventoryRole()` now also stamps `req.inventoryEmail` with
+the session email, so route handlers can attribute `created_by`/log entries without a
+second session lookup.
+
+**API routes** (all gated via `requireInventoryRole`)
+- `GET/POST /api/inventory/locations` — list (viewer+, includes `lantern_count` via a
+  `LEFT JOIN` aggregate against `inv_lantern_lanterns`, ordered by `sort_order`) / create
+  (admin, auto-assigns next `sort_order`)
+- `GET/PUT /api/inventory/locations/[code]` — detail (viewer+, includes every lantern
+  currently at that location — empty for now, no lanterns exist until Stage 2) / update
+  (admin; `photo_url`/`photo_thumb_url` only overwritten when a new photo was uploaded,
+  via `COALESCE`)
+
+**`components/InventoryLocationForm.jsx`** (new) — admin-only add/edit modal: code
+(locked on edit), zone select, description, photo file input. On create: POSTs the
+location first to get an id, then (if a photo was picked) uploads via
+`uploadInventoryPhoto()` from Stage 0 and PUTs the resulting URLs onto the new record —
+one Save click, two requests under the hood.
+
+**Pages**
+- `pages/inventory/lanterns/locations/index.jsx` — cards grouped by zone in the order
+  the spec's screen description uses (A, B, C, D, E, Cabin — note this differs from the
+  seed's physical `sort_order` sequence, which has Cabin between D6 and E1; grouping
+  order and seed order answer different questions and don't need to match), each
+  showing thumbnail, code, description, lantern count; admin-only "+ 新增地點" button
+- `pages/inventory/lanterns/locations/[code].jsx` — full photo, description, list of
+  lanterns stored there (empty state until Stage 2), admin-only edit button
+- `pages/inventory/lanterns/index.jsx` — "under construction" placeholder replaced with
+  a 4-card screen menu (Locations live; Lantern List / Field Mode / Admin marked 即將推出
+  until their stages ship); Stage 0's photo-upload test widget kept underneath for now
+
+**Verified**: `npm run build` passes clean; direct SQL check confirms all 40 locations
+present with correct `sort_order` (A2 before A10, D6 → Cabin → E1); dev server serves
+`/inventory/lanterns`, `/inventory/lanterns/locations`, `/inventory/lanterns/locations/A1`
+all 200; `/api/inventory/locations` correctly 403s when unauthenticated. **Not yet
+verified**: the add/edit flow and photo attach through an actual signed-in browser
+session (needs Vincent, since Google OAuth sign-in can't be automated from here).
+
+---
+
 ## Lantern Inventory — Stage 0 Complete (Foundation)
 
 First of six staged builds per the "BT Lantern Inventory Control — Spec & Build Plan" doc
@@ -785,6 +842,7 @@ Two bugs discovered during verification, both pre-existing from original Supabas
 - Trigger announcement emails from Activities page (announcements are posted to DB but no send button exists yet)
 - Consider per-event role context (currently session role = highest role across all events)
 - Purge git history of `migration/data-dump-supabase.sql` if PII scrubbing is ever required (`git filter-repo`)
-- **Lantern Inventory Stage 1** (Locations: list grouped by zone, location detail, add/edit with description+photo) is next, per the 6-stage plan in the spec doc. Stages 2–5 follow (core lantern CRUD, Field mode, management view/export, QR labels).
+- **Verify Stage 1 in browser** — Vincent to sign in and confirm the Locations list, detail page, and admin add/edit (with photo) all work end to end before Stage 2 starts, per the spec's own per-stage sign-off rule.
+- **Lantern Inventory Stage 2** (core lantern records: CRUD with QTY/dimensions/displayable rule, photo gallery, list with search/filters/condition summary, activity log) is next, per the 6-stage plan in the spec doc. Stages 3–5 follow (Field mode, management view/export, QR labels).
 - Still-open spec questions (Section 6): final tag label material, and who the Viewers are (role is modeled, nobody assigned yet).
 - Additional inventory subsystems (beyond Lanterns) to be added to `INVENTORY_MODULES` in `lib/inventory.js` as they're defined
