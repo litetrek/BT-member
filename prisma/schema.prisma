@@ -1,11 +1,12 @@
 // BT-Member Event Management — Database Schema
-// Stack: Next.js 14 (pages router), Supabase (Postgres + RLS), NextAuth v4, Tailwind CSS
-// Hosted on Vercel. All API routes use service role key (bypasses RLS).
+// Stack: Next.js 14 (pages router), Neon Postgres, NextAuth v4, Tailwind CSS
+// Hosted on Vercel. All API routes use raw pg queries via lib/db.js (service-role style,
+// no RLS at the DB layer — access control happens in app code).
 // Auth: Google OAuth via NextAuth. Session stores user.id, user.role (best role across events).
 // Roles: admin > lead > member
 //
-// NOTE: This file is for reference only. The project uses @supabase/supabase-js directly,
-// not Prisma ORM. Do not run "prisma generate" or "prisma migrate" against this file.
+// NOTE: Prisma is used ONLY for schema management (`npx prisma db push` against Neon).
+// No Prisma Client is used at runtime — every query goes through lib/db.js (raw pg).
 
 generator client {
   provider = "prisma-client-js"
@@ -183,4 +184,127 @@ model ActivityLog {
   user  User?  @relation(fields: [user_id], references: [id])
 
   @@map("activity_log")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Inventory Control — Lantern Inventory module (independent of events/members;
+// access gated via lib/inventory.js, not event_members). Tables prefixed
+// inv_lantern_ to keep them apart from event data. See lib/inventory.js and
+// PROGRESS.md "Inventory Control" sections for the access model and roadmap.
+// ─────────────────────────────────────────────────────────────────────────
+
+model InventoryCategory {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name_zh    String
+  name_en    String
+  sort_order Int      @default(0)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  lanterns InventoryLantern[]
+
+  @@map("inv_lantern_categories")
+}
+
+model InventoryLocation {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String   @unique // A1, B4, Cabin, E3, …
+  zone        String   // A | B | C | D | E | Cabin — for grouping
+  description String?
+  photo_url   String?
+  sort_order  Int      @default(0)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  created_by  String?  @db.Uuid
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_by  String?  @db.Uuid
+
+  lanterns    InventoryLantern[]
+  inspections InventoryInspection[]
+
+  @@map("inv_lantern_locations")
+}
+
+// Shared by lanterns, locations and inspections (owner_type / owner_id, no FK —
+// kept loose like activity_log so one table serves several owning entities).
+model InventoryPhoto {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  owner_type  String   // 'lantern' | 'location' | 'inspection'
+  owner_id    String   @db.Uuid
+  url         String   // Vercel Blob URL, full size (~1600px long edge)
+  thumb_url   String   // Vercel Blob URL, thumbnail (~400px)
+  is_primary  Boolean  @default(false)
+  taken_at    DateTime @default(now()) @db.Timestamptz(6)
+  uploaded_by String?  @db.Uuid
+
+  @@map("inv_lantern_photos")
+}
+
+// One record per lantern GROUP: either a single lantern, or several identical
+// lanterns recorded together with qty. Groups are never split into individual units.
+model InventoryLantern {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tag_id           String   @unique @default(dbgenerated("('LT-' || lpad(nextval('inv_lantern_tag_seq')::text, 4, '0'))"))
+  name_zh          String
+  name_en          String?
+  category_id      String?  @db.Uuid
+  qty              Int      @default(1)
+  voltage          String?  // 'AC110V' | 'DC24V'
+  power_w          Decimal? @db.Decimal(6, 2)
+  height_ft        Decimal? @db.Decimal(5, 2)
+  width_ft         Decimal? @db.Decimal(5, 2)
+  depth_ft         Decimal? @db.Decimal(5, 2)
+  location_id      String?  @db.Uuid
+  condition        String   @default("Good") // Good | OK | Fair | Bad — copied from latest inspection
+  cloth_damage_pct Int      @default(0)
+  frame_damage_pct Int      @default(0)
+  displayable      Boolean  @default(true) // false when cloth OR frame damage >= NOT_DISPLAYABLE_DAMAGE_PCT (lib/inventoryConstants.js); computed in app code on every save
+  status           String   @default("Active") // Active | Retired | Missing
+  display_decision String?  // Stage 4: Candidate | Selected | Needs repair | Not this year
+  label_attached   Boolean  @default(false)
+  notes            String?
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  created_by       String?  @db.Uuid
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_by       String?  @db.Uuid
+
+  category    InventoryCategory?    @relation(fields: [category_id], references: [id])
+  location    InventoryLocation?    @relation(fields: [location_id], references: [id])
+  inspections InventoryInspection[]
+
+  @@map("inv_lantern_lanterns")
+}
+
+// Condition history — one row each time someone checks a lantern. Saving an
+// inspection updates the lantern's current condition/damage%/location too.
+model InventoryInspection {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lantern_id       String   @db.Uuid
+  inspected_at     DateTime @default(now()) @db.Timestamptz(6)
+  inspected_by     String   // user email from session
+  condition        String
+  cloth_damage_pct Int
+  frame_damage_pct Int
+  location_id      String?  @db.Uuid
+  notes            String?
+
+  lantern  InventoryLantern   @relation(fields: [lantern_id], references: [id], onDelete: Cascade)
+  location InventoryLocation? @relation(fields: [location_id], references: [id])
+
+  @@map("inv_lantern_inspections")
+}
+
+// Separate from the event-scoped ActivityLog above — who changed what and when
+// within the Lantern Inventory module.
+model InventoryActivityLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  table_name    String
+  record_id     String?  @db.Uuid
+  record_name   String?
+  action        String
+  field_changed String?
+  old_value     String?
+  new_value     String?
+  user_email    String?
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("inv_lantern_activity_log")
 }

@@ -1,12 +1,78 @@
 # BT-Member Event Management — Progress Snapshot
 
-## Inventory Control Module — Top-Level Scaffold (Added)
+## Lantern Inventory — Stage 0 Complete (Foundation)
+
+First of six staged builds per the "BT Lantern Inventory Control — Spec & Build Plan" doc
+(Vincent's claude.ai spec). Stage 0 = schema + roles + photo upload plumbing only — no
+lantern CRUD UI yet (that's Stage 2). Two deviations from the spec, both required since
+the spec was written without knowledge of this repo's current state:
+- **Database**: spec said Supabase Postgres + Supabase Storage. This app fully decommissioned
+  Supabase in July 2026 (see Neon Migration section below) — built against **Neon** instead,
+  consistent with the rest of the app.
+- **Photo storage**: Supabase Storage doesn't exist here anymore. Used **Vercel Blob**
+  (`access: 'public'`, random-suffixed paths) per Vincent's choice — note this means photos
+  are *not* behind true private signed URLs like the spec originally called for; acceptable
+  since lantern condition photos aren't sensitive.
+- Framework note (not a deviation, just confirmed): built in the **Pages Router** to match
+  the rest of the app; the spec's mention of "App Router" was generic, not a hard requirement.
+
+**Database — 6 new tables on Neon, prefixed `inv_lantern_`** (via `prisma/schema.prisma` +
+`npx prisma db push`, schema-management-only per existing convention — no Prisma Client at runtime):
+- `inv_lantern_categories`, `inv_lantern_locations`, `inv_lantern_photos`,
+  `inv_lantern_lanterns`, `inv_lantern_inspections`, `inv_lantern_activity_log`
+- `inv_lantern_tag_seq` — Postgres sequence backing `tag_id` (`LT-0001`, `LT-0002`, …),
+  created via `scripts/migrate-inventory-lanterns-presetup.js` (must run before `db push`,
+  since `db push` won't create bare sequences)
+- `scripts/prisma-push-neon.js` — wrapper that loads `DATABASE_URL` from `.env.local` and
+  spawns `prisma db push` with it injected (Prisma CLI only auto-reads `.env`, not `.env.local`)
+- `displayable` is computed in app code (not a DB-generated column) via
+  `lib/inventoryConstants.js`'s `computeDisplayable()` — false when cloth OR frame damage
+  ≥ `NOT_DISPLAYABLE_DAMAGE_PCT` (30, one config constant)
+- Seeded via `scripts/seed-inventory-lanterns.js` (idempotent): 4 categories (海洋/Ocean,
+  天界/Heaven, 森林/Forest, 蓮花園/Lotus Garden) + 40 locations (A1–A10, B1–B10, C1–C10,
+  D1–D6, Cabin, E1–E3) with `sort_order` so A2 sorts before A10
+
+**Roles — `lib/inventory.js` restructured from a plain allowlist to `{ email: role }`**
+- `INVENTORY_ACCESS` now maps each email directly to a role: `admin` (vlin77@gmail.com),
+  `editor` (joannazhao168@gmail.com, weiyanoble@gmail.com, qqandcici@gmail.com, pai8788@gmail.com).
+  Third role `viewer` defined but unassigned (management team, not yet named — open question
+  from the spec).
+  `INVENTORY_ROLE_PRIORITY` ranks `admin > editor > viewer` for `hasInventoryRole()` checks.
+- Stayed client-safe (no server-only imports) — it's imported by `pages/index.jsx` and the
+  inventory pages for client-side role checks.
+- **`lib/auth.js`** — added `requireInventoryRole(req, res, minRole)`, the API-route gate
+  (mirrors the existing `requireAdmin` pattern): 403s and returns `null` if the session
+  email's role doesn't meet `minRole`, else returns the role string.
+
+**Photo upload plumbing**
+- `lib/inventoryPhoto.js` (browser-only) — `resizeForUpload(file)` canvas-resizes to a
+  full version (~1600px long edge, JPEG q0.8) and thumbnail (~400px, q0.75); handles HEIC
+  input since iOS Safari decodes it natively for canvas. `uploadInventoryPhoto(file, ownerType,
+  ownerId)` resizes then POSTs both to the upload route, returns `{ url, thumbUrl }`.
+- `pages/api/inventory/photos/upload.js` — `requireInventoryRole(…, 'editor')` gated; body
+  parsing disabled so the raw request stream pipes straight to Blob storage (no base64
+  overhead); query params `ownerType`/`ownerId`/`kind` (`full`|`thumb`) build the Blob path.
+- `lib/blob.js` — thin wrapper around `@vercel/blob`'s `put()`.
+- **Stage 0 verification harness**: `pages/inventory/lanterns/index.jsx` temporarily carries
+  a "Stage 0 — 照片上傳測試" file-picker widget (uses `capture="environment"` so iPhone Safari
+  opens the rear camera) that exercises the full resize→upload→display round trip. To be
+  removed once Stage 2 ships the real lantern form.
+
+**Verified**: `npm run build` passes clean; dev server serves `/`, `/inventory`,
+`/inventory/lanterns` all 200 with no runtime errors; all 6 tables + sequence confirmed
+present on Neon; seed confirmed 4 categories + 40 locations inserted. **Not yet verified**:
+actual photo upload end-to-end (blocked on `BLOB_READ_WRITE_TOKEN` — see Pending below) or
+on-device iPhone testing, both of which only Vincent can do.
+
+---
+
+## Inventory Control Module — Top-Level Scaffold
 
 A new, event-independent top-level module for inventory tracking, separate from the
 Events system. Access is gated by a Gmail allowlist (not `event_members` roles), since
 inventory users are not necessarily event participants.
 
-**`lib/inventory.js`** (new)
+**`lib/inventory.js`** (original scaffold; see Stage 0 above for the roles rework)
 - `INVENTORY_ACCESS` — hardcoded allowlist, two tiers:
   - `admin`: `vlin77@gmail.com`
   - `editor`: `joannazhao168@gmail.com`, `weiyanoble@gmail.com`, `qqandcici@gmail.com`, `pai8788@gmail.com`
@@ -718,5 +784,8 @@ Two bugs discovered during verification, both pre-existing from original Supabas
 - Trigger announcement emails from Activities page (announcements are posted to DB but no send button exists yet)
 - Consider per-event role context (currently session role = highest role across all events)
 - Purge git history of `migration/data-dump-supabase.sql` if PII scrubbing is ever required (`git filter-repo`)
-- **Lantern Inventory** — build out actual inventory tracking (schema, items, counts, admin vs. editor permissions within the module) under the `/inventory/lanterns` route scaffolded this stage
-- Additional inventory subsystems to be added to `INVENTORY_MODULES` in `lib/inventory.js` as they're defined
+- **`BLOB_READ_WRITE_TOKEN`** — Vincent needs to create a Vercel Blob store (Vercel dashboard → Storage → Create → Blob), link it to this project, then copy the token into `.env.local` for local dev (Vercel sets it automatically in production once linked). Photo upload is unverified end-to-end until this exists.
+- **iPhone on-device test** — verify the Stage 0 photo-upload test widget on `/inventory/lanterns` actually opens the rear camera and uploads/displays correctly on a real iPhone (Safari) before Stage 1 starts, per the spec's own sign-off rule.
+- **Lantern Inventory Stage 1** (Locations: list grouped by zone, location detail, add/edit with description+photo) is next, per the 6-stage plan in the spec doc. Stages 2–5 follow (core lantern CRUD, Field mode, management view/export, QR labels).
+- Still-open spec questions (Section 6): final tag label material, and who the Viewers are (role is modeled, nobody assigned yet).
+- Additional inventory subsystems (beyond Lanterns) to be added to `INVENTORY_MODULES` in `lib/inventory.js` as they're defined
