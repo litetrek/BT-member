@@ -63,9 +63,11 @@ export default async function handler(req, res) {
     const displayable = computeDisplayable(cloth, frame)
     const email = req.inventoryEmail
 
-    // Only admin/editor may edit (already gated above); display_decision + label_attached
-    // are admin-level fields per the spec's management flow, but Stage 2 keeps this simple —
-    // Stage 4 will tighten permissions around display_decision once that screen ships.
+    const nextDisplayDecision = display_decision ?? existing.display_decision
+    if (nextDisplayDecision === 'Selected' && !displayable) {
+      return res.status(400).json({ error: 'Cannot select a non-displayable lantern' })
+    }
+
     const { rows: [data] } = await query(
       `UPDATE inv_lantern_lanterns SET
          name_zh = $1, name_en = $2, category_id = $3, qty = $4, voltage = $5, power_w = $6,
@@ -92,7 +94,7 @@ export default async function handler(req, res) {
         displayable,
         notes ?? existing.notes,
         status ?? existing.status,
-        display_decision ?? existing.display_decision,
+        nextDisplayDecision,
         label_attached ?? existing.label_attached,
         email,
         tagId,

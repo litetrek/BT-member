@@ -1,34 +1,14 @@
 import { query, insertInventoryLog } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
 import { computeDisplayable } from '@/lib/inventoryConstants'
+import { buildLanternWhere } from '@/lib/inventoryLanternFilters'
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     const role = await requireInventoryRole(req, res, 'viewer')
     if (!role) return
 
-    const { q, category_id, location_id, voltage, condition, displayable, status, display_decision } = req.query
-
-    const where = []
-    const params = []
-
-    if (q) {
-      params.push(`%${q}%`)
-      const p = `$${params.length}`
-      where.push(`(l.tag_id ILIKE ${p} OR l.name_zh ILIKE ${p} OR l.name_en ILIKE ${p})`)
-    }
-    if (category_id)      { params.push(category_id);      where.push(`l.category_id = $${params.length}`) }
-    if (location_id)      { params.push(location_id);      where.push(`l.location_id = $${params.length}`) }
-    if (voltage)          { params.push(voltage);          where.push(`l.voltage = $${params.length}`) }
-    if (condition)        { params.push(condition);        where.push(`l.condition = $${params.length}`) }
-    if (status)           { params.push(status);           where.push(`l.status = $${params.length}`) }
-    if (display_decision) { params.push(display_decision); where.push(`l.display_decision = $${params.length}`) }
-    if (displayable === 'true' || displayable === 'false') {
-      params.push(displayable === 'true')
-      where.push(`l.displayable = $${params.length}`)
-    }
-
-    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+    const { whereSql, params } = buildLanternWhere(req.query)
 
     const { rows } = await query(
       `SELECT l.*,
