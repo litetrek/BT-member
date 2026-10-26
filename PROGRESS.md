@@ -1,5 +1,23 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Lantern Nav Tab Bar Patch (Spacing)
+
+Reported as "the top menu seems squeezed together" with a screenshot of the
+`InventoryLanternNav` tab strip (燈籠列表/地點/現場模式/儀表板/標籤/管理) — now 6 tabs after
+Stages 4–5 and the admin work added Dashboard and Labels, crammed into the original
+`gap-1` thin-underline design that was fine at 3 tabs.
+
+**`components/InventoryLanternNav.jsx`**:
+- `gap-1` → tabs now `px-4 py-3` (was `px-3 py-2`) for real breathing room
+- Active tab: thin bottom-border underline → a filled `bg-blue-50 text-blue-700` pill
+  with rounded top corners — easier to spot at a glance, not just a thin line
+- `overflow-x-auto` on the tab row so it scrolls horizontally instead of wrapping or
+  staying cramped if a 7th module tab ever doesn't fit on a narrow phone
+
+**Verified**: `npm run build` passes clean; dev server confirms the list page still 200.
+
+---
+
 ## Lantern Detail Page Patch (Category Bilingual, Photos Reordered, Background)
 
 Three small requests after reviewing the detail page (`pages/inventory/lanterns/[tagId].jsx`):
