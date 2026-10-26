@@ -23,7 +23,7 @@ export default function LanternDetail() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { tagId } = router.query
-  const role = getInventoryRole(session?.user?.email)
+  const role = getInventoryRole(session)
   const canEdit = role === 'admin' || role === 'editor'
 
   const [lantern, setLantern] = useState(null)

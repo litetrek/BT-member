@@ -1,5 +1,92 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Unified User Management (`/admin/users`) — New
+
+Requested as a follow-up beyond the Lantern Inventory spec: one admin screen to add and
+remove users and assign their role, across every module in the portal — not just
+Lanterns. Two architecture decisions were confirmed with Vincent before building:
+(1) unify Events + Inventory Control in one screen rather than scoping to Inventory
+only, and (2) give Inventory Control **per-module** roles now (a person's role can
+differ per inventory module) rather than keeping the single flat role that existed
+through Stage 5 — even though Lanterns is still the only module that exists.
+
+**This required moving Inventory Control's access control out of hardcoded source and
+into the database** — a flat JS object can't be edited from a UI. That's the bulk of
+the work; the actual admin screen is comparatively small once the data model supports it.
+
+### Schema — `inventory_module_access` (new table)
+
+`(email, module_key, role, created_at/by, updated_at/by)`, unique on `(email,
+module_key)`. Replaces the `INVENTORY_ACCESS` hardcoded map from Stage 0. Keyed by email
+(not `user_id`), consistent with every other inventory table's existing decoupling from
+the `users` table. `scripts/seed-inventory-module-access.js` migrated the 5 original
+hardcoded entries in (idempotent, `ON CONFLICT DO NOTHING`).
+
+### Session + auth plumbing
+
+- **`lib/auth.js` session callback** — now also queries `inventory_module_access` for
+  the signed-in email and populates `session.user.inventoryRoles = { lanterns: 'admin',
+  ... }`, the same pattern already used for `session.user.role` (best event role). This
+  is what lets client components keep reading role synchronously at render time instead
+  of needing a data fetch on every page — the DB round trip happens once, at sign-in/session
+  refresh, not per page view.
+- **`lib/inventory.js`** — `getInventoryRole(email)` → **`getInventoryRole(session,
+  moduleKey = 'lanterns')`**, now reading `session.user.inventoryRoles[moduleKey]`
+  instead of the deleted hardcoded map. Updated **12 client call sites** across every
+  Lantern Inventory page to match (`getInventoryRole(session?.user?.email)` →
+  `getInventoryRole(session)`) — mechanical but had to touch essentially every inventory
+  page. New `isInventoryAdminOfAny(session)` helper (true if admin of *any* module) backs
+  the new admin screen's own visibility check.
+- **`lib/auth.js` `requireInventoryRole()`** — was a hardcoded-map lookup, now queries
+  `inventory_module_access` directly and takes an explicit `moduleKey` parameter
+  (**defaults to `'lanterns'`**, so none of the ~15 existing `/api/inventory/*` routes
+  needed to change their call sites — they're all Lantern-specific and the default
+  covers them). Future modules' routes would pass their own `moduleKey`.
+
+### New API routes
+
+- **`GET /api/admin/users`** — all users, all events, all `event_members`, all
+  `inventory_module_access` rows, in one response. Visible to anyone who's admin of at
+  least one event OR at least one inventory module (not a single portal-wide
+  "superadmin" concept — deliberately federated).
+- **`POST`/`DELETE /api/admin/inventory-access`** — grant/update or revoke one person's
+  role in one module. Gated **per-module**: the requester must themselves be `'admin'`
+  of that specific `module_key`, not a global admin — so a future second module's admin
+  could manage their own module's access without needing any rights over Lanterns.
+  `POST` lazily creates a placeholder `users` row if the email hasn't signed in yet, same
+  pattern as the existing `/api/users/invite`.
+- **Event membership reuses existing routes** — `POST /api/users/invite`,
+  `PUT`/`DELETE /api/users/[id]` — no duplication; the new screen just calls them.
+
+### `pages/admin/users.jsx` (new)
+
+A matrix: rows = every user in the `users` table (including never-signed-in
+placeholders), columns = one per event + one per `INVENTORY_MODULES` entry. Every cell
+is a single `<select>` — current role, or `—`; changing it grants/updates/revokes
+immediately (empty = revoke). A column is only editable if the viewer administers that
+specific event (global `session.user.role === 'admin'`, matching the existing per-event
+admin page's own check) or that specific module
+(`getInventoryRole(session, moduleKey) === 'admin'`); non-administered columns render as
+plain text. A permanent blank row at the bottom (email + optional name inputs) lets the
+same per-column selects grant access to a brand-new email — no separate "create user"
+modal needed, since a user is implicitly created the first time anyone grants them
+access, exactly matching the existing invite flow's behavior.
+
+Linked from the homepage (new "管理 / User Management" card, shown alongside the existing
+"庫存管理" card to anyone who can use the screen).
+
+**Verified**: `npm run build` passes clean. Confirmed directly against Neon: all 5
+seeded rows present with correct module/role; simulated the session callback's query for
+`vlin77@gmail.com` → `{lanterns: 'admin'}`; simulated an unknown email's lookup → `null`.
+Dev server: `/admin/users` page 200, both new API routes 401 unauthenticated, and —
+critically — every **existing** `/api/inventory/*` route still 403s exactly as before,
+confirming the `requireInventoryRole` refactor didn't regress Stages 0–5. **Not yet
+verified**: the actual matrix UI end-to-end (grant/revoke a role, add a brand-new user
+via the blank row, confirm a non-admin's columns render read-only) — needs Vincent
+signed in as an actual event/module admin.
+
+---
+
 ## Lantern Inventory — Stage 5 Complete (QR Labels) — All 6 Stages Done
 
 Sixth and final staged build per the spec. Printable QR + tag-ID label sheets, scan-to-open,
@@ -1249,6 +1336,7 @@ Two bugs discovered during verification, both pre-existing from original Supabas
   - **Verify Stage 5 on real hardware** — Vincent to print an actual label sheet (check the chosen size preset reads right physically), stick one on, and scan it both with the stock iPhone Camera app and the in-app "掃描 Scan QR" button in Field mode.
   - **Real icon branding** — `public/icons/lantern-*.png` are solid-color placeholders generated by `scripts/generate-inventory-icons.js`; swap for real artwork when available.
   - **Optional ZIP-of-photos export** — explicitly marked optional in the spec; not built. Add if actually wanted.
-  - **Admin screen** (`/inventory/lanterns/admin` — categories/locations/user-role management UI) — mentioned in the spec's screens table but never assigned to a specific stage; nav tab still disabled. Category edits are currently seed-only (`scripts/seed-inventory-lanterns.js`); location edits already work via the Stage 1 form.
-  - Still-open spec questions (Section 6): final tag label material, and who the Viewers are — the `viewer` role is fully modeled (including the display-decision permission from Stage 4) but nobody's assigned it yet.
-- Additional inventory subsystems (beyond Lanterns) to be added to `INVENTORY_MODULES` in `lib/inventory.js` as they're defined
+  - **Admin screen** (`/inventory/lanterns/admin` — categories/locations CRUD) — user-role management is now solved by the new `/admin/users` screen above; what's left on this disabled nav tab is just category/location CRUD. Category edits are currently seed-only (`scripts/seed-inventory-lanterns.js`); location edits already work via the Stage 1 form.
+  - Still-open spec questions (Section 6): final tag label material, and who the Viewers are — the `viewer` role is fully modeled (including the display-decision permission from Stage 4) and now assignable via `/admin/users`, but nobody's been assigned it yet.
+- **Verify `/admin/users` end-to-end** — Vincent to actually grant/revoke a role in both an event column and the Lanterns column, add a brand-new user via the blank bottom row, and confirm columns he doesn't administer render read-only.
+- Additional inventory subsystems (beyond Lanterns) to be added to `INVENTORY_MODULES` in `lib/inventory.js` as they're defined — each new module automatically gets its own column on `/admin/users` and its own per-module roles, no further admin-screen work needed

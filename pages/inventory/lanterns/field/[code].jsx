@@ -19,7 +19,7 @@ export default function FieldWalkthrough() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { code } = router.query
-  const role = getInventoryRole(session?.user?.email)
+  const role = getInventoryRole(session)
 
   const [location, setLocation] = useState(null)
   const [categories, setCategories] = useState([])

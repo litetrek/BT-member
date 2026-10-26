@@ -193,6 +193,25 @@ model ActivityLog {
 // PROGRESS.md "Inventory Control" sections for the access model and roadmap.
 // ─────────────────────────────────────────────────────────────────────────
 
+// Per-module role for Inventory Control, replacing the old hardcoded email→role map.
+// module_key matches INVENTORY_MODULES keys in lib/inventory.js ("lanterns" today,
+// more later) — a person can hold a different role in each module. Keyed by email
+// (not user_id) for the same reason the rest of the inventory tables are: decoupled
+// from the users table, consistent with inv_lantern_* created_by/updated_by columns.
+model InventoryModuleAccess {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email      String
+  module_key String
+  role       String   // admin | editor | viewer
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  created_by String?
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_by String?
+
+  @@unique([email, module_key])
+  @@map("inventory_module_access")
+}
+
 model InventoryCategory {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name_zh    String

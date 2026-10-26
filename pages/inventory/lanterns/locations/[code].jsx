@@ -13,7 +13,7 @@ export default function LocationDetail() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { code } = router.query
-  const role = getInventoryRole(session?.user?.email)
+  const role = getInventoryRole(session)
 
   const [location, setLocation] = useState(null)
   const [loading, setLoading] = useState(true)

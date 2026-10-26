@@ -11,7 +11,7 @@ export default function EditLantern() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { tagId } = router.query
-  const role = getInventoryRole(session?.user?.email)
+  const role = getInventoryRole(session)
 
   const [lantern, setLantern] = useState(null)
   const [loading, setLoading] = useState(true)

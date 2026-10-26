@@ -40,7 +40,7 @@ function LanternCard({ lantern }) {
 export default function LanternList() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const role = getInventoryRole(session?.user?.email)
+  const role = getInventoryRole(session)
 
   const [lanterns, setLanterns] = useState([])
   const [categories, setCategories] = useState([])

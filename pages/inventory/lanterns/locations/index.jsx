@@ -34,7 +34,7 @@ function LocationCard({ location }) {
 export default function LocationsList() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const role = getInventoryRole(session?.user?.email)
+  const role = getInventoryRole(session)
 
   const [locations, setLocations] = useState([])
   const [loading, setLoading] = useState(true)

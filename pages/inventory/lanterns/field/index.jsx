@@ -12,7 +12,7 @@ const ZONE_ORDER = ['A', 'B', 'C', 'D', 'E', 'Cabin']
 export default function FieldLocationPicker() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const role = getInventoryRole(session?.user?.email)
+  const role = getInventoryRole(session)
 
   const [locations, setLocations] = useState([])
   const [loading, setLoading] = useState(true)

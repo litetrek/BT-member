@@ -9,7 +9,7 @@ import { getInventoryRole, INVENTORY_MODULES } from '@/lib/inventory'
 export default function InventoryHub() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const role = getInventoryRole(session?.user?.email)
+  const role = getInventoryRole(session)
 
   useEffect(() => {
     if (status === 'authenticated' && !role) router.replace('/')

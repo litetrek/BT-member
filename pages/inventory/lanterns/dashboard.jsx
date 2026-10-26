@@ -27,7 +27,7 @@ function StatCard({ label, value }) {
 export default function Dashboard() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const role = getInventoryRole(session?.user?.email)
+  const role = getInventoryRole(session)
 
   const [stats, setStats] = useState(null)
   const [loadingStats, setLoadingStats] = useState(true)

@@ -17,7 +17,7 @@ const SIZE_PRESETS = [
 export default function Labels() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const role = getInventoryRole(session?.user?.email)
+  const role = getInventoryRole(session)
   const canUse = role === 'admin' || role === 'editor'
 
   const [lanterns, setLanterns] = useState([])

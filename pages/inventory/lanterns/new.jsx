@@ -9,7 +9,7 @@ import InventoryLanternForm from '@/components/InventoryLanternForm'
 export default function NewLantern() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const role = getInventoryRole(session?.user?.email)
+  const role = getInventoryRole(session)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.replace('/inventory')

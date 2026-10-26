@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import Head from 'next/head'
-import { getInventoryRole } from '@/lib/inventory'
+import { getInventoryRole, isInventoryAdminOfAny } from '@/lib/inventory'
 
 function EventCard({ event }) {
   const isActive = event.status === 'active'
@@ -43,7 +43,8 @@ export default function Home() {
   const { data: session } = useSession()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
-  const inventoryRole = getInventoryRole(session?.user?.email)
+  const inventoryRole = getInventoryRole(session)
+  const canManageUsers = session?.user?.role === 'admin' || isInventoryAdminOfAny(session)
 
   useEffect(() => {
     fetch('/api/events')
@@ -81,15 +82,30 @@ export default function Home() {
             </div>
           )}
 
-          {inventoryRole && (
-            <div className="mt-10">
-              <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">庫存管理</h2>
-              <Link href="/inventory">
-                <div className="bg-white rounded-lg border border-gray-200 p-5 cursor-pointer hover:shadow-sm hover:border-blue-400 transition-all max-w-sm">
-                  <h3 className="font-semibold text-gray-900 text-sm mb-1">庫存管理</h3>
-                  <p className="text-xs text-gray-400">Inventory Control</p>
+          {(inventoryRole || canManageUsers) && (
+            <div className="mt-10 flex flex-wrap gap-4">
+              {inventoryRole && (
+                <div>
+                  <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">庫存管理</h2>
+                  <Link href="/inventory">
+                    <div className="bg-white rounded-lg border border-gray-200 p-5 cursor-pointer hover:shadow-sm hover:border-blue-400 transition-all w-72">
+                      <h3 className="font-semibold text-gray-900 text-sm mb-1">庫存管理</h3>
+                      <p className="text-xs text-gray-400">Inventory Control</p>
+                    </div>
+                  </Link>
                 </div>
-              </Link>
+              )}
+              {canManageUsers && (
+                <div>
+                  <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">管理</h2>
+                  <Link href="/admin/users">
+                    <div className="bg-white rounded-lg border border-gray-200 p-5 cursor-pointer hover:shadow-sm hover:border-blue-400 transition-all w-72">
+                      <h3 className="font-semibold text-gray-900 text-sm mb-1">使用者管理</h3>
+                      <p className="text-xs text-gray-400">User Management</p>
+                    </div>
+                  </Link>
+                </div>
+              )}
             </div>
           )}
         </main>
