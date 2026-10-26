@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { getInventoryRole } from '@/lib/inventory'
 import { lanternQrUrl, generateQrDataUrl } from '@/lib/inventoryQr'
 import InventoryLanternNav from '@/components/InventoryLanternNav'
+import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
 
 const SIZE_PRESETS = [
@@ -96,15 +97,7 @@ export default function Labels() {
     <>
       <Head><title>標籤 · 燈籠庫存</title></Head>
       <div className="min-h-screen bg-gray-50 print:bg-white">
-        <header className="bg-white border-b border-gray-200 px-6 py-4 print:hidden">
-          <div className="max-w-6xl mx-auto flex items-center gap-3">
-            <Link href="/inventory/lanterns" className="text-gray-400 hover:text-gray-700 text-base">← 燈籠列表</Link>
-            <div>
-              <h1 className="font-semibold text-gray-900">標籤</h1>
-              <p className="text-sm text-gray-500">Labels — QR + Tag ID</p>
-            </div>
-          </div>
-        </header>
+        <InventoryHeader icon="tag" backHref="/inventory/lanterns" backLabel="燈籠列表" title="標籤" subtitle="Labels — QR + Tag ID" printHidden />
 
         <InventoryLanternNav active="labels" />
 

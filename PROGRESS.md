@@ -1,5 +1,38 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Shared Inventory Header Component (New)
+
+Follow-up to the nav tab bar spacing fix: "can you also improve the header? maybe add
+some icon?" The Inventory Control module had ~11 near-identical inline `<header>`
+blocks (back link, title, subtitle, optional right-side actions) copy-pasted page to
+page since Stage 0 — plain text, no visual identity between sections, easy for small
+inconsistencies to creep in across 11 copies.
+
+**`components/InventoryHeader.jsx`** (new) — one shared header replacing all 11:
+- Back link now has an actual chevron-left SVG arrow instead of a literal `←` character,
+  plus a vertical divider before the title block
+- A colored icon badge (`bg-blue-50` rounded square) gives each section a distinct
+  visual identity — inline SVGs (no icon library added, matching how `components/Layout.jsx`
+  already hand-draws its own icons): `box` (Inventory Control hub), `lantern` (list/
+  detail/new/edit), `pin` (Locations), `compass` (Field mode), `chart` (Dashboard),
+  `tag` (Labels)
+- `right` prop for the page-specific action buttons/badges that varied per page (role
+  badge + Avatar on the hub; + 新增燈籠 on the list; 記錄檢查/編輯/刪除 on lantern detail;
+  + 新增地點 or 編輯 on Locations; nothing on the simpler pages)
+- `printHidden` prop reproduces the one page-specific variant (Labels' header has
+  `print:hidden` since that page is meant to be printed)
+
+All 11 pages (`pages/inventory/index.jsx`, and the 10 under
+`pages/inventory/lanterns/`) now render `<InventoryHeader icon=... backHref=...
+backLabel=... title=... subtitle=... right={...} />` instead of their own inline block —
+same visual layout and behavior per page, now actually consistent and far less code to
+maintain per page.
+
+**Verified**: `npm run build` passes clean; dev server confirms all 7 distinct pages
+tested (hub, list, new, locations, field, dashboard, labels) still 200.
+
+---
+
 ## Lantern Nav Tab Bar Patch (Spacing)
 
 Reported as "the top menu seems squeezed together" with a screenshot of the

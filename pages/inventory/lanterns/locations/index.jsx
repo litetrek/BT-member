@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { getInventoryRole } from '@/lib/inventory'
 import InventoryLocationForm from '@/components/InventoryLocationForm'
 import InventoryLanternNav from '@/components/InventoryLanternNav'
+import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
 
 const ZONE_ORDER = ['A', 'B', 'C', 'D', 'E', 'Cabin']
@@ -68,25 +69,18 @@ export default function LocationsList() {
     <>
       <Head><title>地點 · 燈籠庫存</title></Head>
       <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Link href="/inventory/lanterns" className="text-gray-400 hover:text-gray-700 text-base shrink-0">← 燈籠庫存</Link>
-              <div className="min-w-0">
-                <h1 className="font-semibold text-gray-900">地點</h1>
-                <p className="text-sm text-gray-500">Locations</p>
-              </div>
-            </div>
-            {role === 'admin' && (
-              <button
-                onClick={() => setShowAdd(true)}
-                className="text-base bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 shrink-0"
-              >
-                + 新增地點
-              </button>
-            )}
-          </div>
-        </header>
+        <InventoryHeader
+          icon="pin"
+          backHref="/inventory/lanterns"
+          backLabel="燈籠庫存"
+          title="地點"
+          subtitle="Locations"
+          right={role === 'admin' && (
+            <button onClick={() => setShowAdd(true)} className="text-base bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">
+              + 新增地點
+            </button>
+          )}
+        />
 
         <InventoryLanternNav active="locations" />
 

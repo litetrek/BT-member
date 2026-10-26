@@ -8,6 +8,7 @@ import { getInventoryRole } from '@/lib/inventory'
 import { getCheckedIds, clearChecked } from '@/lib/inventoryFieldDraft'
 import InventoryQuickInspectSheet from '@/components/InventoryQuickInspectSheet'
 import InventoryFieldNewLanternSheet from '@/components/InventoryFieldNewLanternSheet'
+import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
 
 // Lazy-loaded: pulls in the jsQR decoder (~50kB), which most Field mode visits never
@@ -96,17 +97,13 @@ export default function FieldWalkthrough() {
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </Head>
       <div className="min-h-screen bg-gray-50 pb-24">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Link href="/inventory/lanterns/field" className="text-gray-400 hover:text-gray-700 text-base shrink-0">← 現場模式</Link>
-              <div className="min-w-0">
-                <h1 className="font-semibold text-gray-900">{code}</h1>
-                {location && <p className="text-sm text-gray-500">已檢查 {checkedCount} / {total}</p>}
-              </div>
-            </div>
-          </div>
-        </header>
+        <InventoryHeader
+          icon="compass"
+          backHref="/inventory/lanterns/field"
+          backLabel="現場模式"
+          title={code}
+          subtitle={location ? `已檢查 ${checkedCount} / ${total}` : ''}
+        />
 
         <main className="max-w-6xl mx-auto px-6 py-6 space-y-6">
           {loading ? (

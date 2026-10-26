@@ -7,6 +7,7 @@ import { getInventoryRole } from '@/lib/inventory'
 import InventoryLocationForm from '@/components/InventoryLocationForm'
 import InventoryLanternNav from '@/components/InventoryLanternNav'
 import InventoryPhotoLightbox from '@/components/InventoryPhotoLightbox'
+import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
 
 export default function LocationDetail() {
@@ -48,25 +49,18 @@ export default function LocationDetail() {
     <>
       <Head><title>{code ?? '地點'} · 燈籠庫存</title></Head>
       <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Link href="/inventory/lanterns/locations" className="text-gray-400 hover:text-gray-700 text-base shrink-0">← 地點</Link>
-              <div className="min-w-0">
-                <h1 className="font-semibold text-gray-900">{code}</h1>
-                <p className="text-sm text-gray-500">{location ? `${location.zone} 區` : ''}</p>
-              </div>
-            </div>
-            {role === 'admin' && location && (
-              <button
-                onClick={() => setShowEdit(true)}
-                className="text-base bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50 shrink-0"
-              >
-                編輯
-              </button>
-            )}
-          </div>
-        </header>
+        <InventoryHeader
+          icon="pin"
+          backHref="/inventory/lanterns/locations"
+          backLabel="地點"
+          title={code}
+          subtitle={location ? `${location.zone} 區` : ''}
+          right={role === 'admin' && location && (
+            <button onClick={() => setShowEdit(true)} className="text-base bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50">
+              編輯
+            </button>
+          )}
+        />
 
         <InventoryLanternNav active="locations" />
 

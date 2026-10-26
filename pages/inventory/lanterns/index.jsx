@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { getInventoryRole } from '@/lib/inventory'
 import { CONDITION_OPTIONS, VOLTAGE_OPTIONS, STATUS_OPTIONS } from '@/lib/inventoryConstants'
 import InventoryLanternNav from '@/components/InventoryLanternNav'
+import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
 
 const EMPTY_FILTERS = { q: '', category_id: '', location_id: '', voltage: '', condition: '', status: '', displayable: '' }
@@ -86,22 +87,18 @@ export default function LanternList() {
     <>
       <Head><title>燈籠列表 · 燈籠庫存</title></Head>
       <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Link href="/inventory" className="text-gray-400 hover:text-gray-700 text-base shrink-0">← 庫存管理</Link>
-              <div className="min-w-0">
-                <h1 className="font-semibold text-gray-900">燈籠庫存</h1>
-                <p className="text-sm text-gray-500">Lantern Inventory</p>
-              </div>
-            </div>
-            {['admin', 'editor'].includes(role) && (
-              <Link href="/inventory/lanterns/new" className="text-base bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 shrink-0">
-                + 新增燈籠
-              </Link>
-            )}
-          </div>
-        </header>
+        <InventoryHeader
+          icon="lantern"
+          backHref="/inventory"
+          backLabel="庫存管理"
+          title="燈籠庫存"
+          subtitle="Lantern Inventory"
+          right={['admin', 'editor'].includes(role) && (
+            <Link href="/inventory/lanterns/new" className="text-base bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">
+              + 新增燈籠
+            </Link>
+          )}
+        />
 
         <InventoryLanternNav active="list" />
 

@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import Link from 'next/link'
 import Avatar from '@/components/Avatar'
+import InventoryHeader from '@/components/InventoryHeader'
 import { getInventoryRole, INVENTORY_MODULES } from '@/lib/inventory'
 
 export default function InventoryHub() {
@@ -52,23 +53,21 @@ export default function InventoryHub() {
     <>
       <Head><title>庫存管理 · 聖天湖佛教城</title></Head>
       <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link href="/" className="text-gray-400 hover:text-gray-700 text-base">← 首頁</Link>
-              <div>
-                <h1 className="font-semibold text-gray-900">庫存管理</h1>
-                <p className="text-sm text-gray-500">Inventory Control</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
+        <InventoryHeader
+          icon="box"
+          backHref="/"
+          backLabel="首頁"
+          title="庫存管理"
+          subtitle="Inventory Control"
+          right={
+            <>
               <span className="text-sm px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
                 {role === 'admin' ? '管理員' : '編輯者'}
               </span>
               <Avatar name={session.user.name} avatarUrl={session.user.image} size="sm" />
-            </div>
-          </div>
-        </header>
+            </>
+          }
+        />
 
         <main className="max-w-6xl mx-auto px-6 py-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

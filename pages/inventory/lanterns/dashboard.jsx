@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { getInventoryRole } from '@/lib/inventory'
 import { DISPLAY_DECISION_OPTIONS } from '@/lib/inventoryConstants'
 import InventoryLanternNav from '@/components/InventoryLanternNav'
+import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
 
 const SHORTLIST_CONDITIONS = ['Good', 'OK']
@@ -94,15 +95,7 @@ export default function Dashboard() {
     <>
       <Head><title>儀表板 · 燈籠庫存</title></Head>
       <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="max-w-6xl mx-auto flex items-center gap-3">
-            <Link href="/inventory/lanterns" className="text-gray-400 hover:text-gray-700 text-base">← 燈籠列表</Link>
-            <div>
-              <h1 className="font-semibold text-gray-900">儀表板</h1>
-              <p className="text-sm text-gray-500">Dashboard</p>
-            </div>
-          </div>
-        </header>
+        <InventoryHeader icon="chart" backHref="/inventory/lanterns" backLabel="燈籠列表" title="儀表板" subtitle="Dashboard" />
 
         <InventoryLanternNav active="dashboard" />
 

@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ConfirmDialog'
 import Spinner from '@/components/Spinner'
 import InventoryQuickInspectSheet from '@/components/InventoryQuickInspectSheet'
 import InventoryPhotoLightbox from '@/components/InventoryPhotoLightbox'
+import InventoryHeader from '@/components/InventoryHeader'
 
 function Field({ label, value }) {
   return (
@@ -107,32 +108,29 @@ export default function LanternDetail() {
     <>
       <Head><title>{tagId ?? '燈籠'} · 燈籠庫存</title></Head>
       <div className="min-h-screen bg-blue-50">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Link href="/inventory/lanterns" className="text-gray-400 hover:text-gray-700 text-base shrink-0">← 燈籠列表</Link>
-              <div className="min-w-0">
-                <h1 className="font-semibold text-gray-900 font-mono">{tagId}</h1>
-                <p className="text-sm text-gray-500">{lantern?.name_zh}</p>
-              </div>
-            </div>
-            {canEdit && lantern && (
-              <div className="flex gap-2 shrink-0">
-                <button onClick={() => setShowInspect(true)} className="text-base bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">
-                  記錄檢查
+        <InventoryHeader
+          icon="lantern"
+          backHref="/inventory/lanterns"
+          backLabel="燈籠列表"
+          title={tagId}
+          titleMono
+          subtitle={lantern?.name_zh}
+          right={canEdit && lantern && (
+            <>
+              <button onClick={() => setShowInspect(true)} className="text-base bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">
+                記錄檢查
+              </button>
+              <Link href={`/inventory/lanterns/${tagId}/edit`} className="text-base bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50">
+                編輯
+              </Link>
+              {role === 'admin' && (
+                <button onClick={() => setConfirmDelete(true)} className="text-base bg-white border border-red-300 text-red-600 px-3 py-1.5 rounded hover:bg-red-50">
+                  刪除
                 </button>
-                <Link href={`/inventory/lanterns/${tagId}/edit`} className="text-base bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50">
-                  編輯
-                </Link>
-                {role === 'admin' && (
-                  <button onClick={() => setConfirmDelete(true)} className="text-base bg-white border border-red-300 text-red-600 px-3 py-1.5 rounded hover:bg-red-50">
-                    刪除
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </header>
+              )}
+            </>
+          )}
+        />
 
         <main className="max-w-6xl mx-auto px-6 py-8">
           {loading ? (

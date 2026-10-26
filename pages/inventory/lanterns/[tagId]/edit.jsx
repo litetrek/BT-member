@@ -5,6 +5,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { getInventoryRole } from '@/lib/inventory'
 import InventoryLanternForm from '@/components/InventoryLanternForm'
+import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
 
 export default function EditLantern() {
@@ -36,15 +37,7 @@ export default function EditLantern() {
     <>
       <Head><title>編輯 {tagId} · 燈籠庫存</title></Head>
       <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="max-w-6xl mx-auto flex items-center gap-3">
-            <Link href={`/inventory/lanterns/${tagId}`} className="text-gray-400 hover:text-gray-700 text-base">← {tagId}</Link>
-            <div>
-              <h1 className="font-semibold text-gray-900">編輯燈籠</h1>
-              <p className="text-sm text-gray-500">Edit Lantern</p>
-            </div>
-          </div>
-        </header>
+        <InventoryHeader icon="lantern" backHref={`/inventory/lanterns/${tagId}`} backLabel={tagId} title="編輯燈籠" subtitle="Edit Lantern" />
 
         <main className="max-w-6xl mx-auto px-6 py-8">
           {loading ? (
