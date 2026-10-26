@@ -1,21 +1,33 @@
 # BT-Member Event Management — Progress Snapshot
 
-## Lantern Inventory — Stage 4 Patch (Photo Links in CSV Export)
+## Lantern Inventory — Stage 4 Patch (Clickable Photo Links in CSV Export)
 
-Requested after trying Stage 4: the CSV export should include links to each lantern's
-photos, not just its data fields.
+Requested after trying Stage 4, in two steps: first just "include links to the
+pictures," then "can the photo link be clickable?" once Vincent saw the URLs land as
+plain unclickable text in Google Sheets — expected, since CSV itself has no concept of a
+hyperlink, only cell text.
 
-**`pages/api/inventory/lanterns/export.js`** — two new columns:
-- `primary_photo_url` — the lantern's primary photo, via a correlated subquery
-- `photo_urls` — every photo's full-size URL, `" | "`-joined via `string_agg`, primary
-  first then by upload order
+**`pages/api/inventory/lanterns/export.js`**:
+- `primary_photo_url` column — the lantern's primary photo
+- `photo_1`, `photo_2`, … columns — one per photo, column count = the max photo count
+  across the exported rows (computed from `array_agg` per lantern, not a fixed guess);
+  rows with fewer photos just have blank trailing cells
+- Every photo cell is a `=HYPERLINK("url")` formula string rather than plain text — both
+  Excel and Google Sheets evaluate a CSV cell starting with `=` as a formula on open, so
+  this is the only way a plain CSV file can produce an actually-clickable link. Safe here
+  specifically because the URL always comes from our own Blob storage (set by our own
+  upload code), never from a free-text field a person typed — formula-injection risk
+  from CSV only matters when untrusted input reaches a formula cell.
 
-Both are full-size Blob URLs (not thumbnails) so they're useful to click straight from
-the spreadsheet. No column needed for "no photos" — the cell is simply empty.
+All full-size Blob URLs (not thumbnails), so they're useful to click straight from the
+spreadsheet.
 
-**Verified**: `npm run build` passes clean. Direct SQL test against Neon: a test lantern
-with two photos (one primary) returned `primary_photo_url` = the primary photo's URL and
-`photo_urls` = both URLs in the expected order; test rows deleted after.
+**Verified**: `npm run build` passes clean. Direct SQL + formatting test against Neon: a
+test lantern with two photos (one primary) produced `primary_photo_url` =
+`"=HYPERLINK(""...a-full.jpg"")"` and `photo_1`/`photo_2` cells each correctly
+CSV-escaped (outer quotes doubled per CSV rules) in primary-first order — exactly the
+shape Excel/Sheets need to render a clickable link; confirmed `array_agg` comes back as
+a real JS array via `pg`, not a string needing manual parsing. Test rows deleted after.
 
 ---
 
