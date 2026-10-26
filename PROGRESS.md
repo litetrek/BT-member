@@ -1,5 +1,34 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Lantern Inventory — Stage 4 Patch (Shortlist Excluded Undecided Lanterns)
+
+Bug reported after trying Stage 4: two displayable, Good/OK-condition lanterns weren't
+showing in the Fair 2027 Shortlist even though they clearly matched. Root cause: the
+shortlist's default filter required `display_decision` to already be `Selected` or
+`Candidate` — but a brand-new displayable lantern has no decision yet (`NULL`), and SQL's
+`= ANY(array)` never matches `NULL`. The one screen meant to let management *pick*
+candidates was silently hiding every candidate that hadn't already been picked.
+
+**`lib/inventoryLanternFilters.js`** — `display_decision` now accepts a `'none'`
+sentinel value meaning "no decision set" (`display_decision IS NULL`), OR'd together
+with the named-value `ANY()` match when both are requested.
+
+**`pages/inventory/lanterns/dashboard.jsx`** — the shortlist's decision checkboxes now
+include a 5th option, "未決定 Undecided", and **all five are checked by default** (the
+four real decisions plus undecided) — so by default the shortlist shows every
+displayable Good/OK lantern regardless of whether anyone has decided on it yet, matching
+what the screen is actually for. Unchecking narrows it down. Also fixed: unchecking
+every condition or decision box now sends a guaranteed-no-match filter value instead of
+silently omitting the param (which previously would have meant "no filter" = show
+everything, the opposite of what an all-unchecked state should mean).
+
+**Verified**: `npm run build` passes clean. Direct DB-level test mirroring the new query
+exactly: two lanterns created with `displayable=true`, `condition` Good/OK, and no
+`display_decision` set — both now correctly appear in the simulated shortlist query
+(previously would have returned zero); cleaned up after.
+
+---
+
 ## Lantern Inventory — Stage 4 Complete (Management View + Export)
 
 Fifth of six staged builds. Delivers the management dashboard, the Fair 2027 shortlist,

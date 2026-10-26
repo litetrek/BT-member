@@ -9,7 +9,11 @@ import InventoryLanternNav from '@/components/InventoryLanternNav'
 import Spinner from '@/components/Spinner'
 
 const SHORTLIST_CONDITIONS = ['Good', 'OK']
-const SHORTLIST_DECISIONS = ['Selected', 'Candidate']
+// 'none' = no decision set yet. Defaults to everything checked so a freshly displayable
+// lantern (which starts with no decision) shows up here to be decided on, not just the
+// ones someone already marked Selected/Candidate.
+const SHORTLIST_DECISIONS = [...DISPLAY_DECISION_OPTIONS, 'none']
+const DECISION_LABELS = { Candidate: 'Candidate', Selected: 'Selected', 'Needs repair': 'Needs repair', 'Not this year': 'Not this year', none: '未決定 Undecided' }
 
 function StatCard({ label, value }) {
   return (
@@ -49,8 +53,10 @@ export default function Dashboard() {
 
   function shortlistQuery() {
     const params = new URLSearchParams({ displayable: 'true' })
-    if (conditions.length) params.set('condition', conditions.join(','))
-    if (decisions.length) params.set('display_decision', decisions.join(','))
+    // Unchecking every condition/decision box means "show nothing", not "no filter" —
+    // send a value that can never match rather than omitting the param.
+    params.set('condition', conditions.length ? conditions.join(',') : '__none_selected__')
+    params.set('display_decision', decisions.length ? decisions.join(',') : '__none_selected__')
     return params.toString()
   }
 
@@ -189,12 +195,12 @@ export default function Dashboard() {
                   </label>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-gray-400">展示決定</span>
-                {DISPLAY_DECISION_OPTIONS.map((d) => (
+                {SHORTLIST_DECISIONS.map((d) => (
                   <label key={d} className="flex items-center gap-1 cursor-pointer">
                     <input type="checkbox" checked={decisions.includes(d)} onChange={() => toggle(decisions, setDecisions, d)} />
-                    {d}
+                    {DECISION_LABELS[d]}
                   </label>
                 ))}
               </div>
