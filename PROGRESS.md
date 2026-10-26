@@ -60,9 +60,10 @@ the spec was written without knowledge of this repo's current state:
 
 **Verified**: `npm run build` passes clean; dev server serves `/`, `/inventory`,
 `/inventory/lanterns` all 200 with no runtime errors; all 6 tables + sequence confirmed
-present on Neon; seed confirmed 4 categories + 40 locations inserted. **Not yet verified**:
-actual photo upload end-to-end (blocked on `BLOB_READ_WRITE_TOKEN` — see Pending below) or
-on-device iPhone testing, both of which only Vincent can do.
+present on Neon; seed confirmed 4 categories + 40 locations inserted. `BLOB_READ_WRITE_TOKEN`
+is set up and Vincent confirmed the Stage 0 photo-upload test widget works end to end
+(resize → Vercel Blob upload → display). Stage 0 "done when" criteria are met — ready for
+Stage 1 (Locations).
 
 ---
 
@@ -784,8 +785,6 @@ Two bugs discovered during verification, both pre-existing from original Supabas
 - Trigger announcement emails from Activities page (announcements are posted to DB but no send button exists yet)
 - Consider per-event role context (currently session role = highest role across all events)
 - Purge git history of `migration/data-dump-supabase.sql` if PII scrubbing is ever required (`git filter-repo`)
-- **`BLOB_READ_WRITE_TOKEN`** — Vincent needs to create a Vercel Blob store (Vercel dashboard → Storage → Create → Blob), link it to this project, then copy the token into `.env.local` for local dev (Vercel sets it automatically in production once linked). Photo upload is unverified end-to-end until this exists.
-- **iPhone on-device test** — verify the Stage 0 photo-upload test widget on `/inventory/lanterns` actually opens the rear camera and uploads/displays correctly on a real iPhone (Safari) before Stage 1 starts, per the spec's own sign-off rule.
 - **Lantern Inventory Stage 1** (Locations: list grouped by zone, location detail, add/edit with description+photo) is next, per the 6-stage plan in the spec doc. Stages 2–5 follow (core lantern CRUD, Field mode, management view/export, QR labels).
 - Still-open spec questions (Section 6): final tag label material, and who the Viewers are (role is modeled, nobody assigned yet).
 - Additional inventory subsystems (beyond Lanterns) to be added to `INVENTORY_MODULES` in `lib/inventory.js` as they're defined
