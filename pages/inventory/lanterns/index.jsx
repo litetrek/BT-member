@@ -17,21 +17,21 @@ function LanternCard({ lantern }) {
         {lantern.primary_photo_thumb_url ? (
           <img src={lantern.primary_photo_thumb_url} alt={lantern.tag_id} className="w-14 h-14 rounded object-cover shrink-0" />
         ) : (
-          <div className="w-14 h-14 rounded bg-gray-100 shrink-0 flex items-center justify-center text-gray-300 text-xs">無照片</div>
+          <div className="w-14 h-14 rounded bg-gray-100 shrink-0 flex items-center justify-center text-gray-300 text-sm">無照片</div>
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="font-mono text-xs text-gray-400">{lantern.tag_id}</p>
+            <p className="font-mono text-sm text-gray-400">{lantern.tag_id}</p>
             {!lantern.displayable && (
-              <span className="text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded">不可展示</span>
+              <span className="text-xs text-red-600 bg-red-50 px-1.5 py-0.5 rounded">不可展示</span>
             )}
           </div>
-          <p className="font-semibold text-gray-900 text-sm truncate">{lantern.name_zh}</p>
-          <p className="text-xs text-gray-400 truncate">
+          <p className="font-semibold text-gray-900 text-base truncate">{lantern.name_zh}</p>
+          <p className="text-sm text-gray-400 truncate">
             {lantern.category_name_zh ?? '—'} · QTY {lantern.qty} · {lantern.location_code ?? '—'}
           </p>
         </div>
-        <span className="text-xs text-gray-500 shrink-0">{lantern.condition}</span>
+        <span className="text-sm text-gray-500 shrink-0">{lantern.condition}</span>
       </div>
     </Link>
   )
@@ -80,7 +80,7 @@ export default function LanternList() {
 
   if (status !== 'authenticated' || !role) return null
 
-  const selectCls = 'border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400'
+  const selectCls = 'border border-gray-200 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400'
 
   return (
     <>
@@ -89,14 +89,14 @@ export default function LanternList() {
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <Link href="/inventory" className="text-gray-400 hover:text-gray-700 text-sm shrink-0">← 庫存管理</Link>
+              <Link href="/inventory" className="text-gray-400 hover:text-gray-700 text-base shrink-0">← 庫存管理</Link>
               <div className="min-w-0">
                 <h1 className="font-semibold text-gray-900">燈籠庫存</h1>
-                <p className="text-xs text-gray-500">Lantern Inventory</p>
+                <p className="text-sm text-gray-500">Lantern Inventory</p>
               </div>
             </div>
             {['admin', 'editor'].includes(role) && (
-              <Link href="/inventory/lanterns/new" className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 shrink-0">
+              <Link href="/inventory/lanterns/new" className="text-base bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 shrink-0">
                 + 新增燈籠
               </Link>
             )}
@@ -106,7 +106,7 @@ export default function LanternList() {
         <InventoryLanternNav active="list" />
 
         <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-wrap gap-3 items-center text-xs text-gray-600">
+          <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-wrap gap-3 items-center text-sm text-gray-600">
             <span>總記錄 {summary.totalRecords}</span>
             <span className="text-gray-300">|</span>
             <span>總數量 {summary.totalQty}</span>
@@ -150,7 +150,7 @@ export default function LanternList() {
               <option value="false">不可展示</option>
             </select>
             {JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS) && (
-              <button onClick={() => setFilters(EMPTY_FILTERS)} className="text-xs text-gray-400 hover:text-gray-700 px-2">
+              <button onClick={() => setFilters(EMPTY_FILTERS)} className="text-sm text-gray-400 hover:text-gray-700 px-2">
                 清除篩選
               </button>
             )}
@@ -159,7 +159,7 @@ export default function LanternList() {
           {loading ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : lanterns.length === 0 ? (
-            <p className="text-sm text-gray-400">尚無燈籠記錄。</p>
+            <p className="text-base text-gray-400">尚無燈籠記錄。</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {lanterns.map((l) => <LanternCard key={l.id} lantern={l} />)}

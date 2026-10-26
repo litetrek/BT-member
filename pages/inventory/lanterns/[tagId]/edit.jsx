@@ -38,10 +38,10 @@ export default function EditLantern() {
       <div className="min-h-screen bg-gray-50">
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center gap-3">
-            <Link href={`/inventory/lanterns/${tagId}`} className="text-gray-400 hover:text-gray-700 text-sm">← {tagId}</Link>
+            <Link href={`/inventory/lanterns/${tagId}`} className="text-gray-400 hover:text-gray-700 text-base">← {tagId}</Link>
             <div>
               <h1 className="font-semibold text-gray-900">編輯燈籠</h1>
-              <p className="text-xs text-gray-500">Edit Lantern</p>
+              <p className="text-sm text-gray-500">Edit Lantern</p>
             </div>
           </div>
         </header>
@@ -52,7 +52,7 @@ export default function EditLantern() {
           ) : lantern ? (
             <InventoryLanternForm lantern={lantern} onCancel={() => router.push(`/inventory/lanterns/${tagId}`)} />
           ) : (
-            <p className="text-sm text-gray-400">找不到此燈籠。</p>
+            <p className="text-base text-gray-400">找不到此燈籠。</p>
           )}
         </main>
       </div>

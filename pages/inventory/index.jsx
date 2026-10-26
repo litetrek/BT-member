@@ -23,13 +23,13 @@ export default function InventoryHub() {
         <Head><title>庫存管理 · 聖天湖佛教城</title></Head>
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
           <div className="bg-white border border-gray-200 rounded-xl p-8 w-full max-w-sm text-center">
-            <Link href="/" className="text-xs text-gray-400 hover:text-gray-600 block mb-6">
+            <Link href="/" className="text-sm text-gray-400 hover:text-gray-600 block mb-6">
               ← bt.cyber-tech.com
             </Link>
-            <h1 className="font-semibold text-gray-900 text-lg mb-8">庫存管理</h1>
+            <h1 className="font-semibold text-gray-900 text-xl mb-8">庫存管理</h1>
             <button
               onClick={() => signIn('google', { callbackUrl: '/inventory' })}
-              className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-base text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -39,7 +39,7 @@ export default function InventoryHub() {
               </svg>
               以 Google 帳號登入
             </button>
-            <p className="text-xs text-gray-400 mt-4">僅限指定管理人員</p>
+            <p className="text-sm text-gray-400 mt-4">僅限指定管理人員</p>
           </div>
         </div>
       </>
@@ -55,14 +55,14 @@ export default function InventoryHub() {
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Link href="/" className="text-gray-400 hover:text-gray-700 text-sm">← 首頁</Link>
+              <Link href="/" className="text-gray-400 hover:text-gray-700 text-base">← 首頁</Link>
               <div>
                 <h1 className="font-semibold text-gray-900">庫存管理</h1>
-                <p className="text-xs text-gray-500">Inventory Control</p>
+                <p className="text-sm text-gray-500">Inventory Control</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
+              <span className="text-sm px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
                 {role === 'admin' ? '管理員' : '編輯者'}
               </span>
               <Avatar name={session.user.name} avatarUrl={session.user.image} size="sm" />
@@ -75,13 +75,13 @@ export default function InventoryHub() {
             {INVENTORY_MODULES.map((m) => (
               <Link key={m.key} href={m.href}>
                 <div className="bg-white rounded-lg border border-gray-200 p-5 cursor-pointer hover:shadow-sm hover:border-blue-400 transition-all">
-                  <h2 className="font-semibold text-gray-900 text-sm mb-1">{m.name}</h2>
-                  <p className="text-xs text-gray-400">{m.nameEn}</p>
+                  <h2 className="font-semibold text-gray-900 text-base mb-1">{m.name}</h2>
+                  <p className="text-sm text-gray-400">{m.nameEn}</p>
                 </div>
               </Link>
             ))}
           </div>
-          <p className="text-xs text-gray-400 mt-6">更多庫存管理功能即將推出</p>
+          <p className="text-sm text-gray-400 mt-6">更多庫存管理功能即將推出</p>
         </main>
       </div>
     </>

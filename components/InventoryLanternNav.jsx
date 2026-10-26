@@ -15,7 +15,7 @@ export default function InventoryLanternNav({ active }) {
       <div className="max-w-6xl mx-auto flex gap-1">
         {TABS.map((t) => {
           const isActive = t.key === active
-          const cls = `px-3 py-2 text-sm border-b-2 transition-colors ${
+          const cls = `px-3 py-2 text-base border-b-2 transition-colors ${
             isActive
               ? 'border-blue-600 text-blue-700 font-medium'
               : t.ready

@@ -88,8 +88,8 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
     }
   }
 
-  const inputCls = 'w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400'
-  const labelCls = 'block text-xs text-gray-500 mb-1'
+  const inputCls = 'w-full border border-gray-200 rounded px-3 py-2 text-base focus:outline-none focus:ring-1 focus:ring-blue-400'
+  const labelCls = 'block text-sm text-gray-500 mb-1'
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-6 space-y-5 max-w-2xl">
@@ -179,21 +179,20 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
         <input
           type="file"
           accept="image/*"
-          capture="environment"
           multiple
           onChange={(e) => setPhotoFiles(Array.from(e.target.files ?? []))}
-          className="text-sm"
+          className="text-base"
         />
-        {photoFiles.length > 0 && <p className="text-xs text-gray-400 mt-1">已選擇 {photoFiles.length} 張照片</p>}
+        {photoFiles.length > 0 && <p className="text-sm text-gray-400 mt-1">已選擇 {photoFiles.length} 張照片</p>}
       </div>
 
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-sm text-red-500">{error}</p>}
 
       <div className="flex justify-end gap-2 pt-2">
-        <button type="button" onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">
+        <button type="button" onClick={onCancel} className="px-4 py-2 text-base text-gray-600 hover:text-gray-900">
           取消
         </button>
-        <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+        <button type="submit" disabled={saving} className="px-4 py-2 text-base bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
           {saving ? '儲存中…' : '儲存'}
         </button>
       </div>

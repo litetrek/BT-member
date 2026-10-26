@@ -1,5 +1,37 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Lantern Inventory — Stage 2 Patch (Readability + Photo Input Fixes)
+
+Three fixes requested after trying Stage 2 on-device, applied across the whole Inventory
+Control module (`pages/inventory/**`, `components/Inventory*.jsx`) — not the rest of the
+app, which already has its own separate font conventions:
+
+1. **Bigger fonts** — every `text-xs` → `text-sm`, `text-sm` → `text-base`, `text-lg` →
+   `text-xl`, and the small `text-[10px]` badges → `text-xs`, done as three ordered
+   blanket passes per file (sm→base, then xs→sm, then [10px]→xs) so sizes don't cascade
+   on top of each other.
+2. **Photo input was camera-only** — every file input across the module had
+   `capture="environment"`, which on iOS Safari skips the normal action sheet and opens
+   the rear camera directly, so there was no way to attach an existing photo from the
+   library. Removed `capture="environment"` from all three photo inputs
+   (`InventoryLocationForm`, `InventoryLanternForm`, the lantern detail page's inline
+   add-photo button) — iOS now shows its native "Take Photo / Photo Library / Browse"
+   sheet instead.
+3. **Lantern detail page's inline "+ 新增照片" was single-file only** — the create/edit
+   form (`InventoryLanternForm`) already supported multiple photos per lantern, but the
+   detail page's quick-add uploader only took one file at a time. `handleAddPhoto()` in
+   `pages/inventory/lanterns/[tagId].jsx` now accepts `multiple` and loops through every
+   selected file, uploading and inserting a photo row for each (first one becomes primary
+   only if none exists yet) — matches the spec's "field worker can take photo to present
+   condition" use case directly from the detail page, not just when creating a lantern.
+
+**Verified**: `npm run build` passes clean; dev server confirms `/inventory/lanterns`,
+`/inventory/lanterns/new`, `/inventory/lanterns/locations` all still 200 after the
+blanket class-name edits (no broken JSX from the find/replace passes). Visual sizing and
+the iOS action-sheet behavior itself need Vincent's on-device check, same as prior stages.
+
+---
+
 ## Lantern Inventory — Stage 2 Complete (Core Lantern Records)
 
 Third of six staged builds. Delivers full lantern CRUD, photo gallery, search/filters,

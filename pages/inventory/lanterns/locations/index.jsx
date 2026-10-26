@@ -17,15 +17,15 @@ function LocationCard({ location }) {
         {location.photo_thumb_url ? (
           <img src={location.photo_thumb_url} alt={location.code} className="w-14 h-14 rounded object-cover shrink-0" />
         ) : (
-          <div className="w-14 h-14 rounded bg-gray-100 shrink-0 flex items-center justify-center text-gray-300 text-xs">
+          <div className="w-14 h-14 rounded bg-gray-100 shrink-0 flex items-center justify-center text-gray-300 text-sm">
             無照片
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-gray-900 text-sm">{location.code}</p>
-          <p className="text-xs text-gray-400 truncate">{location.description || '—'}</p>
+          <p className="font-semibold text-gray-900 text-base">{location.code}</p>
+          <p className="text-sm text-gray-400 truncate">{location.description || '—'}</p>
         </div>
-        <span className="text-xs text-gray-400 shrink-0">{location.lantern_count} 盞</span>
+        <span className="text-sm text-gray-400 shrink-0">{location.lantern_count} 盞</span>
       </div>
     </Link>
   )
@@ -71,16 +71,16 @@ export default function LocationsList() {
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <Link href="/inventory/lanterns" className="text-gray-400 hover:text-gray-700 text-sm shrink-0">← 燈籠庫存</Link>
+              <Link href="/inventory/lanterns" className="text-gray-400 hover:text-gray-700 text-base shrink-0">← 燈籠庫存</Link>
               <div className="min-w-0">
                 <h1 className="font-semibold text-gray-900">地點</h1>
-                <p className="text-xs text-gray-500">Locations</p>
+                <p className="text-sm text-gray-500">Locations</p>
               </div>
             </div>
             {role === 'admin' && (
               <button
                 onClick={() => setShowAdd(true)}
-                className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 shrink-0"
+                className="text-base bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 shrink-0"
               >
                 + 新增地點
               </button>
@@ -94,12 +94,12 @@ export default function LocationsList() {
           {loading ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : locations.length === 0 ? (
-            <p className="text-sm text-gray-400">尚無地點。</p>
+            <p className="text-base text-gray-400">尚無地點。</p>
           ) : (
             <div className="space-y-8">
               {byZone.map((g) => (
                 <div key={g.zone}>
-                  <h2 className="text-sm font-semibold text-gray-700 mb-3">
+                  <h2 className="text-base font-semibold text-gray-700 mb-3">
                     {g.zone === 'Cabin' ? 'Cabin' : `${g.zone} 區`}
                   </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

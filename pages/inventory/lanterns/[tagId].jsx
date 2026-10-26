@@ -11,8 +11,8 @@ import Spinner from '@/components/Spinner'
 function Field({ label, value }) {
   return (
     <div>
-      <p className="text-xs text-gray-400">{label}</p>
-      <p className="text-sm text-gray-900">{value ?? '—'}</p>
+      <p className="text-sm text-gray-400">{label}</p>
+      <p className="text-base text-gray-900">{value ?? '—'}</p>
     </div>
   )
 }
@@ -52,19 +52,23 @@ export default function LanternDetail() {
   }, [status, role, tagId])
 
   async function handleAddPhoto(e) {
-    const file = e.target.files?.[0]
-    if (!file || !lantern) return
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length || !lantern) return
     setUploading(true)
     try {
-      const { url, thumbUrl } = await uploadInventoryPhoto(file, 'lantern', lantern.id)
-      await fetch('/api/inventory/photos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          owner_type: 'lantern', owner_id: lantern.id,
-          url, thumb_url: thumbUrl, is_primary: !lantern.photos.some((p) => p.is_primary),
-        }),
-      })
+      let hasPrimary = lantern.photos.some((p) => p.is_primary)
+      for (const file of files) {
+        const { url, thumbUrl } = await uploadInventoryPhoto(file, 'lantern', lantern.id)
+        await fetch('/api/inventory/photos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            owner_type: 'lantern', owner_id: lantern.id,
+            url, thumb_url: thumbUrl, is_primary: !hasPrimary,
+          }),
+        })
+        hasPrimary = true
+      }
       load()
     } finally {
       setUploading(false)
@@ -96,19 +100,19 @@ export default function LanternDetail() {
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <Link href="/inventory/lanterns" className="text-gray-400 hover:text-gray-700 text-sm shrink-0">← 燈籠列表</Link>
+              <Link href="/inventory/lanterns" className="text-gray-400 hover:text-gray-700 text-base shrink-0">← 燈籠列表</Link>
               <div className="min-w-0">
                 <h1 className="font-semibold text-gray-900 font-mono">{tagId}</h1>
-                <p className="text-xs text-gray-500">{lantern?.name_zh}</p>
+                <p className="text-sm text-gray-500">{lantern?.name_zh}</p>
               </div>
             </div>
             {canEdit && lantern && (
               <div className="flex gap-2 shrink-0">
-                <Link href={`/inventory/lanterns/${tagId}/edit`} className="text-sm bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50">
+                <Link href={`/inventory/lanterns/${tagId}/edit`} className="text-base bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50">
                   編輯
                 </Link>
                 {role === 'admin' && (
-                  <button onClick={() => setConfirmDelete(true)} className="text-sm bg-white border border-red-300 text-red-600 px-3 py-1.5 rounded hover:bg-red-50">
+                  <button onClick={() => setConfirmDelete(true)} className="text-base bg-white border border-red-300 text-red-600 px-3 py-1.5 rounded hover:bg-red-50">
                     刪除
                   </button>
                 )}
@@ -121,11 +125,11 @@ export default function LanternDetail() {
           {loading ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : notFound ? (
-            <p className="text-sm text-gray-400">找不到此燈籠。</p>
+            <p className="text-base text-gray-400">找不到此燈籠。</p>
           ) : lantern ? (
             <div className="space-y-6">
               {!lantern.displayable && (
-                <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2">
+                <div className="bg-red-50 border border-red-200 text-red-700 text-base rounded-lg px-4 py-2">
                   不可展示 Not displayable（布面或骨架損壞達門檻）
                 </div>
               )}
@@ -147,35 +151,35 @@ export default function LanternDetail() {
 
               {lantern.notes && (
                 <div className="bg-white rounded-lg border border-gray-200 p-5">
-                  <p className="text-xs text-gray-400 mb-1">備註 Notes</p>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{lantern.notes}</p>
+                  <p className="text-sm text-gray-400 mb-1">備註 Notes</p>
+                  <p className="text-base text-gray-700 whitespace-pre-wrap">{lantern.notes}</p>
                 </div>
               )}
 
               <div className="bg-white rounded-lg border border-gray-200 p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-gray-700">照片 Photos</h2>
+                  <h2 className="text-base font-semibold text-gray-700">照片 Photos</h2>
                   {canEdit && (
-                    <label className="text-xs text-blue-600 cursor-pointer hover:underline">
+                    <label className="text-sm text-blue-600 cursor-pointer hover:underline">
                       {uploading ? '上傳中…' : '+ 新增照片'}
-                      <input type="file" accept="image/*" capture="environment" onChange={handleAddPhoto} className="hidden" disabled={uploading} />
+                      <input type="file" accept="image/*" multiple onChange={handleAddPhoto} className="hidden" disabled={uploading} />
                     </label>
                   )}
                 </div>
                 {lantern.photos.length === 0 ? (
-                  <p className="text-sm text-gray-400">尚無照片。</p>
+                  <p className="text-base text-gray-400">尚無照片。</p>
                 ) : (
                   <div className="flex flex-wrap gap-3">
                     {lantern.photos.map((p) => (
                       <div key={p.id} className="relative">
                         <img src={p.thumb_url} alt="" className={`w-24 h-24 rounded object-cover border-2 ${p.is_primary ? 'border-blue-500' : 'border-transparent'}`} />
-                        {p.is_primary && <span className="absolute top-1 left-1 text-[10px] bg-blue-600 text-white px-1 rounded">主要</span>}
+                        {p.is_primary && <span className="absolute top-1 left-1 text-xs bg-blue-600 text-white px-1 rounded">主要</span>}
                         {canEdit && (
                           <div className="flex gap-1 mt-1">
                             {!p.is_primary && (
-                              <button onClick={() => handleSetPrimary(p.id)} className="text-[10px] text-gray-400 hover:text-blue-600">設為主要</button>
+                              <button onClick={() => handleSetPrimary(p.id)} className="text-xs text-gray-400 hover:text-blue-600">設為主要</button>
                             )}
-                            <button onClick={() => handleDeletePhoto(p.id)} className="text-[10px] text-gray-400 hover:text-red-600">刪除</button>
+                            <button onClick={() => handleDeletePhoto(p.id)} className="text-xs text-gray-400 hover:text-red-600">刪除</button>
                           </div>
                         )}
                       </div>
@@ -186,10 +190,10 @@ export default function LanternDetail() {
 
               {lantern.log.length > 0 && (
                 <div className="bg-white rounded-lg border border-gray-200 p-5">
-                  <h2 className="text-sm font-semibold text-gray-700 mb-3">歷史紀錄 History</h2>
+                  <h2 className="text-base font-semibold text-gray-700 mb-3">歷史紀錄 History</h2>
                   <ul className="space-y-1.5">
                     {lantern.log.map((entry) => (
-                      <li key={entry.id} className="text-xs text-gray-500">
+                      <li key={entry.id} className="text-sm text-gray-500">
                         {new Date(entry.created_at).toLocaleString('zh-TW')} · {entry.user_email ?? '—'} · {entry.action}
                       </li>
                     ))}

@@ -57,7 +57,7 @@ export default function InventoryLocationForm({ location, onClose, onSaved }) {
     }
   }
 
-  const inputCls = 'w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400'
+  const inputCls = 'w-full border border-gray-200 rounded px-3 py-2 text-base focus:outline-none focus:ring-1 focus:ring-blue-400'
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 px-4">
@@ -65,10 +65,10 @@ export default function InventoryLocationForm({ location, onClose, onSaved }) {
         <h2 className="font-semibold text-gray-900 mb-1">
           {isEdit ? '編輯地點' : '新增地點'}
         </h2>
-        <p className="text-xs text-gray-400 mb-4">{isEdit ? 'Edit location' : 'New location'}</p>
+        <p className="text-sm text-gray-400 mb-4">{isEdit ? 'Edit location' : 'New location'}</p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">代碼 Code</label>
+            <label className="block text-sm text-gray-500 mb-1">代碼 Code</label>
             <input
               type="text"
               required
@@ -81,7 +81,7 @@ export default function InventoryLocationForm({ location, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">分區 Zone</label>
+            <label className="block text-sm text-gray-500 mb-1">分區 Zone</label>
             <select
               value={form.zone}
               onChange={(e) => setForm({ ...form, zone: e.target.value })}
@@ -92,7 +92,7 @@ export default function InventoryLocationForm({ location, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">說明 Description</label>
+            <label className="block text-sm text-gray-500 mb-1">說明 Description</label>
             <textarea
               rows={3}
               value={form.description}
@@ -103,26 +103,25 @@ export default function InventoryLocationForm({ location, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">照片 Photo</label>
+            <label className="block text-sm text-gray-500 mb-1">照片 Photo</label>
             <input
               type="file"
               accept="image/*"
-              capture="environment"
               onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
-              className="text-sm"
+              className="text-base"
             />
           </div>
 
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="text-sm text-red-500">{error}</p>}
 
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-base text-gray-600 hover:text-gray-900">
               取消
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 text-base bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
               {saving ? '儲存中…' : '儲存'}
             </button>
