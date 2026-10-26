@@ -9,5 +9,8 @@ yarn-debug.log*
 yarn-error.log*
 .DS_Store
 
+# Personal Claude Code permission overrides — not meant to be shared
+.claude/settings.local.json
+
 # SQL dumps may contain real user data (emails, names, UUIDs) — never commit
 migration/*.sql

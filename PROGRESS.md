@@ -1,5 +1,39 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Inventory Control Module — Top-Level Scaffold (Added)
+
+A new, event-independent top-level module for inventory tracking, separate from the
+Events system. Access is gated by a Gmail allowlist (not `event_members` roles), since
+inventory users are not necessarily event participants.
+
+**`lib/inventory.js`** (new)
+- `INVENTORY_ACCESS` — hardcoded allowlist, two tiers:
+  - `admin`: `vlin77@gmail.com`
+  - `editor`: `joannazhao168@gmail.com`, `weiyanoble@gmail.com`, `qqandcici@gmail.com`, `pai8788@gmail.com`
+- `getInventoryRole(email)` — returns `'admin'`, `'editor'`, or `null`
+- `INVENTORY_MODULES` — array of inventory subsystems shown on the hub page; currently just Lantern Inventory. Add new entries here as future subsystems are built.
+
+**`pages/inventory/index.jsx`** (new) — Inventory Control hub
+- Google sign-in gate (same pattern as event login page) if unauthenticated
+- Redirects to `/` if authenticated but email not in `INVENTORY_ACCESS`
+- Header shows role badge (管理員/編輯者) + avatar; back-to-home link
+- Grid of subsystem cards from `INVENTORY_MODULES` (currently one: 燈籠庫存 → `/inventory/lanterns`)
+
+**`pages/inventory/lanterns/index.jsx`** (new) — Lantern Inventory
+- Same access gate as hub (redirects to `/inventory` if unauthenticated, `/` if unauthorized)
+- Placeholder "功能開發中，敬請期待" — no inventory functionality built yet; menu/routing scaffold only, per explicit scope for this stage
+
+**`pages/index.jsx`** — homepage
+- New "庫存管理" section rendered below the Events grid, visible only when `getInventoryRole(session.user.email)` is non-null
+- Card links to `/inventory`; fully hidden for unauthenticated users and non-allowlisted accounts
+
+**Design notes**
+- Inventory pages do not use the existing `Layout.jsx` component (that component is event-scoped, keyed by event `slug`) — they use a lightweight standalone header matching the homepage's visual style
+- Not wired into the `LangContext` bilingual system yet — Traditional Chinese only, matching homepage defaults; can be added when the Lantern Inventory feature itself is built
+- Access list is hardcoded in `lib/inventory.js` rather than DB-backed, consistent with other static config in `lib/constants.js` (`ROLES`, `ICONS`); revisit if the list needs to be editable without a redeploy
+
+---
+
 ## Day 6 Complete — Per-Member Language Preference (EN / ZH)
 
 ---
@@ -684,3 +718,5 @@ Two bugs discovered during verification, both pre-existing from original Supabas
 - Trigger announcement emails from Activities page (announcements are posted to DB but no send button exists yet)
 - Consider per-event role context (currently session role = highest role across all events)
 - Purge git history of `migration/data-dump-supabase.sql` if PII scrubbing is ever required (`git filter-repo`)
+- **Lantern Inventory** — build out actual inventory tracking (schema, items, counts, admin vs. editor permissions within the module) under the `/inventory/lanterns` route scaffolded this stage
+- Additional inventory subsystems to be added to `INVENTORY_MODULES` in `lib/inventory.js` as they're defined

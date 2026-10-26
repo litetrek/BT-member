@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import Head from 'next/head'
+import { getInventoryRole } from '@/lib/inventory'
 
 function EventCard({ event }) {
   const isActive = event.status === 'active'
@@ -42,6 +43,7 @@ export default function Home() {
   const { data: session } = useSession()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
+  const inventoryRole = getInventoryRole(session?.user?.email)
 
   useEffect(() => {
     fetch('/api/events')
@@ -76,6 +78,18 @@ export default function Home() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {events.map((e) => <EventCard key={e.id} event={e} />)}
+            </div>
+          )}
+
+          {inventoryRole && (
+            <div className="mt-10">
+              <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">庫存管理</h2>
+              <Link href="/inventory">
+                <div className="bg-white rounded-lg border border-gray-200 p-5 cursor-pointer hover:shadow-sm hover:border-blue-400 transition-all max-w-sm">
+                  <h3 className="font-semibold text-gray-900 text-sm mb-1">庫存管理</h3>
+                  <p className="text-xs text-gray-400">Inventory Control</p>
+                </div>
+              </Link>
             </div>
           )}
         </main>
