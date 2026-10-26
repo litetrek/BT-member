@@ -6,13 +6,14 @@ const TABS = [
   { key: 'locations', name: '地點', nameEn: 'Locations', href: '/inventory/lanterns/locations', ready: true },
   { key: 'field', name: '現場模式', nameEn: 'Field', href: '/inventory/lanterns/field', ready: true },
   { key: 'dashboard', name: '儀表板', nameEn: 'Dashboard', href: '/inventory/lanterns/dashboard', ready: true },
+  { key: 'labels', name: '標籤', nameEn: 'Labels', href: '/inventory/lanterns/labels', ready: true },
   { key: 'admin', name: '管理', nameEn: 'Admin', ready: false },
 ]
 
 export default function InventoryLanternNav({ active }) {
   const router = useRouter()
   return (
-    <nav className="bg-white border-b border-gray-100 px-6">
+    <nav className="bg-white border-b border-gray-100 px-6 print:hidden">
       <div className="max-w-6xl mx-auto flex gap-1">
         {TABS.map((t) => {
           const isActive = t.key === active

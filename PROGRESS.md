@@ -1,5 +1,71 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Lantern Inventory — Stage 5 Complete (QR Labels) — All 6 Stages Done
+
+Sixth and final staged build per the spec. Printable QR + tag-ID label sheets, scan-to-open,
+and `label_attached` tracking.
+
+**Dependencies added**: `qrcode` (QR generation) and `jsqr` (QR decoding from a live
+camera feed) — both pure JS, no native deps. Unlike the solid-color PNG icons in Stage 3
+(trivial enough to hand-roll with `zlib`), QR encoding (Reed-Solomon error correction,
+data masking) genuinely isn't something worth hand-writing, so these are real
+dependencies rather than another from-scratch script.
+
+**The key design choice, from the spec's own technical decision**: each QR encodes the
+lantern's **full detail URL** (`https://.../inventory/lanterns/LT-0001`), not just the
+tag ID. That one choice is what makes "scanning opens the right record" (the stage's
+done-when criterion) work with *zero* app code — any phone's stock camera app already
+opens a scanned URL in Safari, landing straight on that lantern's page. Everything else
+built this stage is a convenience layer on top of that, not a requirement for it.
+
+**`lib/inventoryQr.js`** — `lanternQrUrl(tagId)` (full URL via `window.location.origin`,
+so it's always correct for whatever domain the page is actually served from — no env var
+needed) and `generateQrDataUrl(text)` (wraps `qrcode`'s `toDataURL`).
+
+**`pages/inventory/lanterns/labels.jsx`** (new, editor+ — printing/label-attaching
+wasn't called out as a Viewer permission, unlike display decisions in Stage 4) — "標籤"
+nav tab:
+- Checkbox-select lanterns from the full list (an "only unattached" toggle filters out
+  ones already marked `label_attached`)
+- Configurable label size (2×1 / 2.5×1.5 / 3×2 in presets) — the spec explicitly asked
+  for this since the physical label material isn't finalized yet
+- A screen-only control panel (`print:hidden`) plus a print-only label grid
+  (`hidden print:flex`, Tailwind's built-in print variant — no custom CSS needed) that
+  repeats each lantern's label **QTY times**, so a QTY-4 group prints 4 identical tags
+  — per the spec's explicit requirement
+- "列印標籤" calls `window.print()`; "標記已貼標籤" bulk-PUTs `label_attached: true` for
+  every selected lantern via the existing general edit route (no new endpoint needed)
+
+**`components/InventoryQrScanner.jsx`** (new) — live camera QR scanner: `getUserMedia`
+→ draws frames to a hidden canvas → `jsQR` decodes → regex-extracts the tag ID from the
+scanned URL. This is the in-app convenience version of "scan its tag" from the spec's
+Field mode flow description (selection method #2, alongside tapping a card or adding
+new) — lets a recorder scan *without* leaving Field mode, landing straight in Quick
+Inspect at the current location, rather than bouncing out to Safari and losing Field
+mode context. **Lazy-loaded** via `next/dynamic` (`ssr: false`) from
+`field/[code].jsx` — pulling `jsQR` (~50kB) into Field mode's initial bundle for a
+feature most visits never touch would work against the same weak-signal concern the
+whole module is built around; confirmed this dropped that page's build size from 145kB
+back to 100kB.
+
+**Scope boundary**: the screens table's "Admin" route (categories/locations/user-role
+management UI) was never assigned to a specific stage in the spec's own 6-stage bullet
+list — Stage 5's actual bullets are QR labels, `label_attached`, and scan-to-open, all
+done. Left the nav tab disabled; flagging as a deliberate gap, not an oversight, since
+category/location edits already have working paths (the Locations admin form from Stage
+1, and categories are currently seed-only).
+
+**Verified**: `npm run build` passes clean. QR round-trip tested directly (not through
+the browser, which can't easily be driven here): generated a QR via the same module
+structure `qrcode` uses internally, decoded it with `jsQR` against hand-rasterized pixel
+data, confirmed the decoded string exactly matches the original lantern URL. Dev server
+confirms both new pages 200. **Not yet verified**: actually printing a sheet and
+checking the physical label size reads right, and scanning a printed label with a real
+iPhone both via the stock Camera app (should "just work," per the URL-encoding choice
+above) and via the in-app scanner — needs Vincent on real hardware and a printer.
+
+---
+
 ## Lantern Inventory — Stage 4 Patch (Clickable Photo Links in CSV Export)
 
 Requested after trying Stage 4, in two steps: first just "include links to the
@@ -1179,13 +1245,10 @@ Two bugs discovered during verification, both pre-existing from original Supabas
 - Trigger announcement emails from Activities page (announcements are posted to DB but no send button exists yet)
 - Consider per-event role context (currently session role = highest role across all events)
 - Purge git history of `migration/data-dump-supabase.sql` if PII scrubbing is ever required (`git filter-repo`)
-- **Verify Stage 1 in browser** — Vincent to sign in and confirm the Locations list, detail page, and admin add/edit (with photo) all work end to end before Stage 2 starts, per the spec's own per-stage sign-off rule.
-- **Verify Stage 2 in browser** — Vincent to sign in and run through create (QTY 3, check one tag ID assigned), photo gallery (upload, set primary, delete), damage-% → displayable rule, and each filter on the list page, per the spec's per-stage sign-off rule.
-- **Verify Stage 3 on-site** — Vincent to actually walk one real location, confirm Quick Inspect + new-lantern timing feels right, try Add to Home Screen, and (ideally) test what happens to an in-progress form if the connection actually drops, per the spec's per-stage sign-off rule.
-- **Real icon branding** — `public/icons/lantern-*.png` are solid-color placeholders generated by `scripts/generate-inventory-icons.js`; swap for real artwork when available.
-- **Verify Stage 4 in browser** — Vincent to check the dashboard numbers against reality, try the shortlist checkboxes, mark a lantern's display decision, and open an exported CSV in Excel to confirm the Chinese columns render correctly.
-- **Optional ZIP-of-photos export** — not built (see Stage 4 scope decision above); add if actually wanted.
-- **Lantern Inventory Stage 5** (QR labels: printable label sheet with QR + large tag ID per unit, `label_attached` tracking, scan-to-open in Field mode) is the last stage, per the 6-stage plan.
-- Still-open spec question: who the Viewers are — `lib/inventory.js`'s `viewer` role is modeled and the display-decision endpoint already respects it, but nobody is assigned it yet.
-- Still-open spec questions (Section 6): final tag label material, and who the Viewers are (role is modeled, nobody assigned yet).
+- **Lantern Inventory — all 6 spec stages now complete.** Remaining items are verification and loose ends, not new builds:
+  - **Verify Stage 5 on real hardware** — Vincent to print an actual label sheet (check the chosen size preset reads right physically), stick one on, and scan it both with the stock iPhone Camera app and the in-app "掃描 Scan QR" button in Field mode.
+  - **Real icon branding** — `public/icons/lantern-*.png` are solid-color placeholders generated by `scripts/generate-inventory-icons.js`; swap for real artwork when available.
+  - **Optional ZIP-of-photos export** — explicitly marked optional in the spec; not built. Add if actually wanted.
+  - **Admin screen** (`/inventory/lanterns/admin` — categories/locations/user-role management UI) — mentioned in the spec's screens table but never assigned to a specific stage; nav tab still disabled. Category edits are currently seed-only (`scripts/seed-inventory-lanterns.js`); location edits already work via the Stage 1 form.
+  - Still-open spec questions (Section 6): final tag label material, and who the Viewers are — the `viewer` role is fully modeled (including the display-decision permission from Stage 4) but nobody's assigned it yet.
 - Additional inventory subsystems (beyond Lanterns) to be added to `INVENTORY_MODULES` in `lib/inventory.js` as they're defined

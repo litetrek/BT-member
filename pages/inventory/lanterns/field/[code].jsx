@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
+import dynamic from 'next/dynamic'
 import Head from 'next/head'
 import Link from 'next/link'
 import { getInventoryRole } from '@/lib/inventory'
@@ -8,6 +9,11 @@ import { getCheckedIds, clearChecked } from '@/lib/inventoryFieldDraft'
 import InventoryQuickInspectSheet from '@/components/InventoryQuickInspectSheet'
 import InventoryFieldNewLanternSheet from '@/components/InventoryFieldNewLanternSheet'
 import Spinner from '@/components/Spinner'
+
+// Lazy-loaded: pulls in the jsQR decoder (~50kB), which most Field mode visits never
+// touch — keeping it out of the page's initial bundle matters on the weak on-site
+// signal this module is built for.
+const InventoryQrScanner = dynamic(() => import('@/components/InventoryQrScanner'), { ssr: false })
 
 export default function FieldWalkthrough() {
   const { data: session, status } = useSession()
@@ -22,6 +28,8 @@ export default function FieldWalkthrough() {
   const [checkedIds, setCheckedIds] = useState([])
   const [activeLantern, setActiveLantern] = useState(null)
   const [showNew, setShowNew] = useState(false)
+  const [showScanner, setShowScanner] = useState(false)
+  const [scanError, setScanError] = useState('')
   const [marking, setMarking] = useState(false)
 
   useEffect(() => {
@@ -52,6 +60,17 @@ export default function FieldWalkthrough() {
     if (status !== 'authenticated' || !role || role === 'viewer') return
     fetch('/api/inventory/categories').then((r) => r.json()).then((d) => setCategories(Array.isArray(d) ? d : []))
   }, [status, role])
+
+  async function handleScanned(tagId) {
+    setShowScanner(false)
+    setScanError('')
+    const res = await fetch(`/api/inventory/lanterns/${tagId}`)
+    if (!res.ok) {
+      setScanError(`找不到標籤 ${tagId}`)
+      return
+    }
+    setActiveLantern(await res.json())
+  }
 
   async function handleMarkDone() {
     setMarking(true)
@@ -102,12 +121,24 @@ export default function FieldWalkthrough() {
                 </p>
               )}
 
-              <button
-                onClick={() => setShowNew(true)}
-                className="w-full py-4 bg-blue-600 text-white rounded-lg text-base font-medium hover:bg-blue-700"
-              >
-                + 新增燈籠 New Lantern
-              </button>
+              {scanError && (
+                <p className="text-sm text-red-500">{scanError}</p>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowScanner(true)}
+                  className="flex-1 py-4 bg-white border-2 border-blue-600 text-blue-700 rounded-lg text-base font-medium hover:bg-blue-50"
+                >
+                  掃描 Scan QR
+                </button>
+                <button
+                  onClick={() => setShowNew(true)}
+                  className="flex-1 py-4 bg-blue-600 text-white rounded-lg text-base font-medium hover:bg-blue-700"
+                >
+                  + 新增燈籠 New
+                </button>
+              </div>
 
               {location.lanterns.length === 0 ? (
                 <p className="text-base text-gray-400">此地點尚無燈籠記錄。</p>
@@ -169,6 +200,10 @@ export default function FieldWalkthrough() {
           onClose={() => setShowNew(false)}
           onSaved={() => { setShowNew(false); load() }}
         />
+      )}
+
+      {showScanner && (
+        <InventoryQrScanner onScan={handleScanned} onClose={() => setShowScanner(false)} />
       )}
     </>
   )
