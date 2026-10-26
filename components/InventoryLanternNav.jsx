@@ -7,7 +7,7 @@ const TABS = [
   { key: 'field', name: '現場模式', nameEn: 'Field', href: '/inventory/lanterns/field', ready: true },
   { key: 'dashboard', name: '儀表板', nameEn: 'Dashboard', href: '/inventory/lanterns/dashboard', ready: true },
   { key: 'labels', name: '標籤', nameEn: 'Labels', href: '/inventory/lanterns/labels', ready: true },
-  { key: 'admin', name: '管理', nameEn: 'Admin', ready: false },
+  { key: 'admin', name: '管理', nameEn: 'Admin', href: '/inventory/lanterns/admin', ready: true },
 ]
 
 export default function InventoryLanternNav({ active }) {
