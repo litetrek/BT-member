@@ -5,6 +5,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { getInventoryRole } from '@/lib/inventory'
 import InventoryLocationForm from '@/components/InventoryLocationForm'
+import InventoryLanternNav from '@/components/InventoryLanternNav'
 import Spinner from '@/components/Spinner'
 
 export default function LocationDetail() {
@@ -65,6 +66,8 @@ export default function LocationDetail() {
           </div>
         </header>
 
+        <InventoryLanternNav active="locations" />
+
         <main className="max-w-6xl mx-auto px-6 py-10">
           {loading ? (
             <div className="flex justify-center py-12"><Spinner /></div>
@@ -94,10 +97,12 @@ export default function LocationDetail() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {location.lanterns.map((lt) => (
-                      <div key={lt.id} className="bg-white rounded-lg border border-gray-200 p-3">
-                        <p className="font-semibold text-gray-900 text-sm">{lt.tag_id} — {lt.name_zh}</p>
-                        <p className="text-xs text-gray-400">{lt.condition} · QTY {lt.qty}</p>
-                      </div>
+                      <Link key={lt.id} href={`/inventory/lanterns/${lt.tag_id}`}>
+                        <div className="bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all">
+                          <p className="font-semibold text-gray-900 text-sm">{lt.tag_id} — {lt.name_zh}</p>
+                          <p className="text-xs text-gray-400">{lt.condition} · QTY {lt.qty}</p>
+                        </div>
+                      </Link>
                     ))}
                   </div>
                 )}

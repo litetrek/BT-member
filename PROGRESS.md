@@ -1,5 +1,72 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Lantern Inventory — Stage 2 Complete (Core Lantern Records)
+
+Third of six staged builds. Delivers full lantern CRUD, photo gallery, search/filters,
+and activity logging per the spec's Stage 2 scope.
+
+**Route restructure**: `/inventory/lanterns` is now the real lantern list (per the spec's
+screens table), replacing the Stage 0/1 "screen menu" placeholder. Navigation between
+Lanterns / Locations / Field (disabled) / Admin (disabled) moved into a shared tab strip,
+**`components/InventoryLanternNav.jsx`**, used on both the lantern list and Locations
+pages. The Stage 0 photo-upload test widget was removed — the real lantern form now
+exercises that same upload path.
+
+**Schema**: no new tables. `inv_lantern_lanterns.tag_id` default (from Stage 0) assigns
+`LT-0001`, `LT-0002`, … automatically on insert — never passed by the client.
+
+**`lib/db.js`** — added `insertInventoryLog()` (already landed in Stage 1) is now used by
+the lantern routes too.
+
+**API routes**
+- `GET/POST /api/inventory/lanterns` — list with dynamic filters (`q` searches tag_id +
+  both name fields via `ILIKE`; `category_id`, `location_id`, `voltage`, `condition`,
+  `status`, `display_decision`, `displayable`) and joins in category name, location code,
+  and primary photo thumbnail / create (editor+, computes `displayable` server-side via
+  `computeDisplayable()` — never trusts a client-sent value)
+- `GET/PUT/DELETE /api/inventory/lanterns/[tagId]` — detail (includes photos ordered
+  primary-first, and the last 20 `inv_lantern_activity_log` entries for that record) /
+  update (editor+, recomputes `displayable` from whatever damage % was submitted) / delete
+  (admin only — also removes the lantern's photo rows, though the underlying Blob files
+  are left orphaned; out of scope per the spec's own "out of scope" list)
+- `GET /api/inventory/categories` — list (viewer+), feeds the category select/filter
+- `POST /api/inventory/photos` — generic photo-metadata row creator (editor+) used by both
+  the create/edit form and the detail page's inline "+ 新增照片"; flips any existing
+  primary photo off first when a new one is marked primary
+- `PUT/DELETE /api/inventory/photos/[id]` — set-as-primary / remove a single photo (editor+)
+
+**`components/InventoryLanternForm.jsx`** (new) — the big one: name (zh/en), category,
+qty, voltage, power, height/width/depth (ft), location, condition, cloth/frame damage %,
+notes, multi-file photo picker. On create: POSTs the lantern first to get its id/tag_id,
+then uploads each selected photo (Stage 0's `uploadInventoryPhoto()`) and POSTs a photo
+row per file, first one marked primary. Shared between `/inventory/lanterns/new` and
+`/inventory/lanterns/[tagId]/edit`.
+
+**Pages**
+- `pages/inventory/lanterns/index.jsx` — now the lantern list: summary bar (total
+  records, total QTY, count per condition — reflects the *currently filtered* set, not
+  the whole inventory), search + 7 filter dropdowns, card grid with thumbnail/tag/name/
+  condition/location, red "不可展示" badge when `displayable = false`
+- `pages/inventory/lanterns/new.jsx`, `pages/inventory/lanterns/[tagId]/edit.jsx` —
+  wrap `InventoryLanternForm`; gated to editor+ (viewers can't create/edit)
+- `pages/inventory/lanterns/[tagId].jsx` — full field display, red "不可展示" banner,
+  photo gallery (set-primary / delete per photo, inline add-photo for editor+), activity
+  log, admin-only delete (with `ConfirmDialog`)
+- `pages/inventory/lanterns/locations/[code].jsx` — lantern cards now link to their
+  detail page (were static/non-clickable before Stage 2 existed)
+
+**Verified**: `npm run build` passes clean, including confirming
+`[tagId].jsx` and `[tagId]/edit.jsx` coexist as separate routes with no conflict. Direct
+DB-level test (bypassing the API, hitting Neon the same way the route code does):
+inserting a lantern with 35% frame damage via the exact same `computeDisplayable()` logic
+correctly stored `displayable = false`, auto-assigned `tag_id = LT-0001`, and the
+`displayable`/`location_id` filter queries both returned it correctly — test row deleted
+after. Dev server confirms all new pages 200 and all new API routes 403 when
+unauthenticated. **Not yet verified**: the full create → photo upload → filter flow
+through an actual signed-in browser session — needs Vincent, same as prior stages.
+
+---
+
 ## Lantern Inventory — Stage 1 Complete (Locations)
 
 Second of six staged builds. Delivers the Locations screens per the spec's Stage 1
@@ -843,6 +910,7 @@ Two bugs discovered during verification, both pre-existing from original Supabas
 - Consider per-event role context (currently session role = highest role across all events)
 - Purge git history of `migration/data-dump-supabase.sql` if PII scrubbing is ever required (`git filter-repo`)
 - **Verify Stage 1 in browser** — Vincent to sign in and confirm the Locations list, detail page, and admin add/edit (with photo) all work end to end before Stage 2 starts, per the spec's own per-stage sign-off rule.
-- **Lantern Inventory Stage 2** (core lantern records: CRUD with QTY/dimensions/displayable rule, photo gallery, list with search/filters/condition summary, activity log) is next, per the 6-stage plan in the spec doc. Stages 3–5 follow (Field mode, management view/export, QR labels).
+- **Verify Stage 2 in browser** — Vincent to sign in and run through create (QTY 3, check one tag ID assigned), photo gallery (upload, set primary, delete), damage-% → displayable rule, and each filter on the list page, per the spec's per-stage sign-off rule.
+- **Lantern Inventory Stage 3** (Field mode: on-site iPhone walkthrough — location-first flow, Quick inspect sheet, new-lantern-in-field flow, auto-move on location mismatch, progress counter, local draft saving, home-screen manifest; `inv_lantern_inspections` table gets its first real use) is next, per the 6-stage plan. Stages 4–5 follow (management view/export, QR labels).
 - Still-open spec questions (Section 6): final tag label material, and who the Viewers are (role is modeled, nobody assigned yet).
 - Additional inventory subsystems (beyond Lanterns) to be added to `INVENTORY_MODULES` in `lib/inventory.js` as they're defined

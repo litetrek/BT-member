@@ -5,6 +5,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { getInventoryRole } from '@/lib/inventory'
 import InventoryLocationForm from '@/components/InventoryLocationForm'
+import InventoryLanternNav from '@/components/InventoryLanternNav'
 import Spinner from '@/components/Spinner'
 
 const ZONE_ORDER = ['A', 'B', 'C', 'D', 'E', 'Cabin']
@@ -86,6 +87,8 @@ export default function LocationsList() {
             )}
           </div>
         </header>
+
+        <InventoryLanternNav active="locations" />
 
         <main className="max-w-6xl mx-auto px-6 py-10">
           {loading ? (
