@@ -23,7 +23,7 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
     width_ft: lantern?.width_ft ?? '',
     depth_ft: lantern?.depth_ft ?? '',
     location_id: lantern?.location_id ?? '',
-    condition: lantern?.condition ?? 'Good',
+    condition: lantern?.condition ?? '', // new lanterns: must be chosen before saving
     cloth_damage_pct: lantern?.cloth_damage_pct ?? 0,
     frame_damage_pct: lantern?.frame_damage_pct ?? 0,
     notes: lantern?.notes ?? '',
@@ -237,7 +237,8 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label className={labelCls}>狀況 Condition</label>
-          <select value={form.condition} onChange={(e) => update('condition', e.target.value)} className={inputCls}>
+          <select required value={form.condition} onChange={(e) => update('condition', e.target.value)} className={inputCls}>
+            <option value="" disabled>— 請選擇 —</option>
             {CONDITION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>

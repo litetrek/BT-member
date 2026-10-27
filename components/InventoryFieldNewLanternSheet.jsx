@@ -23,7 +23,7 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
     height_ft: draft?.height_ft ?? '',
     width_ft: draft?.width_ft ?? '',
     depth_ft: draft?.depth_ft ?? '',
-    condition: draft?.condition ?? 'Good',
+    condition: draft?.condition ?? '', // must be chosen before saving
     cloth_damage_pct: draft?.cloth_damage_pct ?? 0,
     frame_damage_pct: draft?.frame_damage_pct ?? 0,
   })
@@ -174,7 +174,7 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
             </div>
 
             <div>
-              <p className="text-sm text-gray-500 mb-2">狀況 Condition</p>
+              <p className="text-sm text-gray-500 mb-2">狀況 Condition {!form.condition && <span className="text-red-500">（請選擇）</span>}</p>
               <div className="grid grid-cols-4 gap-2">
                 {CONDITION_OPTIONS.map((c) => (
                   <button
@@ -210,7 +210,7 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
               <button onClick={() => setStep('photo')} className="flex-1 py-3 text-base text-gray-600 border border-gray-200 rounded-lg">返回</button>
               <button
                 onClick={handleSubmit}
-                disabled={saving || !form.name_zh}
+                disabled={saving || !form.name_zh || !form.condition}
                 className="flex-1 py-3 text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {saving ? '儲存中…' : '儲存'}

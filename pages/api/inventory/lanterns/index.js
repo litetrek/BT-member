@@ -1,6 +1,6 @@
 import { query, insertInventoryLog } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
-import { computeDisplayable } from '@/lib/inventoryConstants'
+import { computeDisplayable, CONDITION_OPTIONS } from '@/lib/inventoryConstants'
 import { buildLanternWhere } from '@/lib/inventoryLanternFilters'
 
 export default async function handler(req, res) {
@@ -37,6 +37,9 @@ export default async function handler(req, res) {
     } = req.body
 
     if (!name_zh) return res.status(400).json({ error: 'name_zh is required' })
+    if (!CONDITION_OPTIONS.includes(condition)) {
+      return res.status(400).json({ error: '請選擇狀況 Condition is required' })
+    }
 
     const cloth = cloth_damage_pct ?? 0
     const frame = frame_damage_pct ?? 0
@@ -53,7 +56,7 @@ export default async function handler(req, res) {
       [
         name_zh, name_en || null, category_id || null, qty || 1, voltage || null, power_w || null,
         height_ft || null, width_ft || null, depth_ft || null,
-        location_id || null, condition || 'Good', cloth, frame, displayable, notes || null,
+        location_id || null, condition, cloth, frame, displayable, notes || null,
         email,
       ]
     )

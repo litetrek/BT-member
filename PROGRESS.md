@@ -1,5 +1,23 @@
 # BT-Member Event Management — Progress Snapshot
 
+## New Lantern — Condition Must Be Chosen (No Default "Good")
+
+Requested: a new lantern's Condition should start empty and be set before the record
+is saved, rather than silently defaulting to Good.
+
+- **`components/InventoryLanternForm.jsx`** — new lanterns start with `condition: ''`;
+  the select gets a disabled "— 請選擇 —" placeholder and `required`, so the browser
+  blocks 儲存 until one is picked. Editing an existing lantern still shows its current value.
+- **`components/InventoryFieldNewLanternSheet.jsx`** (Field mode) — same: no button
+  pre-selected, "（請選擇）" hint beside the label, 儲存 disabled until chosen.
+- **`POST /api/inventory/lanterns`** — now 400s unless `condition` is one of
+  `CONDITION_OPTIONS`; the `|| 'Good'` fallback is removed, so no client can create a
+  lantern with an implied condition.
+
+**Verified**: files parse cleanly. **Not yet verified**: `npm run build`, and live.
+
+---
+
 ## Locations — Admin Delete for Empty Locations (New)
 
 Requested from the A0 location page (0 lanterns): admins can delete an empty location.
