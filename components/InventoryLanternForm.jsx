@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
+import { useSession } from 'next-auth/react'
+import { getInventoryRole } from '@/lib/inventory'
 import { uploadInventoryPhoto } from '@/lib/inventoryPhoto'
 import { VOLTAGE_OPTIONS, CONDITION_OPTIONS } from '@/lib/inventoryConstants'
 import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
 
 export default function InventoryLanternForm({ lantern, onCancel }) {
   const router = useRouter()
+  const { data: session } = useSession()
+  const isAdmin = getInventoryRole(session) === 'admin'
   const isEdit = !!lantern
 
   const [form, setForm] = useState({
@@ -29,6 +33,10 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
   const [photoFiles, setPhotoFiles] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  // Inline category editor (admin only): null | { mode: 'new' | 'edit', id?, name_zh, name_en }
+  const [catEdit, setCatEdit] = useState(null)
+  const [catSaving, setCatSaving] = useState(false)
+  const [catError, setCatError] = useState('')
 
   useEffect(() => {
     fetch('/api/inventory/categories').then((r) => r.json()).then((d) => setCategories(Array.isArray(d) ? d : []))
@@ -37,6 +45,42 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
+  }
+
+  function startCategoryEdit(mode) {
+    setCatError('')
+    if (mode === 'edit') {
+      const c = categories.find((x) => String(x.id) === String(form.category_id))
+      if (!c) return
+      setCatEdit({ mode, id: c.id, name_zh: c.name_zh, name_en: c.name_en })
+    } else {
+      setCatEdit({ mode, name_zh: '', name_en: '' })
+    }
+  }
+
+  async function saveCategory() {
+    const name_zh = catEdit.name_zh.trim()
+    const name_en = catEdit.name_en.trim()
+    if (!name_zh || !name_en) { setCatError('請填寫中文與英文名稱'); return }
+    setCatSaving(true)
+    setCatError('')
+    try {
+      const isNew = catEdit.mode === 'new'
+      const res = await fetch(isNew ? '/api/inventory/categories' : `/api/inventory/categories/${catEdit.id}`, {
+        method: isNew ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name_zh, name_en }),
+      })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || '儲存失敗')
+      const saved = await res.json()
+      setCategories((list) => isNew ? [...list, saved] : list.map((c) => (c.id === saved.id ? saved : c)))
+      if (isNew) update('category_id', saved.id)
+      setCatEdit(null)
+    } catch (err) {
+      setCatError(err.message)
+    } finally {
+      setCatSaving(false)
+    }
   }
 
   async function handleSubmit(e) {
@@ -112,6 +156,14 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
             <option value="">—</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name_zh} {c.name_en}</option>)}
           </select>
+          {isAdmin && !catEdit && (
+            <div className="flex gap-3 mt-1">
+              <button type="button" onClick={() => startCategoryEdit('new')} className="text-sm text-blue-600 hover:underline">+ 新增類別</button>
+              {form.category_id && (
+                <button type="button" onClick={() => startCategoryEdit('edit')} className="text-sm text-blue-600 hover:underline">編輯</button>
+              )}
+            </div>
+          )}
         </div>
         <div>
           <label className={labelCls}>數量 QTY</label>
@@ -129,6 +181,35 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
           <input type="number" step="0.01" value={form.power_w} onChange={(e) => update('power_w', e.target.value)} className={inputCls} />
         </div>
       </div>
+
+      {catEdit && (
+        <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 space-y-3">
+          <p className="text-sm font-medium text-gray-700">
+            {catEdit.mode === 'new' ? '新增類別 New category' : '編輯類別 Edit category'}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              placeholder="中文名稱"
+              value={catEdit.name_zh}
+              onChange={(e) => setCatEdit((c) => ({ ...c, name_zh: e.target.value }))}
+              className={inputCls + ' bg-white'}
+            />
+            <input
+              placeholder="English name"
+              value={catEdit.name_en}
+              onChange={(e) => setCatEdit((c) => ({ ...c, name_en: e.target.value }))}
+              className={inputCls + ' bg-white'}
+            />
+          </div>
+          {catError && <p className="text-sm text-red-500">{catError}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setCatEdit(null)} className="px-3 py-2 text-base text-gray-600 hover:text-gray-900">取消</button>
+            <button type="button" onClick={saveCategory} disabled={catSaving} className="px-3 py-2 text-base bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+              {catSaving ? '儲存中…' : '儲存類別'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4">
         <div>

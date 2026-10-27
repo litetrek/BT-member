@@ -1,5 +1,22 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Lantern Form — Inline Category Add/Edit for Admins (New)
+
+Requested from the Edit Lantern screen's category dropdown: admins should be able to
+create or edit a category right there, without leaving the form for 管理 Admin.
+
+**`components/InventoryLanternForm.jsx`** (used by both New and Edit Lantern) — for
+Lanterns-module **admins only** (`getInventoryRole(session) === 'admin'`), under the 類別
+dropdown: "+ 新增類別" and (when a category is selected) "編輯". Either opens an inline
+panel with 中文 / English name inputs and 儲存類別 / 取消. Saving reuses the existing
+admin-only `POST /api/inventory/categories` and `PUT /api/inventory/categories/[id]`
+routes (no API changes); a new category is appended and auto-selected, an edited one is
+renamed in place in the dropdown. Non-admins see the plain dropdown, unchanged.
+
+**Verified**: JSX parses cleanly. **Not yet verified**: `npm run build`, and on the phone.
+
+---
+
 ## Photo Inputs — Take Photo / Photo Library Buttons (New)
 
 Requested from an iPhone screenshot of the Edit Location dialog: the native iOS picker
