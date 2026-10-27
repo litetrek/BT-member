@@ -1,5 +1,25 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Locations — Admin Delete for Empty Locations (New)
+
+Requested from the A0 location page (0 lanterns): admins can delete an empty location.
+
+**`DELETE /api/inventory/locations/[code]`** (admin-only) — refuses with 409 if any
+lantern still has `location_id` pointing at it (checked up front and again inside the
+`DELETE ... WHERE NOT EXISTS` itself, so a lantern moved in meanwhile can't be orphaned).
+Before deleting: clears `location_id` on past `inv_lantern_inspections` rows (inspection
+history is kept; only the link to the removed location goes — the FK would otherwise
+block the delete) and removes the location's `inv_lantern_photos` rows. Logged as
+`deleted` in `inv_lantern_activity_log`.
+
+**`pages/inventory/lanterns/locations/[code].jsx`** — red "刪除" button beside 編輯 in
+the header, shown only to admins and only when the location has 0 lanterns; confirm
+dialog, then back to the Locations list. Any server refusal shows as a red banner.
+
+**Verified**: JSX/JS parse cleanly. **Not yet verified**: `npm run build`, and live.
+
+---
+
 ## Lantern Form — Inline Category Add/Edit for Admins (New)
 
 Requested from the Edit Lantern screen's category dropdown: admins should be able to

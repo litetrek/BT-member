@@ -68,6 +68,47 @@ export default async function handler(req, res) {
     return res.status(200).json(data)
   }
 
-  res.setHeader('Allow', ['GET', 'PUT'])
+  if (req.method === 'DELETE') {
+    const role = await requireInventoryRole(req, res, 'admin')
+    if (!role) return
+
+    const { rows: [existing] } = await query(
+      'SELECT * FROM inv_lantern_locations WHERE code = $1',
+      [code]
+    )
+    if (!existing) return res.status(404).json({ error: 'Location not found' })
+
+    // Only empty locations can be deleted — never orphan lanterns implicitly.
+    const { rows: [{ count }] } = await query(
+      'SELECT COUNT(*)::int AS count FROM inv_lantern_lanterns WHERE location_id = $1',
+      [existing.id]
+    )
+    if (count > 0) {
+      return res.status(409).json({ error: `此地點仍有 ${count} 筆燈籠，請先移走 Location still has lanterns` })
+    }
+
+    // Past inspections keep their lantern/condition history; only the link to
+    // this location is cleared (FK would otherwise block the delete).
+    await query('UPDATE inv_lantern_inspections SET location_id = NULL WHERE location_id = $1', [existing.id])
+    await query("DELETE FROM inv_lantern_photos WHERE owner_type = 'location' AND owner_id = $1", [existing.id])
+    const { rowCount } = await query(
+      `DELETE FROM inv_lantern_locations
+       WHERE id = $1 AND NOT EXISTS (SELECT 1 FROM inv_lantern_lanterns WHERE location_id = $1)`,
+      [existing.id]
+    )
+    if (!rowCount) return res.status(409).json({ error: '此地點仍有燈籠 Location still has lanterns' })
+
+    await insertInventoryLog({
+      table_name:  'inv_lantern_locations',
+      record_id:   existing.id,
+      record_name: existing.code,
+      action:      'deleted',
+      user_email:  req.inventoryEmail,
+    })
+
+    return res.status(200).json({ ok: true })
+  }
+
+  res.setHeader('Allow', ['GET', 'PUT', 'DELETE'])
   res.status(405).end()
 }

@@ -9,6 +9,7 @@ import InventoryLanternNav from '@/components/InventoryLanternNav'
 import InventoryPhotoLightbox from '@/components/InventoryPhotoLightbox'
 import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 export default function LocationDetail() {
   const { data: session, status } = useSession()
@@ -21,6 +22,19 @@ export default function LocationDetail() {
   const [notFound, setNotFound] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [showPhoto, setShowPhoto] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+
+  async function handleDelete() {
+    setConfirmDelete(false)
+    setDeleteError('')
+    const res = await fetch(`/api/inventory/locations/${code}`, { method: 'DELETE' })
+    if (res.ok) {
+      router.push('/inventory/lanterns/locations')
+    } else {
+      setDeleteError((await res.json().catch(() => ({}))).error || '刪除失敗')
+    }
+  }
 
   useEffect(() => {
     if (status === 'unauthenticated') router.replace('/inventory')
@@ -56,9 +70,16 @@ export default function LocationDetail() {
           title={code}
           subtitle={location ? `${location.zone} 區` : ''}
           right={role === 'admin' && location && (
-            <button onClick={() => setShowEdit(true)} className="text-base bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50">
-              編輯
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => setShowEdit(true)} className="text-base bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50">
+                編輯
+              </button>
+              {location.lanterns.length === 0 && (
+                <button onClick={() => setConfirmDelete(true)} className="text-base bg-white border border-red-300 text-red-600 px-3 py-1.5 rounded hover:bg-red-50">
+                  刪除
+                </button>
+              )}
+            </div>
           )}
         />
 
@@ -71,6 +92,9 @@ export default function LocationDetail() {
             <p className="text-base text-gray-400">找不到此地點。</p>
           ) : location ? (
             <div className="space-y-6">
+              {deleteError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-base rounded-lg px-4 py-2">{deleteError}</div>
+              )}
               <div className="bg-white rounded-lg border border-gray-200 p-5 flex gap-5">
                 {location.photo_url ? (
                   <img
@@ -118,6 +142,14 @@ export default function LocationDetail() {
           location={location}
           onClose={() => setShowEdit(false)}
           onSaved={() => { setShowEdit(false); load() }}
+        />
+      )}
+
+      {confirmDelete && location && (
+        <ConfirmDialog
+          message={`確定要刪除地點 ${location.code} 嗎？此操作無法復原。`}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmDelete(false)}
         />
       )}
 
