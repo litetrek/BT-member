@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { uploadInventoryPhoto } from '@/lib/inventoryPhoto'
+import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
 
 const ZONES = ['A', 'B', 'C', 'D', 'E', 'Cabin']
 
@@ -104,12 +105,8 @@ export default function InventoryLocationForm({ location, onClose, onSaved }) {
 
           <div>
             <label className="block text-sm text-gray-500 mb-1">照片 Photo</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
-              className="text-base"
-            />
+            <InventoryPhotoPicker onFiles={(files) => setPhotoFile(files[0] ?? null)} />
+            {photoFile && <p className="text-sm text-gray-400 mt-1">已選擇：{photoFile.name}</p>}
           </div>
 
           {error && <p className="text-sm text-red-500">{error}</p>}

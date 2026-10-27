@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { uploadInventoryPhoto } from '@/lib/inventoryPhoto'
 import { saveDraft, loadDraft, clearDraft, markChecked } from '@/lib/inventoryFieldDraft'
 import { CONDITION_OPTIONS, VOLTAGE_OPTIONS } from '@/lib/inventoryConstants'
+import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
 
 // Field mode's "+ New lantern" flow: photo first (per spec), then fields, then the
 // auto-assigned tag ID shown large so it can go straight on a temporary label.
@@ -39,8 +40,8 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
     setForm((f) => ({ ...f, [field]: value }))
   }
 
-  function handlePhotoChange(e) {
-    const file = e.target.files?.[0]
+  function handlePhotoChange(files) {
+    const file = files[0]
     if (!file) return
     setPhotoFile(file)
     setPhotoPreview(URL.createObjectURL(file))
@@ -110,7 +111,7 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
                 尚未拍照
               </div>
             )}
-            <input type="file" accept="image/*" onChange={handlePhotoChange} className="text-base" />
+            <InventoryPhotoPicker onFiles={handlePhotoChange} />
             <div className="sticky bottom-0 bg-white pt-2 flex gap-2">
               <button onClick={onClose} className="flex-1 py-3 text-base text-gray-600 border border-gray-200 rounded-lg">取消</button>
               <button

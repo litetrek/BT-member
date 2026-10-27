@@ -1,5 +1,30 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Photo Inputs — Take Photo / Photo Library Buttons (New)
+
+Requested from an iPhone screenshot of the Edit Location dialog: the native iOS picker
+menu offered Google Drive / Choose File / Take Photo / Photo Library — only the last two
+should be offered. **Browser limitation**: a web page cannot remove entries from iOS's
+picker menu; a plain `<input type="file" accept="image/*">` always shows the full list.
+
+**`components/InventoryPhotoPicker.jsx`** (new) — two buttons replacing every bare file
+input in the Inventory module:
+- **拍照 Take Photo** — hidden input with `capture="environment"`, which opens the rear
+  camera directly with **no menu at all**
+- **相簿 Photo Library** — hidden input without `capture`; iOS still shows its menu here
+  (Photo Library is the top entry), unavoidable on the web
+- `compact` prop renders text-link style for the lantern detail page's Photos header
+
+Used in: `InventoryLocationForm`, `InventoryLanternForm`, `InventoryQuickInspectSheet`,
+`InventoryFieldNewLanternSheet`, and `pages/inventory/lanterns/[tagId].jsx`. The
+multi-photo forms now **append** each pick (so several camera shots can be taken one
+after another) with a 清除 Clear link, instead of replacing the selection.
+
+**Verified**: all 6 files parse cleanly (JSX). **Not yet verified**: `npm run build` on
+Windows, and both buttons on a real iPhone.
+
+---
+
 ## Lantern Admin Screen — Category CRUD (New)
 
 Closes the last gap flagged since Stage 5: "Admins are able to edit and add new

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { uploadInventoryPhoto } from '@/lib/inventoryPhoto'
 import { saveDraft, loadDraft, clearDraft, markChecked } from '@/lib/inventoryFieldDraft'
 import { CONDITION_OPTIONS } from '@/lib/inventoryConstants'
+import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
 
 // Used both from Field mode (fixedLocationId + locationCode set, no location picker shown —
 // the lantern is simply recorded as being wherever the recorder is standing) and from the
@@ -138,15 +139,17 @@ export default function InventoryQuickInspectSheet({ lantern, fixedLocationId, l
         </div>
 
         <div>
-          <label className="block text-sm text-gray-500 mb-1">拍照 Take photo</label>
-          <input
-            type="file"
-            accept="image/*"
+          <label className="block text-sm text-gray-500 mb-1">照片 Photos</label>
+          <InventoryPhotoPicker
             multiple
-            onChange={(e) => setPhotoFiles(Array.from(e.target.files ?? []))}
-            className="text-base"
+            onFiles={(files) => setPhotoFiles((prev) => [...prev, ...files])}
           />
-          {photoFiles.length > 0 && <p className="text-sm text-gray-400 mt-1">已選擇 {photoFiles.length} 張照片</p>}
+          {photoFiles.length > 0 && (
+            <p className="text-sm text-gray-400 mt-1">
+              已選擇 {photoFiles.length} 張照片
+              <button type="button" onClick={() => setPhotoFiles([])} className="ml-3 text-blue-600 hover:underline">清除</button>
+            </p>
+          )}
         </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}

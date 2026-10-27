@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { uploadInventoryPhoto } from '@/lib/inventoryPhoto'
 import { VOLTAGE_OPTIONS, CONDITION_OPTIONS } from '@/lib/inventoryConstants'
+import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
 
 export default function InventoryLanternForm({ lantern, onCancel }) {
   const router = useRouter()
@@ -176,14 +177,16 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
 
       <div>
         <label className={labelCls}>照片 Photos {isEdit ? '（新增）' : ''}</label>
-        <input
-          type="file"
-          accept="image/*"
+        <InventoryPhotoPicker
           multiple
-          onChange={(e) => setPhotoFiles(Array.from(e.target.files ?? []))}
-          className="text-base"
+          onFiles={(files) => setPhotoFiles((prev) => [...prev, ...files])}
         />
-        {photoFiles.length > 0 && <p className="text-sm text-gray-400 mt-1">已選擇 {photoFiles.length} 張照片</p>}
+        {photoFiles.length > 0 && (
+          <p className="text-sm text-gray-400 mt-1">
+            已選擇 {photoFiles.length} 張照片
+            <button type="button" onClick={() => setPhotoFiles([])} className="ml-3 text-blue-600 hover:underline">清除</button>
+          </p>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}

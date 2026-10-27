@@ -10,6 +10,7 @@ import Spinner from '@/components/Spinner'
 import InventoryQuickInspectSheet from '@/components/InventoryQuickInspectSheet'
 import InventoryPhotoLightbox from '@/components/InventoryPhotoLightbox'
 import InventoryHeader from '@/components/InventoryHeader'
+import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
 
 function Field({ label, value }) {
   return (
@@ -62,8 +63,7 @@ export default function LanternDetail() {
     fetch('/api/inventory/locations').then((r) => r.json()).then((d) => setLocations(Array.isArray(d) ? d : []))
   }, [status, role])
 
-  async function handleAddPhoto(e) {
-    const files = Array.from(e.target.files ?? [])
+  async function handleAddPhoto(files) {
     if (!files.length || !lantern) return
     setUploading(true)
     try {
@@ -83,7 +83,6 @@ export default function LanternDetail() {
       load()
     } finally {
       setUploading(false)
-      e.target.value = ''
     }
   }
 
@@ -149,10 +148,9 @@ export default function LanternDetail() {
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-base font-semibold text-gray-700">照片 Photos</h2>
                   {canEdit && (
-                    <label className="text-sm text-blue-600 cursor-pointer hover:underline">
-                      {uploading ? '上傳中…' : '+ 新增照片'}
-                      <input type="file" accept="image/*" multiple onChange={handleAddPhoto} className="hidden" disabled={uploading} />
-                    </label>
+                    uploading
+                      ? <span className="text-sm text-gray-400">上傳中…</span>
+                      : <InventoryPhotoPicker compact multiple onFiles={handleAddPhoto} />
                   )}
                 </div>
                 {lantern.photos.length === 0 ? (
