@@ -329,3 +329,33 @@ model InventoryActivityLog {
 
   @@map("inv_lantern_activity_log")
 }
+
+// Phase 1 (2026-10): per-lantern event log with before/after diffs — foundation for the
+// Phase 4 timeline. changes = { field: [before, after] }. event_type is one of
+// created | updated | inspected | moved | status_changed | photo_added | photo_deleted
+// (CHECK constraint added by scripts/migrate-phase1-lantern-events-settings.js).
+// No FK on lantern_id on purpose: history outlives a deleted lantern.
+model InventoryLanternEvent {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lantern_id String   @db.Uuid
+  event_type String
+  actor      String?  // user email from session
+  changes    Json     @default("{}")
+  session_id String?  @db.Uuid // Phase 3+ inspection sessions
+  note       String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([lantern_id, created_at])
+  @@map("inv_lantern_events")
+}
+
+// Phase 1 (2026-10): key/value module settings editable in 管理 Admin.
+// Keys today: display_threshold_cloth_pct, display_threshold_frame_pct (see lib/inventorySettings.js).
+model InventoryLanternSetting {
+  key        String   @id
+  value      Json
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_by String?
+
+  @@map("inv_lantern_settings")
+}

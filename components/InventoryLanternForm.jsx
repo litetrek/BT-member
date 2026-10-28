@@ -3,8 +3,10 @@ import { useRouter } from 'next/router'
 import { useSession } from 'next-auth/react'
 import { getInventoryRole } from '@/lib/inventory'
 import { uploadInventoryPhoto } from '@/lib/inventoryPhoto'
-import { VOLTAGE_OPTIONS, CONDITION_OPTIONS } from '@/lib/inventoryConstants'
+import { VOLTAGE_OPTIONS, CONDITION_OPTIONS, STATUS_OPTIONS, DISPLAY_DECISION_OPTIONS } from '@/lib/inventoryConstants'
 import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
+
+const STATUS_LABELS = { Active: '使用中 Active', Retired: '退役 Retired', Missing: '遺失 Missing' }
 
 export default function InventoryLanternForm({ lantern, onCancel }) {
   const router = useRouter()
@@ -27,6 +29,8 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
     cloth_damage_pct: lantern?.cloth_damage_pct ?? 0,
     frame_damage_pct: lantern?.frame_damage_pct ?? 0,
     notes: lantern?.notes ?? '',
+    status: lantern?.status ?? 'Active',
+    display_decision: lantern?.display_decision ?? '',
   })
   const [categories, setCategories] = useState([])
   const [locations, setLocations] = useState([])
@@ -93,6 +97,7 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
       category_id: form.category_id || null,
       location_id: form.location_id || null,
       voltage: form.voltage || null,
+      display_decision: form.display_decision || null,
       power_w: form.power_w === '' ? null : form.power_w,
       height_ft: form.height_ft === '' ? null : form.height_ft,
       width_ft: form.width_ft === '' ? null : form.width_ft,
@@ -101,6 +106,8 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
       cloth_damage_pct: Number(form.cloth_damage_pct),
       frame_damage_pct: Number(form.frame_damage_pct),
     }
+
+    if (!isEdit) { delete body.status; delete body.display_decision }
 
     try {
       const url = isEdit ? `/api/inventory/lanterns/${lantern.tag_id}` : '/api/inventory/lanterns'
@@ -137,7 +144,7 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
   const labelCls = 'block text-sm text-gray-500 mb-1'
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-6 space-y-5 max-w-2xl">
+    <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 space-y-5 max-w-2xl">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>名稱（中文）Name (ZH)</label>
@@ -229,10 +236,32 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
       <div>
         <label className={labelCls}>地點 Location</label>
         <select value={form.location_id} onChange={(e) => update('location_id', e.target.value)} className={inputCls}>
-          <option value="">—</option>
+          <option value="">— 未指定地點 Unassigned —</option>
           {locations.map((l) => <option key={l.id} value={l.id}>{l.code}</option>)}
         </select>
       </div>
+
+      {isEdit && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>狀態 Status</label>
+            <select value={form.status} onChange={(e) => update('status', e.target.value)} className={inputCls}>
+              {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{STATUS_LABELS[s] ?? s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>展示決定 Display decision</label>
+            <select value={form.display_decision} onChange={(e) => update('display_decision', e.target.value)} className={inputCls}>
+              <option value="">— 未決定 Undecided —</option>
+              {DISPLAY_DECISION_OPTIONS.map((d) => (
+                <option key={d} value={d} disabled={d === 'Selected' && !lantern.displayable && lantern.display_decision !== 'Selected'}>
+                  {d}{d === 'Selected' && !lantern.displayable ? '（不可展示）' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>

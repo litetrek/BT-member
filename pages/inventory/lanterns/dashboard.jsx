@@ -4,7 +4,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import Link from 'next/link'
 import { getInventoryRole } from '@/lib/inventory'
-import { DISPLAY_DECISION_OPTIONS } from '@/lib/inventoryConstants'
+import { DISPLAY_DECISION_OPTIONS, formatLocationCounts, UNASSIGNED_LOCATION_CODE } from '@/lib/inventoryConstants'
 import InventoryLanternNav from '@/components/InventoryLanternNav'
 import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
@@ -155,8 +155,15 @@ export default function Dashboard() {
                       <tbody>
                         {stats.byLocation.map((l) => (
                           <tr key={l.code} className="border-t border-gray-100">
-                            <td className="py-1.5 text-gray-900">{l.code}</td>
-                            <td className="py-1.5 text-right text-gray-600">{l.count}</td>
+                            <td className="py-1.5">
+                              <Link
+                                href={`/inventory/lanterns/locations/${l.is_unassigned ? UNASSIGNED_LOCATION_CODE : l.code}`}
+                                className={`hover:underline ${l.is_unassigned ? 'text-amber-700' : 'text-gray-900'}`}
+                              >
+                                {l.is_unassigned ? '未指定地點 Unassigned' : l.code}
+                              </Link>
+                            </td>
+                            <td className="py-1.5 text-right text-gray-600 whitespace-nowrap">{formatLocationCounts(l.count, l.qty)}</td>
                           </tr>
                         ))}
                       </tbody>

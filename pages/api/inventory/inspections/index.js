@@ -1,6 +1,9 @@
 import { query, insertInventoryLog } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
-import { computeDisplayable } from '@/lib/inventoryConstants'
+import { CONDITION_OPTIONS, STATUS_OPTIONS } from '@/lib/inventoryConstants'
+import { evaluateDisplayability } from '@/lib/inventoryEligibility'
+import { getDisplayThresholds } from '@/lib/inventorySettings'
+import { logLanternChange } from '@/lib/inventoryEvents'
 
 // Saving an inspection updates the lantern's current condition, damage % and
 // location in the same flow. If location_id differs from the lantern's existing
@@ -14,9 +17,14 @@ export default async function handler(req, res) {
   const role = await requireInventoryRole(req, res, 'editor')
   if (!role) return
 
-  const { lantern_id, location_id, condition, cloth_damage_pct, frame_damage_pct, notes } = req.body
+  const { lantern_id, location_id, condition, cloth_damage_pct, frame_damage_pct, notes, status, session_id } = req.body
   if (!lantern_id || !condition) {
     return res.status(400).json({ error: 'lantern_id and condition are required' })
+  }
+  if (!CONDITION_OPTIONS.includes(condition)) return res.status(400).json({ error: 'Invalid condition' })
+  // Quick Inspect may change status (Phase 1.4: mark Missing, or back to Active when found).
+  if (status !== undefined && status !== null && !STATUS_OPTIONS.includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' })
   }
 
   const { rows: [lantern] } = await query('SELECT * FROM inv_lantern_lanterns WHERE id = $1', [lantern_id])
@@ -24,8 +32,12 @@ export default async function handler(req, res) {
 
   const cloth = cloth_damage_pct ?? lantern.cloth_damage_pct
   const frame = frame_damage_pct ?? lantern.frame_damage_pct
-  const displayable = computeDisplayable(cloth, frame)
+  const { displayable } = evaluateDisplayability(
+    { cloth_damage_pct: cloth, frame_damage_pct: frame },
+    await getDisplayThresholds()
+  )
   const newLocationId = location_id || lantern.location_id
+  const newStatus = status || lantern.status
   const email = req.inventoryEmail
 
   const { rows: [inspection] } = await query(
@@ -39,10 +51,10 @@ export default async function handler(req, res) {
   const { rows: [updatedLantern] } = await query(
     `UPDATE inv_lantern_lanterns
      SET condition = $1, cloth_damage_pct = $2, frame_damage_pct = $3, displayable = $4,
-         location_id = $5, updated_at = now(), updated_by = $6
-     WHERE id = $7
+         location_id = $5, status = $6, updated_at = now(), updated_by = $7
+     WHERE id = $8
      RETURNING *`,
-    [condition, cloth, frame, displayable, newLocationId || null, email, lantern_id]
+    [condition, cloth, frame, displayable, newLocationId || null, newStatus, email, lantern_id]
   )
 
   await insertInventoryLog({
@@ -53,6 +65,28 @@ export default async function handler(req, res) {
     new_value:   condition,
     user_email:  email,
   })
+
+  // One 'inspected' event per save, even when nothing changed (the check itself is the
+  // event); changes holds whatever moved — condition, damage, location, status.
+  await logLanternChange({
+    before: lantern, after: updatedLantern, event_type: 'inspected', actor: email,
+    note: notes || null,
+    session_id: /^[0-9a-f-]{36}$/i.test(session_id ?? '') ? session_id : null,
+    always: true,
+  })
+
+  if (newStatus !== lantern.status) {
+    await insertInventoryLog({
+      table_name:    'inv_lantern_lanterns',
+      record_id:     lantern.id,
+      record_name:   `${lantern.tag_id} ${lantern.name_zh}`,
+      action:        'status_changed',
+      field_changed: 'status',
+      old_value:     lantern.status,
+      new_value:     newStatus,
+      user_email:    email,
+    })
+  }
 
   if (newLocationId && newLocationId !== lantern.location_id) {
     const { rows: [oldLoc] } = lantern.location_id

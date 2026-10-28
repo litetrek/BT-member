@@ -10,6 +10,7 @@ import InventoryQuickInspectSheet from '@/components/InventoryQuickInspectSheet'
 import InventoryFieldNewLanternSheet from '@/components/InventoryFieldNewLanternSheet'
 import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
+import { UNASSIGNED_LOCATION_CODE } from '@/lib/inventoryConstants'
 
 // Lazy-loaded: pulls in the jsQR decoder (~50kB), which most Field mode visits never
 // touch — keeping it out of the page's initial bundle matters on the weak on-site
@@ -21,9 +22,11 @@ export default function FieldWalkthrough() {
   const router = useRouter()
   const { code } = router.query
   const role = getInventoryRole(session)
+  const isUnassigned = code === UNASSIGNED_LOCATION_CODE
 
   const [location, setLocation] = useState(null)
   const [categories, setCategories] = useState([])
+  const [allLocations, setAllLocations] = useState([]) // Unassigned bucket: Quick Inspect needs a location picker
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [checkedIds, setCheckedIds] = useState([])
@@ -60,7 +63,10 @@ export default function FieldWalkthrough() {
   useEffect(() => {
     if (status !== 'authenticated' || !role || role === 'viewer') return
     fetch('/api/inventory/categories').then((r) => r.json()).then((d) => setCategories(Array.isArray(d) ? d : []))
-  }, [status, role])
+    if (isUnassigned) {
+      fetch('/api/inventory/locations').then((r) => r.json()).then((d) => setAllLocations(Array.isArray(d) ? d : []))
+    }
+  }, [status, role, isUnassigned])
 
   async function handleScanned(tagId) {
     setShowScanner(false)
@@ -89,7 +95,7 @@ export default function FieldWalkthrough() {
   return (
     <>
       <Head>
-        <title>{code ?? '現場模式'} · 燈籠庫存</title>
+        <title>{isUnassigned ? '未指定地點' : (code ?? '現場模式')} · 燈籠庫存</title>
         <link rel="manifest" href="/inventory-field-manifest.json" />
         <link rel="apple-touch-icon" href="/icons/lantern-180.png" />
         <meta name="theme-color" content="#dc2626" />
@@ -101,11 +107,11 @@ export default function FieldWalkthrough() {
           icon="compass"
           backHref="/inventory/lanterns/field"
           backLabel="現場模式"
-          title={code}
-          subtitle={location ? `已檢查 ${checkedCount} / ${total}` : ''}
+          title={isUnassigned ? '未指定地點' : code}
+          subtitle={location ? `已檢查 ${checkedCount} / ${total}${isUnassigned ? ' · 檢查時請選擇地點' : ''}` : ''}
         />
 
-        <main className="max-w-6xl mx-auto px-6 py-6 space-y-6">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
           {loading ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : notFound ? (
@@ -129,12 +135,14 @@ export default function FieldWalkthrough() {
                 >
                   掃描 Scan QR
                 </button>
-                <button
-                  onClick={() => setShowNew(true)}
-                  className="flex-1 py-4 bg-blue-600 text-white rounded-lg text-base font-medium hover:bg-blue-700"
-                >
-                  + 新增燈籠 New
-                </button>
+                {!isUnassigned && (
+                  <button
+                    onClick={() => setShowNew(true)}
+                    className="flex-1 py-4 bg-blue-600 text-white rounded-lg text-base font-medium hover:bg-blue-700"
+                  >
+                    + 新增燈籠 New
+                  </button>
+                )}
               </div>
 
               {location.lanterns.length === 0 ? (
@@ -164,7 +172,7 @@ export default function FieldWalkthrough() {
           ) : null}
         </main>
 
-        {location && (
+        {location && !isUnassigned && (
           <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 p-4">
             <div className="max-w-6xl mx-auto">
               <button
@@ -182,7 +190,8 @@ export default function FieldWalkthrough() {
       {activeLantern && (
         <InventoryQuickInspectSheet
           lantern={activeLantern}
-          fixedLocationId={location.id}
+          fixedLocationId={isUnassigned ? null : location.id}
+          locations={isUnassigned ? allLocations : undefined}
           locationCode={code}
           onClose={() => setActiveLantern(null)}
           onSaved={() => { setActiveLantern(null); load() }}

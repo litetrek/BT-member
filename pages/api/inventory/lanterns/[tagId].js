@@ -1,6 +1,17 @@
 import { query, insertInventoryLog } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
-import { computeDisplayable } from '@/lib/inventoryConstants'
+import { STATUS_OPTIONS, DISPLAY_DECISION_OPTIONS, CONDITION_OPTIONS } from '@/lib/inventoryConstants'
+import { evaluateDisplayability } from '@/lib/inventoryEligibility'
+import { getDisplayThresholds } from '@/lib/inventorySettings'
+import { insertLanternEvent, diffLanternFields, pickEventType } from '@/lib/inventoryEvents'
+
+// Nullable columns where an explicit '' / null in the body means "clear it". Before
+// Phase 1 the PUT used `body.x ?? existing.x`, so choosing "—" (e.g. no location) in the
+// edit form was silently ignored. A field absent from the body still keeps its value.
+const NULLABLE_FIELDS = [
+  'name_en', 'category_id', 'voltage', 'power_w', 'height_ft', 'width_ft', 'depth_ft',
+  'location_id', 'notes', 'display_decision',
+]
 
 export default async function handler(req, res) {
   const { tagId } = req.query
@@ -41,7 +52,11 @@ export default async function handler(req, res) {
       [lantern.id]
     )
 
-    return res.status(200).json({ ...lantern, photos, log, inspections })
+    const { reasons } = evaluateDisplayability(lantern, await getDisplayThresholds())
+    return res.status(200).json({
+      ...lantern, photos, log, inspections,
+      displayable_reasons: lantern.displayable ? [] : reasons,
+    })
   }
 
   if (req.method === 'PUT') {
@@ -51,21 +66,38 @@ export default async function handler(req, res) {
     const { rows: [existing] } = await query('SELECT * FROM inv_lantern_lanterns WHERE tag_id = $1', [tagId])
     if (!existing) return res.status(404).json({ error: 'Lantern not found' })
 
-    const {
-      name_zh, name_en, category_id, qty, voltage, power_w,
-      height_ft, width_ft, depth_ft, location_id,
-      condition, cloth_damage_pct, frame_damage_pct, notes,
-      status, display_decision, label_attached,
-    } = req.body
+    const body = req.body ?? {}
+    const has = (f) => Object.prototype.hasOwnProperty.call(body, f)
+    const pick = (f) => {
+      if (!has(f)) return existing[f]
+      if (NULLABLE_FIELDS.includes(f)) return body[f] === '' || body[f] === undefined ? null : body[f]
+      return body[f] ?? existing[f]
+    }
 
-    const cloth = cloth_damage_pct ?? existing.cloth_damage_pct
-    const frame = frame_damage_pct ?? existing.frame_damage_pct
-    const displayable = computeDisplayable(cloth, frame)
+    const next = {
+      name_zh: pick('name_zh'), name_en: pick('name_en'), category_id: pick('category_id'),
+      qty: pick('qty'), voltage: pick('voltage'), power_w: pick('power_w'),
+      height_ft: pick('height_ft'), width_ft: pick('width_ft'), depth_ft: pick('depth_ft'),
+      location_id: pick('location_id'), condition: pick('condition'),
+      cloth_damage_pct: pick('cloth_damage_pct'), frame_damage_pct: pick('frame_damage_pct'),
+      notes: pick('notes'), status: pick('status'), display_decision: pick('display_decision'),
+      label_attached: pick('label_attached'),
+    }
+
+    if (!next.name_zh) return res.status(400).json({ error: 'name_zh is required' })
+    if (!STATUS_OPTIONS.includes(next.status)) return res.status(400).json({ error: 'Invalid status' })
+    if (!CONDITION_OPTIONS.includes(next.condition)) return res.status(400).json({ error: 'Invalid condition' })
+    if (next.display_decision !== null && !DISPLAY_DECISION_OPTIONS.includes(next.display_decision)) {
+      return res.status(400).json({ error: 'Invalid display_decision' })
+    }
+
+    const { displayable } = evaluateDisplayability(next, await getDisplayThresholds())
     const email = req.inventoryEmail
 
-    const nextDisplayDecision = display_decision ?? existing.display_decision
-    if (nextDisplayDecision === 'Selected' && !displayable) {
-      return res.status(400).json({ error: 'Cannot select a non-displayable lantern' })
+    // Only block a *new* Selected on a non-displayable lantern; a lantern that was already
+    // Selected (e.g. before an admin tightened the thresholds) can still be edited.
+    if (next.display_decision === 'Selected' && !displayable && existing.display_decision !== 'Selected') {
+      return res.status(400).json({ error: '不可展示的燈籠不能設為 Selected Cannot select a non-displayable lantern' })
     }
 
     const { rows: [data] } = await query(
@@ -78,26 +110,11 @@ export default async function handler(req, res) {
        WHERE tag_id = $20
        RETURNING *`,
       [
-        name_zh ?? existing.name_zh,
-        name_en ?? existing.name_en,
-        category_id ?? existing.category_id,
-        qty ?? existing.qty,
-        voltage ?? existing.voltage,
-        power_w ?? existing.power_w,
-        height_ft ?? existing.height_ft,
-        width_ft ?? existing.width_ft,
-        depth_ft ?? existing.depth_ft,
-        location_id ?? existing.location_id,
-        condition ?? existing.condition,
-        cloth,
-        frame,
-        displayable,
-        notes ?? existing.notes,
-        status ?? existing.status,
-        nextDisplayDecision,
-        label_attached ?? existing.label_attached,
-        email,
-        tagId,
+        next.name_zh, next.name_en, next.category_id, next.qty, next.voltage, next.power_w,
+        next.height_ft, next.width_ft, next.depth_ft, next.location_id,
+        next.condition, next.cloth_damage_pct, next.frame_damage_pct, displayable,
+        next.notes, next.status, next.display_decision, next.label_attached,
+        email, tagId,
       ]
     )
 
@@ -108,6 +125,10 @@ export default async function handler(req, res) {
       action:      'updated',
       user_email:  email,
     })
+    const changes = diffLanternFields(existing, data)
+    if (Object.keys(changes).length) {
+      await insertLanternEvent({ lantern_id: data.id, event_type: pickEventType(changes), actor: email, changes })
+    }
 
     return res.status(200).json(data)
   }
