@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
+import { isOverdue, todayISO } from '@/lib/dates'
 import Layout from '@/components/Layout'
 import TaskItem from '@/components/TaskItem'
 import TaskForm from '@/components/TaskForm'
@@ -44,9 +45,9 @@ function Section({ title, tasks, currentUserId, userRole, onStatusChange, onEdit
 }
 
 function groupByStatus(tasks, today) {
-  const overdue    = tasks.filter((tk) => tk.status !== 'done' && tk.due_date && new Date(tk.due_date) < today)
-  const inProgress = tasks.filter((tk) => tk.status === 'in_progress' && !(tk.due_date && new Date(tk.due_date) < today))
-  const open       = tasks.filter((tk) => tk.status === 'open'        && !(tk.due_date && new Date(tk.due_date) < today))
+  const overdue    = tasks.filter((tk) => isOverdue(tk, today))
+  const inProgress = tasks.filter((tk) => tk.status === 'in_progress' && !isOverdue(tk, today))
+  const open       = tasks.filter((tk) => tk.status === 'open'        && !isOverdue(tk, today))
   const done       = tasks.filter((tk) => tk.status === 'done')
   return { overdue, inProgress, open, done }
 }
@@ -69,7 +70,7 @@ export default function TasksPage() {
   const [filterActivity, setFilterActivity] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
 
-  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const today = todayISO()
   const userRole = session?.user?.role ?? 'member'
   const canAddTask = ['admin', 'lead'].includes(userRole)
   const isAdminOrLead = ['admin', 'lead'].includes(userRole)
@@ -160,7 +161,7 @@ export default function TasksPage() {
     let visible = tasks
     if (filterActivity !== 'all') visible = visible.filter((tk) => tk.activity_id === filterActivity)
     if (filterStatus === 'overdue') {
-      visible = visible.filter((tk) => tk.status !== 'done' && tk.due_date && new Date(tk.due_date) < today)
+      visible = visible.filter((tk) => isOverdue(tk, today))
     } else if (filterStatus !== 'all') {
       visible = visible.filter((tk) => tk.status === filterStatus)
     }

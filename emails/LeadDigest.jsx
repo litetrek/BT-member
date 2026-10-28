@@ -1,3 +1,4 @@
+import { formatDateOnly } from '../lib/dates'
 import {
   Html, Head, Body, Container, Preview,
   Heading, Text, Section, Hr, Link,
@@ -55,7 +56,7 @@ export default function LeadDigestEmail({ user = {}, activity = {}, tasks = [], 
                       <Text style={styles.cardTitle}>{task.title}</Text>
                       <Text style={styles.cardMeta}>
                         {task.due_date
-                          ? `${t(lang, 'Due', '到期')}: ${new Date(task.due_date + 'T00:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' })}`
+                          ? `${t(lang, 'Due', '到期')}: ${formatDateOnly(task.due_date, locale, { month: 'short', day: 'numeric' })}`
                           : t(lang, 'No due date', '無到期日')}
                       </Text>
                       <Link href={`${base}/${slug}/tasks?id=${task.id}`} style={styles.link}>

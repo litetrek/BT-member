@@ -32,6 +32,7 @@ export default function ActivitiesPage() {
   const [editActivity, setEditActivity] = useState(null)
   const [showStatusForm, setShowStatusForm] = useState(false)
   const [selectedActivityId, setSelectedActivityId] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   const isAdmin = session?.user?.role === 'admin'
   const canPost = ['admin', 'lead'].includes(session?.user?.role)
@@ -50,6 +51,7 @@ export default function ActivitiesPage() {
         if (list[0]?.event_id) setEventId(list[0].event_id)
       })
       .catch(() => setActivities([]))
+      .finally(() => setLoading(false))
   }
 
   function loadAnnouncements(eid) {
@@ -107,7 +109,9 @@ export default function ActivitiesPage() {
           )}
         </div>
 
-        {activities.length === 0 ? (
+        {loading ? (
+          <p className="text-sm text-gray-400 mb-8">{t(lang, 'Loading…', '載入中…')}</p>
+        ) : activities.length === 0 ? (
           <p className="text-sm text-gray-400 mb-8">{t(lang, 'No activities yet.', '尚無活動。')}</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">

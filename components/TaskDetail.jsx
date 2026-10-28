@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import Avatar from './Avatar'
+import { formatDateOnly } from '@/lib/dates'
 import StatusBadge from './StatusBadge'
 import { useLang } from '@/context/LangContext'
 import { t } from '@/lib/lang'
@@ -199,14 +200,13 @@ export default function TaskDetail({ task, onClose, onSaved }) {
                 </span>
               </div>
             )}
-            {task.due_date && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-gray-400">{t(lang, 'Due', '到期日')}</span>
-                <span className="text-xs text-gray-700">
-                  {new Date(task.due_date + 'T00:00:00').toLocaleDateString(dateLocale, { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-400">{t(lang, 'Due', '到期日')}</span>
+              <span className="text-xs text-gray-700">
+                {formatDateOnly(task.due_date, dateLocale, { month: 'short', day: 'numeric', year: 'numeric' })
+                  || t(lang, 'Not set', '未設定')}
+              </span>
+            </div>
             {(assignee1 || assignee2) && (
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-gray-400">{t(lang, 'Assignee', '負責人')}</span>

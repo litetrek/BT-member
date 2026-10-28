@@ -36,6 +36,7 @@ export default function AdminUsersPage() {
   const [editError, setEditError] = useState('')
 
   const [taskTypes, setTaskTypes] = useState([])
+  const [loadingTypes, setLoadingTypes] = useState(true)
   const [newTypeName, setNewTypeName] = useState('')
   const [addingType, setAddingType] = useState(false)
   const [typeError, setTypeError] = useState('')
@@ -79,6 +80,7 @@ export default function AdminUsersPage() {
       .then((r) => r.json())
       .then((d) => setTaskTypes(Array.isArray(d) ? d : []))
       .catch(() => {})
+      .finally(() => setLoadingTypes(false))
   }
 
   async function handleAddType(e) {
@@ -268,7 +270,9 @@ export default function AdminUsersPage() {
         <section className="mt-10">
           <h2 className="text-base font-semibold text-gray-900 mb-4">{t(lang, 'Task Type Management', '任務類型管理')}</h2>
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mb-4">
-            {taskTypes.length === 0 ? (
+            {loadingTypes ? (
+              <p className="text-sm text-gray-400 px-4 py-3">{t(lang, 'Loading…', '載入中…')}</p>
+            ) : taskTypes.length === 0 ? (
               <p className="text-sm text-gray-400 px-4 py-3">{t(lang, 'No types yet.', '尚無類型。')}</p>
             ) : (
               <ul className="divide-y divide-gray-50">

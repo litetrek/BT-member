@@ -1,4 +1,5 @@
 import { query } from '@/lib/db'
+import { requireAdmin } from '@/lib/auth'
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -9,6 +10,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
+    if (await requireAdmin(req, res)) return
     const { name, slug, event_date, status } = req.body
     const { rows: [data] } = await query(
       `INSERT INTO events (name, slug, event_date, status)

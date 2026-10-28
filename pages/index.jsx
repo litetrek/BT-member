@@ -3,12 +3,22 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import Head from 'next/head'
 import { getInventoryRole, isInventoryAdminOfAny } from '@/lib/inventory'
+import { formatDateOnly, yearOf } from '@/lib/dates'
 
-function EventCard({ event }) {
+function EventCard({ event, isAdmin, onToggleStatus }) {
   const isActive = event.status === 'active'
-  const dateStr = new Date(event.event_date).toLocaleDateString('zh-TW', {
-    year: 'numeric', month: 'long', day: 'numeric',
-  })
+  const dateStr = formatDateOnly(event.event_date, 'zh-TW')
+  const [saving, setSaving] = useState(false)
+
+  async function handleToggle(e) {
+    e.preventDefault()
+    e.stopPropagation()
+    const next = isActive ? 'archived' : 'active'
+    const msg = isActive ? `將「${event.name}」標記為已結束？` : `將「${event.name}」重新開啟為進行中？`
+    if (!confirm(msg)) return
+    setSaving(true)
+    try { await onToggleStatus(event, next) } finally { setSaving(false) }
+  }
 
   return (
     <Link href={`/${event.slug}`}>
@@ -19,7 +29,7 @@ function EventCard({ event }) {
       >
         <div className="flex items-start justify-between mb-3">
           <span className="text-xs text-gray-400">
-            {new Date(event.event_date).getFullYear()}
+            {yearOf(event.event_date)}
           </span>
           <span
             className={`text-xs px-2 py-0.5 rounded font-medium ${
@@ -34,6 +44,15 @@ function EventCard({ event }) {
         <p className="text-xs text-gray-400 font-mono">
           bt.cyber-tech.com/{event.slug}
         </p>
+        {isAdmin && (
+          <button
+            onClick={handleToggle}
+            disabled={saving}
+            className="mt-3 text-xs text-gray-500 border border-gray-200 rounded px-2 py-1 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {saving ? '儲存中…' : isActive ? '標記為已結束' : '重新開啟'}
+          </button>
+        )}
       </div>
     </Link>
   )
@@ -45,6 +64,18 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const inventoryRole = getInventoryRole(session)
   const canManageUsers = session?.user?.role === 'admin' || isInventoryAdminOfAny(session)
+  const isAdmin = session?.user?.role === 'admin'
+
+  async function toggleStatus(event, status) {
+    const res = await fetch(`/api/events/${event.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    if (!res.ok) { alert('更新失敗，請稍後再試。'); return }
+    const updated = await res.json()
+    setEvents((list) => list.map((e) => (e.id === updated.id ? { ...e, status: updated.status } : e)))
+  }
 
   useEffect(() => {
     fetch('/api/events')
@@ -78,7 +109,7 @@ export default function Home() {
             <p className="text-sm text-gray-400">尚無活動。</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {events.map((e) => <EventCard key={e.id} event={e} />)}
+              {events.map((e) => <EventCard key={e.id} event={e} isAdmin={isAdmin} onToggleStatus={toggleStatus} />)}
             </div>
           )}
 

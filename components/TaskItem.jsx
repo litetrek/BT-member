@@ -1,6 +1,7 @@
 import { useLang } from '@/context/LangContext'
 import { t } from '@/lib/lang'
 import Avatar from './Avatar'
+import { formatDateOnly } from '@/lib/dates'
 import StatusBadge from './StatusBadge'
 
 export default function TaskItem({ task, currentUserId, userRole, onStatusChange, onEdit, onOpen, highlighted }) {
@@ -59,7 +60,7 @@ export default function TaskItem({ task, currentUserId, userRole, onStatusChange
 
         {task.due_date && (
           <span className="text-xs text-gray-400 hidden sm:block">
-            {new Date(task.due_date + 'T00:00:00').toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}
+            {formatDateOnly(task.due_date, dateLocale, { month: 'short', day: 'numeric' })}
           </span>
         )}
 

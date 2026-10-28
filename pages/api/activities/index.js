@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
     const activityIds = activities.map((a) => a.id)
     const { rows: tasks } = await query(
-      'SELECT id, activity_id, status FROM tasks WHERE activity_id = ANY($1)',
+      'SELECT id, activity_id, status, due_date, assignee_1_id, assignee_2_id FROM tasks WHERE activity_id = ANY($1)',
       [activityIds]
     )
 
