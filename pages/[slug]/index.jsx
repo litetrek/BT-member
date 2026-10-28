@@ -3,6 +3,7 @@ import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import Link from 'next/link'
+import { formatDateOnly } from '@/lib/dates'
 
 export default function EventLogin() {
   const router = useRouter()
@@ -41,9 +42,7 @@ export default function EventLogin() {
             <>
               <h1 className="font-semibold text-gray-900 text-lg mb-1">{event.name}</h1>
               <p className="text-sm text-gray-500 mb-8">
-                {new Date(event.event_date).toLocaleDateString('zh-TW', {
-                  year: 'numeric', month: 'long', day: 'numeric',
-                })}
+                {formatDateOnly(event.event_date, 'zh-TW')}
               </p>
             </>
           ) : (

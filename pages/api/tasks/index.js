@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { query, insertLog } from '@/lib/db'
+import { isOverdue } from '@/lib/dates'
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -44,11 +45,10 @@ export default async function handler(req, res) {
       params
     )
 
-    const today = new Date(); today.setHours(0, 0, 0, 0)
     let tasks = data ?? []
 
     if (status === 'overdue') {
-      tasks = tasks.filter((t) => t.status !== 'done' && t.due_date && new Date(t.due_date) < today)
+      tasks = tasks.filter((t) => isOverdue(t))
     } else if (status && status !== 'all') {
       tasks = tasks.filter((t) => t.status === status)
     }

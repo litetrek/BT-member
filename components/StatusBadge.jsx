@@ -1,13 +1,10 @@
 import { useLang } from '@/context/LangContext'
 import { UI } from '@/lib/lang'
+import { isOverdue as taskIsOverdue } from '@/lib/dates'
 
 export default function StatusBadge({ status, dueDate }) {
   const lang = useLang()
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  const isOverdue =
-    status !== 'done' && dueDate && new Date(dueDate) < today
+  const isOverdue = taskIsOverdue({ status, due_date: dueDate })
 
   const resolved = isOverdue ? 'overdue' : status
 

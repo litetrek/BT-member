@@ -1,4 +1,5 @@
 import { query } from '@/lib/db'
+import { isOverdue, todayISO } from '@/lib/dates'
 import { sendDailyDigest, sendLeadDigest, sendOverdueReminder } from '@/lib/email'
 
 export default async function handler(req, res) {
@@ -10,9 +11,7 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayStr = today.toISOString().split('T')[0]
+  const todayStr = todayISO()
 
   const { rows: events } = await query(
     "SELECT id, name, slug FROM events WHERE status = 'active'"
@@ -37,7 +36,7 @@ export default async function handler(req, res) {
     if (!allTasks?.length) continue
 
     const overdueTasks = allTasks.filter(
-      (t) => t.status !== 'done' && t.due_date && new Date(t.due_date) < today
+      (t) => isOverdue(t, todayStr)
     )
 
     const { rows: sentToday } = await query(

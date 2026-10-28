@@ -7,12 +7,14 @@ import StatusBadge from '@/components/StatusBadge'
 import Link from 'next/link'
 import { LangProvider } from '@/context/LangContext'
 import { t } from '@/lib/lang'
+import { isOverdue, todayISO } from '@/lib/dates'
 
-function StatCard({ label, value, color }) {
+function StatCard({ label, value, color, hint }) {
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4">
       <p className="text-xs text-gray-500 mb-1">{label}</p>
       <p className={`text-2xl font-semibold ${color ?? 'text-gray-900'}`}>{value}</p>
+      {hint && <p className="text-[11px] text-gray-400 mt-1">{hint}</p>}
     </div>
   )
 }
@@ -25,7 +27,8 @@ export default function Dashboard() {
 
   const [activities, setActivities] = useState([])
   const [myTasks, setMyTasks] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loadingActivities, setLoadingActivities] = useState(true)
+  const [loadingTasks, setLoadingTasks] = useState(true)
 
   const userRole = session?.user?.role
 
@@ -43,6 +46,7 @@ export default function Dashboard() {
         setActivities(list)
       })
       .catch(() => setActivities([]))
+      .finally(() => setLoadingActivities(false))
 
     fetch(`/api/tasks?slug=${slug}`)
       .then((r) => r.json())
@@ -55,19 +59,24 @@ export default function Dashboard() {
               tk.assignee_2_id === session.user.id
           )
         )
-        setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => setMyTasks([]))
+      .finally(() => setLoadingTasks(false))
   }, [slug, status, session])
 
-  const today = new Date(); today.setHours(0, 0, 0, 0)
+  // Stat cards count ALL tasks in the event (every activity), using the same overdue
+  // rule as the task badges so the 逾期 card always matches the red tags below.
+  const today = todayISO()
   const allTasks = activities.flatMap((a) => a.tasks ?? [])
   const stats = {
     total:       allTasks.length,
     done:        allTasks.filter((tk) => tk.status === 'done').length,
-    in_progress: allTasks.filter((tk) => tk.status === 'in_progress').length,
-    overdue:     allTasks.filter((tk) => tk.status !== 'done' && tk.due_date && new Date(tk.due_date) < today).length,
+    in_progress: allTasks.filter((tk) => tk.status === 'in_progress' && !isOverdue(tk, today)).length,
+    overdue:     allTasks.filter((tk) => isOverdue(tk, today)).length,
   }
+  const dash = '–'
+  const statValue = (n) => (loadingActivities ? dash : n)
+  const allHint = t(lang, 'All tasks in this event', '本活動所有任務')
 
   return (
     <LangProvider lang={lang}>
@@ -77,17 +86,26 @@ export default function Dashboard() {
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
-          <StatCard label={t(lang, 'Total Tasks',  '總任務')}  value={stats.total}       />
-          <StatCard label={t(lang, 'Done',         '已完成')}  value={stats.done}        color="text-green-600" />
-          <StatCard label={t(lang, 'In Progress',  '進行中')}  value={stats.in_progress} color="text-amber-600" />
-          <StatCard label={t(lang, 'Overdue',      '逾期')}    value={stats.overdue}     color="text-red-600" />
+          <StatCard label={t(lang, 'All Tasks',    '全部任務')} value={statValue(stats.total)}       hint={allHint} />
+          <StatCard label={t(lang, 'Done',         '已完成')}  value={statValue(stats.done)}        color="text-green-600" hint={allHint} />
+          <StatCard label={t(lang, 'In Progress',  '進行中')}  value={statValue(stats.in_progress)} color="text-amber-600" hint={allHint} />
+          <StatCard label={t(lang, 'Overdue',      '逾期')}    value={statValue(stats.overdue)}     color="text-red-600" hint={allHint} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* My Tasks */}
           <section>
-            <h2 className="text-sm font-medium text-gray-700 mb-3">{t(lang, 'My Tasks', '我的任務')}</h2>
-            {myTasks.length === 0 ? (
+            <h2 className="text-sm font-medium text-gray-700 mb-3">
+              {t(lang, 'My Tasks', '我的任務')}
+              {!loadingTasks && (
+                <span className="text-gray-400 font-normal">
+                  {' '}{t(lang, `(${myTasks.length} of ${stats.total})`, `（${myTasks.length} / 全部 ${stats.total}）`)}
+                </span>
+              )}
+            </h2>
+            {loadingTasks ? (
+              <p className="text-sm text-gray-400">{t(lang, 'Loading…', '載入中…')}</p>
+            ) : myTasks.length === 0 ? (
               <p className="text-sm text-gray-400">{t(lang, 'No tasks assigned to you.', '目前沒有指派給您的任務。')}</p>
             ) : (
               <div className="flex flex-col gap-2">
@@ -108,7 +126,9 @@ export default function Dashboard() {
                 {t(lang, 'Activity Progress →', '活動進度 →')}
               </Link>
             </h2>
-            {activities.length === 0 ? (
+            {loadingActivities ? (
+              <p className="text-sm text-gray-400">{t(lang, 'Loading…', '載入中…')}</p>
+            ) : activities.length === 0 ? (
               <p className="text-sm text-gray-400">{t(lang, 'No activities yet.', '尚無活動。')}</p>
             ) : (
               <div className="flex flex-col gap-3">

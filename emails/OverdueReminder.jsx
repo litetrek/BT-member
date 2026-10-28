@@ -1,3 +1,4 @@
+import { formatDateOnly } from '../lib/dates'
 import {
   Html, Head, Body, Container, Preview,
   Heading, Text, Section, Hr, Link,
@@ -33,7 +34,7 @@ export default function OverdueReminderEmail({ user = {}, tasks = [], slug = '',
                   {t(lang, 'Due:', '到期日：')}{' '}
                   <span style={{ color: '#dc2626' }}>
                     {task.due_date
-                      ? new Date(task.due_date + 'T00:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })
+                      ? formatDateOnly(task.due_date, locale, { month: 'short', day: 'numeric', year: 'numeric' })
                       : '—'}
                   </span>
                 </Text>

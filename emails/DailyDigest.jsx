@@ -1,3 +1,4 @@
+import { formatDateOnly } from '../lib/dates'
 import {
   Html, Head, Body, Container, Preview,
   Heading, Text, Section, Hr, Link,
@@ -46,7 +47,7 @@ export default function DailyDigestEmail({ user = {}, tasks = [], slug = '', lan
                     {STATUS_LABEL[task.status] ?? task.status}
                     {task.due_date
                       ? ` · ${t(lang, 'Due', '到期')}: ` +
-                        new Date(task.due_date + 'T00:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' })
+                        formatDateOnly(task.due_date, locale, { month: 'short', day: 'numeric' })
                       : ''}
                   </Text>
                   <Link href={`${base}/${slug}/tasks?id=${task.id}`} style={styles.link}>
