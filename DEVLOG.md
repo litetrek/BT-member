@@ -52,8 +52,8 @@ Branch: `phase1-lantern-foundations`
 
 ## 2026-10-28 — Lantern Inventory Phase 1: Results
 
-All Phase 1 items built on `phase1-lantern-foundations`. **Not yet run against Neon** —
-see "To deploy" below.
+All Phase 1 items built on `phase1-lantern-foundations`. Migration run against Neon by
+Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
 
 ### What changed
 - **1.0 Event log** — `inv_lantern_events` + `lib/inventoryEvents.js` / `lib/inventoryEventDiff.js`.
