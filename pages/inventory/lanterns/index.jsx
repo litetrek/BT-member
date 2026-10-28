@@ -4,7 +4,8 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import Link from 'next/link'
 import { getInventoryRole } from '@/lib/inventory'
-import { CONDITION_OPTIONS, VOLTAGE_OPTIONS, STATUS_OPTIONS } from '@/lib/inventoryConstants'
+import { CONDITION_OPTIONS, VOLTAGE_OPTIONS, STATUS_OPTIONS, UNASSIGNED_FILTER_VALUE, UNASSIGNED_LABEL } from '@/lib/inventoryConstants'
+import InventoryDisplayableBadge from '@/components/InventoryDisplayableBadge'
 import InventoryLanternNav from '@/components/InventoryLanternNav'
 import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
@@ -23,13 +24,14 @@ function LanternCard({ lantern }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="font-mono text-sm text-gray-400">{lantern.tag_id}</p>
-            {!lantern.displayable && (
-              <span className="text-xs text-red-600 bg-red-50 px-1.5 py-0.5 rounded">不可展示</span>
+            {!lantern.displayable && <InventoryDisplayableBadge reasons={lantern.displayable_reasons} />}
+            {lantern.status && lantern.status !== 'Active' && (
+              <span className="text-xs text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">{lantern.status === 'Missing' ? '遺失 Missing' : '退役 Retired'}</span>
             )}
           </div>
           <p className="font-semibold text-gray-900 text-base truncate">{lantern.name_zh}</p>
           <p className="text-sm text-gray-400 truncate">
-            {lantern.category_name_zh ?? '—'} · QTY {lantern.qty} · {lantern.location_code ?? '—'}
+            {lantern.category_name_zh ?? '—'} · QTY {lantern.qty} · {lantern.location_code ?? '未指定地點'}
           </p>
         </div>
         <span className="text-sm text-gray-500 shrink-0">{lantern.condition}</span>
@@ -48,6 +50,14 @@ export default function LanternList() {
   const [locations, setLocations] = useState([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState(EMPTY_FILTERS)
+
+  // Deep links such as /inventory/lanterns?location_id=none (Unassigned) prefill filters.
+  useEffect(() => {
+    if (!router.isReady) return
+    const fromUrl = Object.fromEntries(Object.keys(EMPTY_FILTERS).filter((k) => typeof router.query[k] === 'string').map((k) => [k, router.query[k]]))
+    if (Object.keys(fromUrl).length) setFilters((f) => ({ ...f, ...fromUrl }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady])
 
   useEffect(() => {
     if (status === 'unauthenticated') router.replace('/inventory')
@@ -102,7 +112,7 @@ export default function LanternList() {
 
         <InventoryLanternNav active="list" />
 
-        <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
           <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-wrap gap-3 items-center text-sm text-gray-600">
             <span>總記錄 {summary.totalRecords}</span>
             <span className="text-gray-300">|</span>
@@ -115,11 +125,11 @@ export default function LanternList() {
 
           <div className="flex flex-wrap gap-2">
             <input
-              type="text"
-              placeholder="搜尋標籤或名稱 Search tag or name"
+              type="search"
+              placeholder="搜尋 編號/名稱 Search"
               value={filters.q}
               onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
-              className={`${selectCls} w-48`}
+              className={`${selectCls} w-full sm:w-60`}
             />
             <select value={filters.category_id} onChange={(e) => setFilters((f) => ({ ...f, category_id: e.target.value }))} className={selectCls}>
               <option value="">所有類別</option>
@@ -127,6 +137,7 @@ export default function LanternList() {
             </select>
             <select value={filters.location_id} onChange={(e) => setFilters((f) => ({ ...f, location_id: e.target.value }))} className={selectCls}>
               <option value="">所有地點</option>
+              <option value={UNASSIGNED_FILTER_VALUE}>{UNASSIGNED_LABEL}</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.code}</option>)}
             </select>
             <select value={filters.voltage} onChange={(e) => setFilters((f) => ({ ...f, voltage: e.target.value }))} className={selectCls}>

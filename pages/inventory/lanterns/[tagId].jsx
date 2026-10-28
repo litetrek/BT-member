@@ -131,7 +131,7 @@ export default function LanternDetail() {
           )}
         />
 
-        <main className="max-w-6xl mx-auto px-6 py-8">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
           {loading ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : notFound ? (
@@ -140,7 +140,15 @@ export default function LanternDetail() {
             <div className="space-y-6">
               {!lantern.displayable && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-base rounded-lg px-4 py-2">
-                  不可展示 Not displayable（布面或骨架損壞達門檻）
+                  <p className="font-medium">不可展示 Not displayable</p>
+                  {(lantern.displayable_reasons?.length ? lantern.displayable_reasons : ['布面或骨架損壞達門檻']).map((r) => (
+                    <p key={r} className="text-sm">• {r}</p>
+                  ))}
+                </div>
+              )}
+              {lantern.status === 'Missing' && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 text-base rounded-lg px-4 py-2">
+                  遺失 Missing — 找到後請在「記錄檢查」將狀態改回 Active
                 </div>
               )}
 
@@ -184,7 +192,7 @@ export default function LanternDetail() {
                 <Field label="名稱 Name" value={`${lantern.name_zh}${lantern.name_en ? ' / ' + lantern.name_en : ''}`} />
                 <Field label="類別 Category" value={lantern.category_name_zh ? `${lantern.category_name_zh}${lantern.category_name_en ? ' / ' + lantern.category_name_en : ''}` : null} />
                 <Field label="數量 QTY" value={lantern.qty} />
-                <Field label="地點 Location" value={lantern.location_code} />
+                <Field label="地點 Location" value={lantern.location_code ?? '未指定地點 Unassigned'} />
                 <Field label="電壓 Voltage" value={lantern.voltage} />
                 <Field label="功率 Power" value={lantern.power_w ? `${lantern.power_w} W` : null} />
                 <Field label="尺寸 Dimensions (ft)" value={[lantern.height_ft, lantern.width_ft, lantern.depth_ft].some(Boolean) ? `${lantern.height_ft ?? '—'} × ${lantern.width_ft ?? '—'} × ${lantern.depth_ft ?? '—'}` : null} />

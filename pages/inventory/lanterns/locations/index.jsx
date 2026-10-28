@@ -8,8 +8,8 @@ import InventoryLocationForm from '@/components/InventoryLocationForm'
 import InventoryLanternNav from '@/components/InventoryLanternNav'
 import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
-
-const ZONE_ORDER = ['A', 'B', 'C', 'D', 'E', 'Cabin']
+import { groupLocationsByZone } from '@/lib/inventoryLocationSort'
+import { formatLocationCounts, summarizeLanterns, UNASSIGNED_LOCATION_CODE, UNASSIGNED_LABEL } from '@/lib/inventoryConstants'
 
 function LocationCard({ location }) {
   return (
@@ -26,7 +26,7 @@ function LocationCard({ location }) {
           <p className="font-semibold text-gray-900 text-base">{location.code}</p>
           <p className="text-sm text-gray-400 truncate">{location.description || '—'}</p>
         </div>
-        <span className="text-sm text-gray-400 shrink-0">{location.lantern_count} 盞</span>
+        <span className="text-sm text-gray-400 shrink-0 whitespace-nowrap">{formatLocationCounts(location.lantern_count, location.lantern_qty)}</span>
       </div>
     </Link>
   )
@@ -38,6 +38,7 @@ export default function LocationsList() {
   const role = getInventoryRole(session)
 
   const [locations, setLocations] = useState([])
+  const [unassigned, setUnassigned] = useState(null) // { records, qty }
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
 
@@ -52,6 +53,10 @@ export default function LocationsList() {
       .then((r) => r.json())
       .then((d) => { setLocations(Array.isArray(d) ? d : []); setLoading(false) })
       .catch(() => setLoading(false))
+    fetch(`/api/inventory/locations/${UNASSIGNED_LOCATION_CODE}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setUnassigned(d ? summarizeLanterns(d.lanterns) : null))
+      .catch(() => {})
   }
 
   useEffect(() => {
@@ -60,10 +65,7 @@ export default function LocationsList() {
 
   if (status !== 'authenticated' || !role) return null
 
-  const byZone = ZONE_ORDER.map((zone) => ({
-    zone,
-    items: locations.filter((l) => l.zone === zone),
-  })).filter((g) => g.items.length > 0)
+  const byZone = groupLocationsByZone(locations)
 
   return (
     <>
@@ -84,7 +86,7 @@ export default function LocationsList() {
 
         <InventoryLanternNav active="locations" />
 
-        <main className="max-w-6xl mx-auto px-6 py-10">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
           {loading ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : locations.length === 0 ? (
@@ -94,13 +96,31 @@ export default function LocationsList() {
               {byZone.map((g) => (
                 <div key={g.zone}>
                   <h2 className="text-base font-semibold text-gray-700 mb-3">
-                    {g.zone === 'Cabin' ? 'Cabin' : `${g.zone} 區`}
+                    {/^[A-Z]$/.test(g.zone) ? `${g.zone} 區` : g.zone}
                   </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {g.items.map((l) => <LocationCard key={l.id} location={l} />)}
                   </div>
                 </div>
               ))}
+
+              {unassigned?.records > 0 && (
+                <div>
+                  <h2 className="text-base font-semibold text-gray-700 mb-3">{UNASSIGNED_LABEL}</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <Link href={`/inventory/lanterns/locations/${UNASSIGNED_LOCATION_CODE}`}>
+                      <div className="bg-amber-50 rounded-lg border border-amber-300 p-3 flex gap-3 items-center cursor-pointer hover:border-amber-500 hover:shadow-sm transition-all">
+                        <div className="w-14 h-14 rounded bg-amber-100 shrink-0 flex items-center justify-center text-amber-500 text-xl">?</div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-amber-900 text-base">未指定地點</p>
+                          <p className="text-sm text-amber-700 truncate">Unassigned — 尚未指定存放地點</p>
+                        </div>
+                        <span className="text-sm text-amber-700 shrink-0 whitespace-nowrap">{formatLocationCounts(unassigned.records, unassigned.qty)}</span>
+                      </div>
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </main>

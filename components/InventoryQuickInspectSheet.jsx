@@ -18,6 +18,9 @@ export default function InventoryQuickInspectSheet({ lantern, fixedLocationId, l
     frame_damage_pct: draft?.frame_damage_pct ?? lantern.frame_damage_pct ?? 0,
     notes: draft?.notes ?? '',
     location_id: draft?.location_id ?? fixedLocationId ?? lantern.location_id ?? '',
+    // Phase 1.4: Quick Inspect can mark a lantern Missing (or back to Active once found).
+    // Retired is only set from the full edit form.
+    status: draft?.status ?? lantern.status ?? 'Active',
   })
   const [photoFiles, setPhotoFiles] = useState([])
   const [saving, setSaving] = useState(false)
@@ -46,6 +49,7 @@ export default function InventoryQuickInspectSheet({ lantern, fixedLocationId, l
           cloth_damage_pct: Number(form.cloth_damage_pct),
           frame_damage_pct: Number(form.frame_damage_pct),
           notes: form.notes || null,
+          ...(form.status !== (lantern.status ?? 'Active') ? { status: form.status } : {}),
         }),
       })
       if (!res.ok) throw new Error((await res.json()).error || '儲存失敗')
@@ -111,6 +115,28 @@ export default function InventoryQuickInspectSheet({ lantern, fixedLocationId, l
           </div>
         </div>
 
+        {lantern.status !== 'Retired' && (
+          <div>
+            <p className="text-sm text-gray-500 mb-2">狀態 Status</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[['Active', '在場 Present'], ['Missing', '遺失 Missing']].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => update('status', value)}
+                  className={`py-3 rounded-lg text-sm font-medium border-2 transition-colors ${
+                    form.status === value
+                      ? (value === 'Missing' ? 'border-amber-500 bg-amber-50 text-amber-800' : 'border-blue-600 bg-blue-50 text-blue-700')
+                      : 'border-gray-200 text-gray-600'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {sliderRow('布面損壞 Cloth damage', 'cloth_damage_pct')}
         {sliderRow('骨架損壞 Frame damage', 'frame_damage_pct')}
 
@@ -122,7 +148,7 @@ export default function InventoryQuickInspectSheet({ lantern, fixedLocationId, l
               onChange={(e) => update('location_id', e.target.value)}
               className="w-full border border-gray-200 rounded px-3 py-2 text-base focus:outline-none focus:ring-1 focus:ring-blue-400"
             >
-              <option value="">—</option>
+              <option value="">— 未指定地點 Unassigned —</option>
               {locations?.map((l) => <option key={l.id} value={l.id}>{l.code}</option>)}
             </select>
           </div>

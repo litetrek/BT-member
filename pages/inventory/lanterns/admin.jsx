@@ -7,6 +7,88 @@ import InventoryLanternNav from '@/components/InventoryLanternNav'
 import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
 
+// Phase 1.5: display thresholds (full Admin redesign is Phase 6).
+function ThresholdSettings() {
+  const [values, setValues] = useState(null) // { cloth_pct, frame_pct } as strings while editing
+  const [saved, setSaved] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    fetch('/api/inventory/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        const t = { cloth_pct: String(d.thresholds.cloth_pct), frame_pct: String(d.thresholds.frame_pct) }
+        setValues(t); setSaved(t)
+      })
+      .catch(() => setError('無法載入門檻 Could not load thresholds'))
+  }, [])
+
+  const dirty = values && saved && (values.cloth_pct !== saved.cloth_pct || values.frame_pct !== saved.frame_pct)
+
+  async function handleSave(e) {
+    e.preventDefault()
+    setSaving(true); setError(''); setMessage('')
+    try {
+      const res = await fetch('/api/inventory/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thresholds: { cloth_pct: Number(values.cloth_pct), frame_pct: Number(values.frame_pct) } }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || '儲存失敗')
+      const t = { cloth_pct: String(d.thresholds.cloth_pct), frame_pct: String(d.thresholds.frame_pct) }
+      setValues(t); setSaved(t)
+      setMessage(`已儲存。${d.changed} 筆燈籠的可展示狀態已更新 Saved — ${d.changed} lantern(s) changed displayability`)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inputCls = 'w-24 border border-gray-200 rounded px-2 py-1.5 text-base focus:outline-none focus:ring-1 focus:ring-blue-400'
+
+  return (
+    <section className="mb-10">
+      <h2 className="text-lg font-semibold text-gray-900 mb-1">展示門檻 Display thresholds</h2>
+      <p className="text-sm text-gray-400 mb-4">損壞達到（≥）門檻即標示為不可展示。Damage at or above a threshold makes a lantern not displayable.</p>
+      {!values ? (
+        error ? <p className="text-sm text-red-500">{error}</p> : <Spinner />
+      ) : (
+        <form onSubmit={handleSave} className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+          <div className="flex flex-wrap gap-6">
+            {[['cloth_pct', '布面損壞 Cloth damage'], ['frame_pct', '骨架損壞 Frame damage']].map(([field, label]) => (
+              <label key={field} className="block">
+                <span className="block text-sm text-gray-500 mb-1">{label}</span>
+                <span className="flex items-center gap-1">
+                  <input
+                    type="number" min="1" max="100" step="1" inputMode="numeric" required
+                    value={values[field]}
+                    onChange={(e) => setValues((v) => ({ ...v, [field]: e.target.value }))}
+                    className={inputCls}
+                  />
+                  <span className="text-gray-500">%</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          {message && <p className="text-sm text-green-700">{message}</p>}
+          <button
+            type="submit"
+            disabled={!dirty || saving}
+            className="text-sm bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {saving ? '儲存中…' : '儲存門檻 Save thresholds'}
+          </button>
+        </form>
+      )}
+    </section>
+  )
+}
+
 export default function LanternAdmin() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -103,7 +185,9 @@ export default function LanternAdmin() {
         <InventoryHeader icon="settings" backHref="/inventory/lanterns" backLabel="燈籠列表" title="管理" subtitle="Admin" />
         <InventoryLanternNav active="admin" />
 
-        <main className="max-w-6xl mx-auto px-6 py-8">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+          <ThresholdSettings />
+
           <h2 className="text-lg font-semibold text-gray-900 mb-1">類別 Categories</h2>
           <p className="text-sm text-gray-400 mb-4">管理燈籠類別（中文／英文名稱）</p>
           {error && <p className="text-sm text-red-500 mb-3">{error}</p>}

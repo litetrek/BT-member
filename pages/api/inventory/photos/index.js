@@ -1,5 +1,6 @@
 import { query } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
+import { insertLanternEvent } from '@/lib/inventoryEvents'
 
 // Creates a photo metadata row (the binary already lives in Blob storage —
 // see pages/api/inventory/photos/upload.js). If is_primary is set, unmarks
@@ -36,6 +37,13 @@ export default async function handler(req, res) {
      RETURNING *`,
     [owner_type, owner_id, url, thumb_url, !!is_primary || !existingPrimary, req.inventoryEmail]
   )
+
+  if (owner_type === 'lantern') {
+    await insertLanternEvent({
+      lantern_id: owner_id, event_type: 'photo_added', actor: req.inventoryEmail,
+      changes: { photo: [null, { id: photo.id, thumb_url: photo.thumb_url, is_primary: photo.is_primary }] },
+    })
+  }
 
   return res.status(201).json(photo)
 }

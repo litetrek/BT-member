@@ -1,7 +1,10 @@
 import { query, insertInventoryLog } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
-import { computeDisplayable, CONDITION_OPTIONS } from '@/lib/inventoryConstants'
+import { CONDITION_OPTIONS } from '@/lib/inventoryConstants'
 import { buildLanternWhere } from '@/lib/inventoryLanternFilters'
+import { evaluateDisplayability } from '@/lib/inventoryEligibility'
+import { getDisplayThresholds } from '@/lib/inventorySettings'
+import { logLanternChange } from '@/lib/inventoryEvents'
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -23,7 +26,13 @@ export default async function handler(req, res) {
        ORDER BY l.tag_id ASC`,
       params
     )
-    return res.status(200).json(rows)
+    // displayable_reasons explains a 不可展示 badge (Phase 1.5) — computed against the
+    // current thresholds so the reason always matches what 管理 Admin shows.
+    const thresholds = await getDisplayThresholds()
+    return res.status(200).json(rows.map((l) => ({
+      ...l,
+      displayable_reasons: l.displayable ? [] : evaluateDisplayability(l, thresholds).reasons,
+    })))
   }
 
   if (req.method === 'POST') {
@@ -43,7 +52,10 @@ export default async function handler(req, res) {
 
     const cloth = cloth_damage_pct ?? 0
     const frame = frame_damage_pct ?? 0
-    const displayable = computeDisplayable(cloth, frame)
+    const { displayable } = evaluateDisplayability(
+      { cloth_damage_pct: cloth, frame_damage_pct: frame },
+      await getDisplayThresholds()
+    )
     const email = req.inventoryEmail
 
     const { rows: [data] } = await query(
@@ -68,6 +80,7 @@ export default async function handler(req, res) {
       action:      'created',
       user_email:  email,
     })
+    await logLanternChange({ before: null, after: data, event_type: 'created', actor: email, always: true })
 
     return res.status(201).json(data)
   }

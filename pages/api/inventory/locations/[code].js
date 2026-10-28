@@ -1,5 +1,6 @@
 import { query, insertInventoryLog } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
+import { UNASSIGNED_LOCATION_CODE, UNASSIGNED_LABEL } from '@/lib/inventoryConstants'
 
 export default async function handler(req, res) {
   const { code } = req.query
@@ -7,6 +8,24 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const role = await requireInventoryRole(req, res, 'viewer')
     if (!role) return
+
+    // Pseudo-location: every lantern with no location_id (Phase 1.3). Read-only — PUT and
+    // DELETE fall through to the normal 404 since no row has this code.
+    if (code === UNASSIGNED_LOCATION_CODE) {
+      const { rows: lanterns } = await query(
+        `SELECT l.*, c.name_zh AS category_name_zh, c.name_en AS category_name_en
+         FROM inv_lantern_lanterns l
+         LEFT JOIN inv_lantern_categories c ON c.id = l.category_id
+         WHERE l.location_id IS NULL
+         ORDER BY l.tag_id ASC`
+      )
+      return res.status(200).json({
+        id: null, code: UNASSIGNED_LOCATION_CODE, zone: null, is_unassigned: true,
+        description: `${UNASSIGNED_LABEL} — 尚未指定存放地點的燈籠`,
+        photo_url: null, photo_thumb_url: null, last_walkthrough_at: null,
+        lanterns,
+      })
+    }
 
     const { rows: [location] } = await query(
       'SELECT * FROM inv_lantern_locations WHERE code = $1',

@@ -10,12 +10,14 @@ import InventoryPhotoLightbox from '@/components/InventoryPhotoLightbox'
 import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
 import ConfirmDialog from '@/components/ConfirmDialog'
+import { UNASSIGNED_LOCATION_CODE, formatLocationCounts, summarizeLanterns } from '@/lib/inventoryConstants'
 
 export default function LocationDetail() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { code } = router.query
   const role = getInventoryRole(session)
+  const isUnassigned = code === UNASSIGNED_LOCATION_CODE
 
   const [location, setLocation] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -61,15 +63,15 @@ export default function LocationDetail() {
 
   return (
     <>
-      <Head><title>{code ?? '地點'} · 燈籠庫存</title></Head>
+      <Head><title>{isUnassigned ? '未指定地點' : (code ?? '地點')} · 燈籠庫存</title></Head>
       <div className="min-h-screen bg-gray-50">
         <InventoryHeader
           icon="pin"
           backHref="/inventory/lanterns/locations"
           backLabel="地點"
-          title={code}
-          subtitle={location ? `${location.zone} 區` : ''}
-          right={role === 'admin' && location && (
+          title={isUnassigned ? '未指定地點' : code}
+          subtitle={location ? (isUnassigned ? 'Unassigned' : (/^[A-Z]$/.test(location.zone) ? `${location.zone} 區` : location.zone)) : ''}
+          right={role === 'admin' && location && !isUnassigned && (
             <div className="flex gap-2">
               <button onClick={() => setShowEdit(true)} className="text-base bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50">
                 編輯
@@ -85,7 +87,7 @@ export default function LocationDetail() {
 
         <InventoryLanternNav active="locations" />
 
-        <main className="max-w-6xl mx-auto px-6 py-10">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
           {loading ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : notFound ? (
@@ -95,6 +97,12 @@ export default function LocationDetail() {
               {deleteError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-base rounded-lg px-4 py-2">{deleteError}</div>
               )}
+              {isUnassigned ? (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 text-base rounded-lg px-4 py-3">
+                  這些燈籠尚未指定存放地點。請在燈籠頁「編輯」或「記錄檢查」中設定地點。
+                  <span className="block text-sm text-amber-700">These lanterns have no location yet — set one via Edit or Record Inspection.</span>
+                </div>
+              ) : (
               <div className="bg-white rounded-lg border border-gray-200 p-5 flex gap-5">
                 {location.photo_url ? (
                   <img
@@ -112,10 +120,11 @@ export default function LocationDetail() {
                   <p className="text-base text-gray-700 whitespace-pre-wrap">{location.description || '尚無說明'}</p>
                 </div>
               </div>
+              )}
 
               <div>
                 <h2 className="text-base font-semibold text-gray-700 mb-3">
-                  此處燈籠 Lanterns here ({location.lanterns.length})
+                  此處燈籠 Lanterns here（{formatLocationCounts(summarizeLanterns(location.lanterns).records, summarizeLanterns(location.lanterns).qty)}）
                 </h2>
                 {location.lanterns.length === 0 ? (
                   <p className="text-base text-gray-400">尚無燈籠存放於此。</p>

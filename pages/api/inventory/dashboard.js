@@ -1,5 +1,7 @@
 import { query } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
+import { sortLocations } from '@/lib/inventoryLocationSort'
+import { UNASSIGNED_LOCATION_CODE } from '@/lib/inventoryConstants'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -27,12 +29,14 @@ export default async function handler(req, res) {
        FROM inv_lantern_lanterns GROUP BY voltage ORDER BY voltage`
     ),
     query(
-      `SELECT loc.code, COUNT(l.id)::int AS count
-       FROM inv_lantern_locations loc
-       JOIN inv_lantern_lanterns l ON l.location_id = loc.id
-       GROUP BY loc.code
-       HAVING COUNT(l.id) > 0
-       ORDER BY count DESC, loc.code`
+      // count = records (筆), qty = units (盞). Lanterns with no location are grouped
+      // under the Unassigned pseudo-location so they're never invisible here.
+      `SELECT COALESCE(loc.code, '${UNASSIGNED_LOCATION_CODE}') AS code,
+              (loc.id IS NULL) AS is_unassigned,
+              COUNT(l.id)::int AS count, COALESCE(SUM(l.qty), 0)::int AS qty
+       FROM inv_lantern_lanterns l
+       LEFT JOIN inv_lantern_locations loc ON loc.id = l.location_id
+       GROUP BY loc.id, loc.code`
     ),
   ])
 
@@ -42,6 +46,10 @@ export default async function handler(req, res) {
     byCondition: byCondition.rows,
     byCategory: byCategory.rows,
     byVoltage: byVoltage.rows,
-    byLocation: byLocation.rows,
+    // Natural order (A1…A11, then Cabin…), Unassigned last.
+    byLocation: [
+      ...sortLocations(byLocation.rows.filter((r) => !r.is_unassigned)),
+      ...byLocation.rows.filter((r) => r.is_unassigned),
+    ],
   })
 }
