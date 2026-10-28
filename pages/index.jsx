@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
+import { useRouter } from 'next/router'
+import NewEventForm from '@/components/NewEventForm'
 import Head from 'next/head'
 import { getInventoryRole, isInventoryAdminOfAny } from '@/lib/inventory'
 import { formatDateOnly, yearOf } from '@/lib/dates'
@@ -65,6 +67,14 @@ export default function Home() {
   const inventoryRole = getInventoryRole(session)
   const canManageUsers = session?.user?.role === 'admin' || isInventoryAdminOfAny(session)
   const isAdmin = session?.user?.role === 'admin'
+  const router = useRouter()
+  const [showNewEvent, setShowNewEvent] = useState(false)
+
+  function handleEventCreated(event) {
+    setShowNewEvent(false)
+    setEvents((list) => [event, ...list])
+    router.push(`/${event.slug}/activities`)
+  }
 
   async function toggleStatus(event, status) {
     const res = await fetch(`/api/events/${event.id}`, {
@@ -95,7 +105,10 @@ export default function Home() {
               <p className="text-xs text-gray-500">bt.cyber-tech.com</p>
             </div>
             {session?.user?.role === 'admin' && (
-              <button className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">
+              <button
+                onClick={() => setShowNewEvent(true)}
+                className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
+              >
                 + 新增活動
               </button>
             )}
@@ -141,6 +154,14 @@ export default function Home() {
           )}
         </main>
       </div>
+
+      {showNewEvent && (
+        <NewEventForm
+          events={events}
+          onCreated={handleEventCreated}
+          onCancel={() => setShowNewEvent(false)}
+        />
+      )}
     </>
   )
 }
