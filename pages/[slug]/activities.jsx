@@ -34,6 +34,7 @@ export default function ActivitiesPage() {
   const [selectedActivityId, setSelectedActivityId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [photos, setPhotos] = useState([])
+  const [documents, setDocuments] = useState([])
   const [viewPhoto, setViewPhoto] = useState(null)
 
   const isAdmin = session?.user?.role === 'admin'
@@ -64,6 +65,14 @@ export default function ActivitiesPage() {
       .catch(() => setPhotos([]))
   }
 
+  function loadDocuments(eid) {
+    if (!eid) return
+    fetch(`/api/event-documents?event_id=${eid}`)
+      .then((r) => r.json())
+      .then((d) => setDocuments(Array.isArray(d) ? d : []))
+      .catch(() => setDocuments([]))
+  }
+
   function loadAnnouncements(eid) {
     if (!eid) return
     fetch(`/api/announcements?event_id=${eid}`)
@@ -81,6 +90,7 @@ export default function ActivitiesPage() {
             setEventId(ev.id)
             loadAnnouncements(ev.id)
             loadPhotos(ev.id)
+            loadDocuments(ev.id)
           }
         })
       load()
@@ -102,6 +112,10 @@ export default function ActivitiesPage() {
   const visiblePhotos = selectedActivityId
     ? photos.filter((p) => p.activity_id === selectedActivityId)
     : photos
+
+  const visibleDocuments = selectedActivityId
+    ? documents.filter((d) => d.activity_id === selectedActivityId)
+    : documents
 
   const visibleAnnouncements = selectedActivityId
     ? announcements.filter((a) => a.activity_id === selectedActivityId)
@@ -155,6 +169,34 @@ export default function ActivitiesPage() {
               )
             })}
           </div>
+        )}
+
+        {/* Documents (from imports) */}
+        {visibleDocuments.length > 0 && (
+          <section className="mb-10">
+            <h2 className="text-sm font-medium text-gray-700 mb-3">
+              {t(lang, 'Documents', '文件')}
+              <span className="text-gray-400 font-normal"> （{visibleDocuments.length}）</span>
+            </h2>
+            <div className="flex flex-col gap-2">
+              {visibleDocuments.map((d) => (
+                <a key={d.id} href={d.url} target="_blank" rel="noreferrer"
+                  className="bg-white border border-gray-200 rounded-lg px-4 py-3 flex gap-3 hover:border-blue-400 transition-colors">
+                  <span className={`ti ${d.doc_kind === 'plan' ? 'ti-list-check' : 'ti-file-text'} text-lg text-blue-500 shrink-0`} />
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-900 break-all">{d.name}</p>
+                    {d.summary && <p className="text-xs text-gray-500 mt-0.5">{d.summary}</p>}
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {d.doc_kind === 'plan' ? t(lang, 'Plan', '計畫文件') : t(lang, 'Reference', '參考資料')}
+                      {' · '}
+                      {activities.find((a) => a.id === d.activity_id)?.name ?? t(lang, 'Whole event', '整個活動')}
+                      {d.uploader_name && ` · ${d.uploader_name}`}
+                    </p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </section>
         )}
 
         {/* Photos (from chat imports) */}

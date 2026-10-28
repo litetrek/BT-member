@@ -10,6 +10,7 @@ import {
   parseWhatsApp, parsePastedText, withKeys, chunkMessages, guessMember, IMAGE_EXT_RE,
 } from '@/lib/chatImport'
 import { resizeForUpload } from '@/lib/inventoryPhoto'
+import { prepareDocument, uploadDocument, ACCEPT_ATTR } from '@/lib/docExtract'
 
 // Unified import (spec: "New feature: unified import"). Everything happens in the
 // browser until the coordinator confirms: the zip is unpacked here (exports with media
@@ -24,6 +25,17 @@ const STATUS_OPTS = [
 
 function fmtAt(at) {
   return at ? at.slice(5, 16).replace('T', ' ').replace('-', '/') : ''
+}
+
+// An activity choice is an existing activity id, 'new:<key>' for an activity the
+// document proposes, or '' for none.
+const splitTarget = (v) => (v && v.startsWith('new:') ? { activity_id: null, new_activity: v.slice(4) } : { activity_id: v || null, new_activity: null })
+const joinTarget = (activityId, newKey) => activityId || (newKey ? `new:${newKey}` : '')
+const normName = (s) => String(s ?? '').toLowerCase().replace(/[\s、，,。.:：（）()\-–—_]/g, '')
+
+function fmtSize(n) {
+  if (!n) return ''
+  return n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`
 }
 
 async function readChatZip(file) {
@@ -84,6 +96,17 @@ function SourceMessages({ indexes, byIndex }) {
   )
 }
 
+function DocSource({ doc, excerpt }) {
+  if (!doc) return null
+  return (
+    <p className="mt-2 text-xs text-gray-500 break-words">
+      <span className="ti ti-file-text mr-1" />
+      {doc.name}
+      {excerpt && <span className="text-gray-400">：「{excerpt}」</span>}
+    </p>
+  )
+}
+
 export default function ImportPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -94,7 +117,7 @@ export default function ImportPage() {
   const [ctx, setCtx] = useState(null)          // { event, activities, members, sender_map }
   const [ctxError, setCtxError] = useState(null)
   const [step, setStep] = useState('pick')      // pick → match → analyzing → review → saving → done
-  const [mode, setMode] = useState('file')      // file | paste
+  const [mode, setMode] = useState('file')      // file | paste | docs
   const [pasteText, setPasteText] = useState('')
   const [pasteSender, setPasteSender] = useState('')
   const [busy, setBusy] = useState(false)
@@ -111,6 +134,9 @@ export default function ImportPage() {
   const [thumbs, setThumbs] = useState({})             // message index → object URL
   const [result, setResult] = useState(null)
   const [warnings, setWarnings] = useState([])
+  const [docs, setDocs] = useState([])                 // imported files (documents mode)
+  const [newActs, setNewActs] = useState([])           // activities proposed by documents
+  const docInputRef = useRef(null)
   const fileRef = useRef(null)
 
   useEffect(() => {
@@ -222,6 +248,89 @@ export default function ImportPage() {
     }
   }
 
+  // ---------- Documents: upload → read → AI, one file at a time ----------
+
+  async function handleDocs(fileList) {
+    const files = [...(fileList ?? [])]
+    if (docInputRef.current) docInputRef.current.value = ''
+    if (!files.length) return
+    setError(null)
+    setStep('analyzing')
+    const warn = []
+    const gotDocs = []
+    const gotNew = []        // { key, name, lead_id, checked }
+    const su = []
+    const tasks = []
+    let uid = 0
+    const me = session.user.id
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      setProgress({ done: i, total: files.length, label: `讀取並分析「${file.name}」` })
+      try {
+        const prepared = await prepareDocument(file)
+        const seenRes = await fetch('/api/import/seen', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event_id: ctx.event.id, keys: [prepared.key] }),
+        }).then((r) => r.json()).catch(() => ({ seen: [] }))
+        const seen = (seenRes.seen ?? []).includes(prepared.key)
+        const url = await uploadDocument(prepared, ctx.event.id)
+        const res = await fetch('/api/import/analyze-doc', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event_id: ctx.event.id, doc: { name: file.name, url, type: prepared.type, text: prepared.text } }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(`「${file.name}」：${data.error ?? 'AI 分析失敗'}`)
+        if (prepared.truncated) warn.push(`「${file.name}」很長，只分析了前面的部分。`)
+        if (data.truncated) warn.push(`「${file.name}」內容很多，AI 可能沒有全部列出。`)
+
+        // New activities: one per name across all files; keys made unique per file.
+        const keyMap = new Map()
+        for (const n of data.new_activities ?? []) {
+          const dup = gotNew.find((x) => normName(x.name) === normName(n.name))
+          if (dup) { keyMap.set(n.key, dup.key); continue }
+          const key = `d${gotDocs.length}-${n.key}`
+          keyMap.set(n.key, key)
+          gotNew.push({ key, name: n.name, lead_id: guessMember(n.lead, members) ?? me, lead_hint: n.lead, checked: true })
+        }
+        const target = (x) => joinTarget(x.activity_id, x.new_activity ? keyMap.get(x.new_activity) : null)
+        const docIndex = gotDocs.length
+
+        gotDocs.push({
+          uid: ++uid, index: docIndex, name: file.name, size: file.size, type: prepared.type,
+          mime: prepared.uploadMime, key: prepared.key, url, text: prepared.text ?? null, seen,
+          doc_kind: data.doc_kind, summary: data.summary, activity_id: joinTarget(data.activity_id, null), checked: true,
+        })
+        for (const u of data.status_updates ?? []) {
+          su.push({ uid: ++uid, checked: !seen, doc: docIndex, excerpt: u.excerpt, summary: u.summary, activity_id: target(u), reporter_id: '', messages: [] })
+        }
+        for (const tk of data.tasks ?? []) {
+          const owner = guessMember(tk.owner, members)
+          tasks.push({
+            uid: ++uid, checked: !seen, doc: docIndex, excerpt: tk.excerpt, title: tk.title, activity_id: target(tk),
+            owner_id: owner || me, owner_unmatched: tk.owner && !owner ? tk.owner : null,
+            due_date: tk.due_date, status: tk.status, messages: [],
+          })
+        }
+      } catch (err) {
+        warn.push(err.message || `「${file.name}」無法匯入`)
+      }
+    }
+
+    if (!gotDocs.length) {
+      setError(warn.join(' ') || '沒有可匯入的文件')
+      setStep('pick')
+      return
+    }
+    setSource('document')
+    setAllMessages([]); setSenderMap({}); setMedia(new Map())
+    setDocs(gotDocs)
+    setNewActs(gotNew)
+    setItems({ status_updates: su, tasks, photos: [] })
+    setWarnings(warn)
+    setStep('review')
+  }
+
   // ---------- Step 2 → 3: AI analysis ----------
 
   function resolvePerson(name) {
@@ -296,7 +405,11 @@ export default function ImportPage() {
     tasks: items.tasks.filter((x) => x.checked),
     photos: items.photos.filter((x) => x.checked),
   }
-  const tasksMissingActivity = chosen.tasks.filter((x) => !x.activity_id).length
+  const chosenNewKeys = new Set(newActs.filter((n) => n.checked && n.name.trim()).map((n) => n.key))
+  const hasTarget = (v) => !!v && (!v.startsWith('new:') || chosenNewKeys.has(v.slice(4)))
+  const tasksMissingActivity = chosen.tasks.filter((x) => !hasTarget(x.activity_id)).length
+  const chosenDocs = docs.filter((d) => d.checked)
+  const nothingChosen = !chosen.status_updates.length && !chosen.tasks.length && !chosen.photos.length && !chosenDocs.length && !chosenNewKeys.size
 
   // ---------- Step 5: save ----------
 
@@ -338,9 +451,15 @@ export default function ImportPage() {
             at_iso: new Date(m.at).toISOString(),
           })),
           sender_map: Object.fromEntries(Object.entries(senderMap).map(([k, v]) => [k, v || null])),
-          status_updates: chosen.status_updates.map(({ messages, activity_id, reporter_id, summary }) => ({ messages, activity_id, reporter_id: reporter_id || null, summary })),
-          tasks: chosen.tasks.map(({ messages, activity_id, owner_id, title, due_date, status: st }) => ({ messages, activity_id, owner_id, title, due_date, status: st })),
-          photos: photoPayload,
+          status_updates: chosen.status_updates.map(({ messages, doc, excerpt, activity_id, reporter_id, summary }) => ({ messages, doc, excerpt, ...splitTarget(hasTarget(activity_id) ? activity_id : ''), reporter_id: reporter_id || null, summary })),
+          tasks: chosen.tasks.map(({ messages, doc, excerpt, activity_id, owner_id, title, due_date, status: st }) => ({ messages, doc, excerpt, ...splitTarget(activity_id), owner_id, title, due_date, status: st })),
+          photos: photoPayload.map((p) => ({ ...p, ...splitTarget(p.activity_id) })),
+          // Every document is listed so items can point at it; only ticked ones are stored.
+          documents: docs.map((d) => ({
+            key: d.key, name: d.name, url: d.url, mime: d.mime, size: d.size, doc_kind: d.doc_kind,
+            summary: d.summary, text: d.text, store: d.checked, ...splitTarget(hasTarget(d.activity_id) ? d.activity_id : ''),
+          })),
+          new_activities: newActs.filter((n) => chosenNewKeys.has(n.key)).map(({ key, name, lead_id }) => ({ key, name: name.trim(), lead_id })),
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -354,7 +473,7 @@ export default function ImportPage() {
   }
 
   function reset() {
-    setStep('pick'); setAllMessages([]); setItems({ status_updates: [], tasks: [], photos: [] })
+    setStep('pick'); setAllMessages([]); setItems({ status_updates: [], tasks: [], photos: [] }); setDocs([]); setNewActs([])
     setResult(null); setError(null); setPasteText(''); setWarnings([])
   }
 
@@ -363,9 +482,10 @@ export default function ImportPage() {
   const selectCls = 'border border-gray-200 rounded px-2 py-1.5 text-sm bg-white max-w-full focus:outline-none focus:ring-1 focus:ring-blue-400'
   const inputCls = 'w-full border border-gray-200 rounded px-2 py-1.5 text-base sm:text-sm focus:outline-none focus:ring-1 focus:ring-blue-400'
   const activitySelect = (value, onChange, required = false) => (
-    <select className={`${selectCls} ${required && !value ? 'border-red-400 text-red-600' : ''}`} value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
+    <select className={`${selectCls} ${required && !hasTarget(value) ? 'border-red-400 text-red-600' : ''}`} value={hasTarget(value) ? value : ''} onChange={(e) => onChange(e.target.value || null)}>
       <option value="">{required ? '— 請選擇活動項目 —' : '（不指定活動項目）'}</option>
       {activities.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+      {newActs.filter((n) => n.checked && n.name.trim()).map((n) => <option key={n.key} value={`new:${n.key}`}>＋ {n.name}（新）</option>)}
     </select>
   )
   const memberOptions = (
@@ -400,7 +520,7 @@ export default function ImportPage() {
               </div>
             )}
             <div className="flex gap-2 mb-4">
-              {[['file', 'WhatsApp 匯出檔'], ['paste', '貼上文字（簡訊）']].map(([k, label]) => (
+              {[['file', 'WhatsApp 匯出檔'], ['paste', '貼上文字（簡訊）'], ['docs', '上傳文件']].map(([k, label]) => (
                 <button key={k} onClick={() => setMode(k)}
                   className={`text-sm px-3 py-1.5 rounded-full border ${mode === k ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-600'}`}>
                   {label}
@@ -408,7 +528,23 @@ export default function ImportPage() {
               ))}
             </div>
 
-            {mode === 'file' ? (
+            {mode === 'docs' ? (
+              <div className="bg-white border border-gray-200 rounded-xl p-5">
+                <p className="text-sm text-gray-700 mb-1">上傳活動計畫、會議紀錄、分工表、名單、時間表等文件，可以一次選多個檔案。</p>
+                <p className="text-xs text-gray-400 mb-4">
+                  支援 Word（.docx）、Excel（.xlsx）、CSV、PDF（含掃描檔）和照片（手寫清單、白板）。
+                  計畫類文件會整理出任務和狀態更新，也會提出新的活動項目；名單、時間表等參考資料會存在活動項目下，AI 助理可以回答相關問題。
+                  電子郵件的附件請先存檔再上傳；郵件內容可以用「貼上文字」。
+                </p>
+                <label className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm text-white ${busy ? 'bg-blue-300' : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'}`}>
+                  <span className="ti ti-upload" />
+                  選擇文件
+                  <input ref={docInputRef} type="file" multiple accept={ACCEPT_ATTR} className="hidden" disabled={busy}
+                    onChange={(e) => handleDocs(e.target.files)} />
+                </label>
+                <p className="text-xs text-gray-400 mt-3">舊版 .doc / .xls 請先另存為 .docx / .xlsx 或 PDF。每個檔案 25 MB 以內。</p>
+              </div>
+            ) : mode === 'file' ? (
               <div className="bg-white border border-gray-200 rounded-xl p-5">
                 <p className="text-sm text-gray-700 mb-1">在手機的 WhatsApp 群組 → 群組名稱 → <b>匯出聊天</b>，把檔案存下來後在這裡選取。</p>
                 <p className="text-xs text-gray-400 mb-4">iPhone 會產生 .zip，Android 會產生 .txt。含照片的 .zip 也可以，照片會附加到對應的活動項目（影片和語音不匯入）。已經匯入過的訊息會自動略過。</p>
@@ -502,6 +638,59 @@ export default function ImportPage() {
           <div className="max-w-3xl pb-28">
             {warnings.map((w) => <p key={w} className="mb-3 text-sm text-amber-700">{w}</p>)}
 
+            {newActs.length > 0 && (
+              <Section title="新的活動項目" count={`${chosenNewKeys.size}/${newActs.length}`}>
+                <p className="text-xs text-gray-500 mb-2">文件中提到、但目前沒有的活動項目。勾選的會建立，相關任務會放在下面。</p>
+                <div className="flex flex-col gap-2">
+                  {newActs.map((n) => (
+                    <div key={n.key} className={`bg-white border rounded-lg p-3 flex flex-wrap gap-2 items-center ${n.checked ? 'border-gray-200' : 'border-gray-100 opacity-50'}`}>
+                      <input type="checkbox" className="w-4 h-4 accent-blue-600" checked={n.checked}
+                        onChange={(e) => setNewActs((list) => list.map((x) => (x.key === n.key ? { ...x, checked: e.target.checked } : x)))} />
+                      <input className={`${inputCls} flex-1 min-w-[10rem] w-auto`} value={n.name}
+                        onChange={(e) => setNewActs((list) => list.map((x) => (x.key === n.key ? { ...x, name: e.target.value } : x)))} />
+                      <select className={selectCls} value={n.lead_id}
+                        onChange={(e) => setNewActs((list) => list.map((x) => (x.key === n.key ? { ...x, lead_id: e.target.value } : x)))}>
+                        {memberOptions}
+                      </select>
+                      {n.lead_hint && !members.some((u) => u.id === n.lead_id && normName(u.name) === normName(n.lead_hint)) && (
+                        <span className="text-xs text-amber-600 w-full">文件寫的負責人是「{n.lead_hint}」，請確認。</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            )}
+
+            {docs.length > 0 && (
+              <Section title="文件" count={`${chosenDocs.length}/${docs.length}`}>
+                <div className="flex flex-col gap-3">
+                  {docs.map((d) => (
+                    <div key={d.uid} className={`bg-white border rounded-lg p-3 ${d.checked ? 'border-gray-200' : 'border-gray-100 opacity-50'}`}>
+                      <div className="flex gap-3">
+                        <input type="checkbox" className="w-4 h-4 mt-1 accent-blue-600 shrink-0" checked={d.checked}
+                          onChange={(e) => setDocs((list) => list.map((x) => (x.uid === d.uid ? { ...x, checked: e.target.checked } : x)))} />
+                        <div className="flex-1 min-w-0">
+                          <a href={d.url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline break-all">{d.name}</a>
+                          <span className="text-xs text-gray-400 ml-2">{fmtSize(d.size)}</span>
+                          {d.seen && <p className="text-xs text-amber-600 mt-1">這份文件以前匯入過，相關項目預設不勾選。</p>}
+                          <textarea rows={2} className={`${inputCls} mt-2`} value={d.summary ?? ''} placeholder="文件說明"
+                            onChange={(e) => setDocs((list) => list.map((x) => (x.uid === d.uid ? { ...x, summary: e.target.value } : x)))} />
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <select className={selectCls} value={d.doc_kind}
+                              onChange={(e) => setDocs((list) => list.map((x) => (x.uid === d.uid ? { ...x, doc_kind: e.target.value } : x)))}>
+                              <option value="plan">計畫／待辦文件</option>
+                              <option value="reference">參考資料</option>
+                            </select>
+                            {activitySelect(d.activity_id, (v) => setDocs((list) => list.map((x) => (x.uid === d.uid ? { ...x, activity_id: v ?? '' } : x))))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            )}
+
             <Section title="狀態更新" count={`${chosen.status_updates.length}/${items.status_updates.length}`}
               action={items.status_updates.length > 0 && <button onClick={() => setAll('status_updates', chosen.status_updates.length !== items.status_updates.length)} className="text-xs text-blue-600">{chosen.status_updates.length === items.status_updates.length ? '全部取消' : '全選'}</button>}>
               {items.status_updates.length === 0 && <p className="text-sm text-gray-400">沒有找到狀態更新。</p>}
@@ -515,12 +704,14 @@ export default function ImportPage() {
                         <div className="flex flex-wrap gap-2 mt-2 items-center">
                           {activitySelect(u.activity_id, (v) => update('status_updates', u.uid, { activity_id: v }))}
                           <select className={selectCls} value={u.reporter_id ?? ''} onChange={(e) => update('status_updates', u.uid, { reporter_id: e.target.value })}>
-                            <option value="">回報人：未對應（{u.reporter}）</option>
+                            <option value="">{u.reporter ? `回報人：未對應（${u.reporter}）` : '回報人：（不指定）'}</option>
                             {memberOptions}
                           </select>
-                          <span className="text-xs text-gray-400">{fmtAt(byIndex.get(u.messages[0])?.at)}</span>
+                          {!Number.isInteger(u.doc) && <span className="text-xs text-gray-400">{fmtAt(byIndex.get(u.messages[0])?.at)}</span>}
                         </div>
-                        <SourceMessages indexes={u.messages} byIndex={byIndex} />
+                        {Number.isInteger(u.doc)
+                          ? <DocSource doc={docs[u.doc]} excerpt={u.excerpt} />
+                          : <SourceMessages indexes={u.messages} byIndex={byIndex} />}
                       </div>
                     </div>
                   </div>
@@ -551,7 +742,9 @@ export default function ImportPage() {
                         {tk.owner_unmatched && (
                           <p className="text-xs text-amber-600 mt-1">訊息提到的負責人「{tk.owner_unmatched}」不是成員，暫時指派給 {memberName(tk.owner_id)}。</p>
                         )}
-                        <SourceMessages indexes={tk.messages} byIndex={byIndex} />
+                        {Number.isInteger(tk.doc)
+                          ? <DocSource doc={docs[tk.doc]} excerpt={tk.excerpt} />
+                          : <SourceMessages indexes={tk.messages} byIndex={byIndex} />}
                       </div>
                     </div>
                   </div>
@@ -559,7 +752,7 @@ export default function ImportPage() {
               </div>
             </Section>
 
-            <Section title="照片" count={`${chosen.photos.length}/${items.photos.length}`}
+            {(source !== 'document' || items.photos.length > 0) && <Section title="照片" count={`${chosen.photos.length}/${items.photos.length}`}
               action={items.photos.length > 0 && <button onClick={() => setAll('photos', chosen.photos.length !== items.photos.length)} className="text-xs text-blue-600">{chosen.photos.length === items.photos.length ? '全部取消' : '全選'}</button>}>
               {items.photos.length === 0 && <p className="text-sm text-gray-400">沒有照片。</p>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -580,17 +773,19 @@ export default function ImportPage() {
                   )
                 })}
               </div>
-            </Section>
+            </Section>}
 
             <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-200 px-4 py-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
               <div className="max-w-3xl mx-auto flex flex-wrap items-center gap-3">
                 <p className="text-xs text-gray-500 flex-1 min-w-[12rem]">
                   {tasksMissingActivity > 0
                     ? <span className="text-red-600">有 {tasksMissingActivity} 個任務還沒選擇活動項目。</span>
-                    : `將儲存 ${chosen.status_updates.length} 則狀態更新、${chosen.tasks.length} 個任務、${chosen.photos.length} 張照片。全部 ${inRange.length} 則訊息會標記為已匯入。`}
+                    : source === 'document'
+                      ? `將儲存 ${chosenDocs.length} 份文件、${chosenNewKeys.size} 個新活動項目、${chosen.status_updates.length} 則狀態更新、${chosen.tasks.length} 個任務。`
+                      : `將儲存 ${chosen.status_updates.length} 則狀態更新、${chosen.tasks.length} 個任務、${chosen.photos.length} 張照片。全部 ${inRange.length} 則訊息會標記為已匯入。`}
                 </p>
-                <button onClick={() => setStep('match')} className="px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">上一步</button>
-                <button onClick={confirmImport} disabled={tasksMissingActivity > 0}
+                <button onClick={() => (source === 'document' ? reset() : setStep('match'))} className="px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">上一步</button>
+                <button onClick={confirmImport} disabled={tasksMissingActivity > 0 || nothingChosen}
                   className="px-4 py-2 rounded-lg text-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
                   確認匯入
                 </button>
@@ -603,8 +798,12 @@ export default function ImportPage() {
           <div className="max-w-md bg-white border border-gray-200 rounded-xl p-6">
             <p className="text-base font-semibold text-gray-900 mb-2">匯入完成</p>
             <p className="text-sm text-gray-700">
-              已儲存 {result.saved.status_updates} 則狀態更新、{result.saved.tasks} 個任務、{result.saved.photos} 張照片。
-              {result.messages} 則訊息已標記為已匯入，下次會自動略過。
+              已儲存
+              {result.saved.documents > 0 && ` ${result.saved.documents} 份文件、`}
+              {result.saved.activities > 0 && ` ${result.saved.activities} 個新活動項目、`}
+              {' '}{result.saved.status_updates} 則狀態更新、{result.saved.tasks} 個任務
+              {result.saved.photos > 0 && `、${result.saved.photos} 張照片`}。
+              {result.messages > 0 && ` ${result.messages} 則訊息已標記為已匯入，下次會自動略過。`}
             </p>
             {result.failedPhotos?.length > 0 && (
               <p className="text-sm text-amber-700 mt-2">有 {result.failedPhotos.length} 張照片無法讀取（可能是 HEIC 格式），沒有上傳。</p>
