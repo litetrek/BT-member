@@ -33,6 +33,8 @@ export default function ActivitiesPage() {
   const [showStatusForm, setShowStatusForm] = useState(false)
   const [selectedActivityId, setSelectedActivityId] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [photos, setPhotos] = useState([])
+  const [viewPhoto, setViewPhoto] = useState(null)
 
   const isAdmin = session?.user?.role === 'admin'
   const canPost = ['admin', 'lead'].includes(session?.user?.role)
@@ -54,6 +56,14 @@ export default function ActivitiesPage() {
       .finally(() => setLoading(false))
   }
 
+  function loadPhotos(eid) {
+    if (!eid) return
+    fetch(`/api/activity-photos?event_id=${eid}`)
+      .then((r) => r.json())
+      .then((d) => setPhotos(Array.isArray(d) ? d : []))
+      .catch(() => setPhotos([]))
+  }
+
   function loadAnnouncements(eid) {
     if (!eid) return
     fetch(`/api/announcements?event_id=${eid}`)
@@ -70,6 +80,7 @@ export default function ActivitiesPage() {
           if (ev) {
             setEventId(ev.id)
             loadAnnouncements(ev.id)
+            loadPhotos(ev.id)
           }
         })
       load()
@@ -87,6 +98,10 @@ export default function ActivitiesPage() {
   }
 
   const selectedActivity = activities.find((a) => a.id === selectedActivityId)
+
+  const visiblePhotos = selectedActivityId
+    ? photos.filter((p) => p.activity_id === selectedActivityId)
+    : photos
 
   const visibleAnnouncements = selectedActivityId
     ? announcements.filter((a) => a.activity_id === selectedActivityId)
@@ -139,6 +154,36 @@ export default function ActivitiesPage() {
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {/* Photos (from chat imports) */}
+        {visiblePhotos.length > 0 && (
+          <section className="mb-10">
+            <h2 className="text-sm font-medium text-gray-700 mb-3">
+              {t(lang, 'Photos', '照片')}
+              <span className="text-gray-400 font-normal"> （{visiblePhotos.length}）</span>
+            </h2>
+            <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-6 gap-2">
+              {visiblePhotos.map((p) => (
+                <button key={p.id} onClick={() => setViewPhoto(p)} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                  <img src={p.thumb_url || p.url} alt={p.caption ?? ''} loading="lazy" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {viewPhoto && (
+          <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4" onClick={() => setViewPhoto(null)}>
+            <img src={viewPhoto.url} alt={viewPhoto.caption ?? ''} className="max-w-full max-h-[80vh] rounded-lg" />
+            <p className="text-sm text-white mt-3 text-center">
+              {viewPhoto.caption}
+              {viewPhoto.caption && ' · '}
+              {activities.find((a) => a.id === viewPhoto.activity_id)?.name ?? t(lang, 'No activity', '未指定活動項目')}
+              {viewPhoto.sender_name && ` · ${viewPhoto.sender_name}`}
+              {viewPhoto.taken_at && ` · ${formatDate(viewPhoto.taken_at, lang)}`}
+            </p>
           </div>
         )}
 
@@ -213,7 +258,12 @@ export default function ActivitiesPage() {
                       <span>
                         {t(lang, 'Time:', '回報時間：')}{formatDate(a.reported_at ?? a.created_at, lang)}
                       </span>
-                      {showOnBehalf && (
+                      {a.imported_by_ai && (
+                        <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-600" title={a.source_text ?? ''}>
+                          {t(lang, 'AI import', 'AI 匯入')}{a.source === 'sms' ? t(lang, ' · SMS', '・簡訊') : ' · WhatsApp'}
+                        </span>
+                      )}
+                      {showOnBehalf && !a.imported_by_ai && (
                         <span className="text-gray-400 italic">
                           {t(lang, `Posted by ${posterName}`, `由 ${posterName} 代為發佈`)}
                         </span>

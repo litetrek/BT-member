@@ -40,7 +40,7 @@ export default function TaskItem({ task, currentUserId, userRole, onStatusChange
         <p className={`text-sm text-gray-800 truncate ${isDone ? 'line-through text-gray-400' : ''}`}>
           {task.title}
         </p>
-        {(task.activity?.name || task.task_type) && (
+        {(task.activity?.name || task.task_type || task.imported_by_ai) && (
           <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
             {task.activity?.name}
             {task.activity?.name && task.task_type && task.task_type !== 'general' && (
@@ -49,6 +49,11 @@ export default function TaskItem({ task, currentUserId, userRole, onStatusChange
             {task.task_type && task.task_type !== 'general' && (
               <span className="inline-flex items-center px-1.5 py-0 rounded text-[10px] font-medium bg-gray-100 text-gray-500">
                 {task.task_type}
+              </span>
+            )}
+            {task.imported_by_ai && (
+              <span className="inline-flex items-center px-1.5 py-0 rounded text-[10px] font-medium bg-purple-50 text-purple-600">
+                {t(lang, 'AI import', 'AI 匯入')}
               </span>
             )}
           </p>

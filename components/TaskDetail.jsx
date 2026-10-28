@@ -218,6 +218,15 @@ export default function TaskDetail({ task, onClose, onSaved }) {
             )}
           </div>
 
+          {task.imported_by_ai && task.source_text && (
+            <div className="px-5 py-3 border-b border-gray-100">
+              <p className="text-xs text-gray-400 mb-1">
+                {t(lang, 'Imported by AI from', 'AI 匯入自')} {task.source === 'sms' ? t(lang, 'SMS', '簡訊') : 'WhatsApp'}
+              </p>
+              <p className="text-xs text-gray-600 whitespace-pre-wrap break-words bg-gray-50 rounded p-2">{task.source_text}</p>
+            </div>
+          )}
+
           {/* Update form */}
           {canUpdate && (
             <div className="px-5 py-4 border-b border-gray-100 flex flex-col gap-3">
