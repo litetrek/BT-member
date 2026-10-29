@@ -149,21 +149,24 @@ export default function FieldWalkthrough() {
               {location.lanterns.length === 0 ? (
                 <p className="text-base text-gray-400">此地點尚無燈籠記錄。</p>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                   {location.lanterns.map((lt) => {
                     const checked = checkedIds.includes(lt.id)
                     return (
                       <button
                         key={lt.id}
                         onClick={() => setActiveLantern(lt)}
-                        className={`relative text-left bg-white rounded-lg border-2 p-3 ${checked ? 'border-green-400' : 'border-gray-200'}`}
+                        className={`relative flex flex-col justify-start text-left bg-white rounded-lg border-2 p-3 ${checked ? 'border-green-400' : 'border-gray-200'}`}
                       >
-                        <InventoryLanternThumb src={lt.primary_photo_thumb_url} alt={lt.tag_id} size="w-full h-20 mb-2" />
+                        <InventoryLanternThumb src={lt.primary_photo_thumb_url} alt={lt.tag_id} size="w-full aspect-square mb-2" />
                         {checked && (
                           <span className="absolute top-4 right-4 w-6 h-6 rounded-full bg-green-500 text-white text-sm flex items-center justify-center ring-2 ring-white">✓</span>
                         )}
                         <p className="font-mono text-sm text-gray-400">{lt.tag_id}</p>
                         <p className="font-semibold text-gray-900 text-base truncate">{lt.name_zh}</p>
+                        {lt.name_en && lt.name_en !== lt.name_zh && (
+                          <p className="text-sm text-gray-600 truncate">{lt.name_en}</p>
+                        )}
                         <p className="text-sm text-gray-400">{lt.condition} · QTY {lt.qty}</p>
                       </button>
                     )

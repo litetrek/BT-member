@@ -145,3 +145,8 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
 - 地點 `/inventory/lanterns/locations/<地點>`: 56px thumbnail beside each lantern, like the list page.
 - **Verified** (local Postgres, prod build): Cabin with 8 lanterns (6 with photos, 2 without) at
   375px and 1280px — correct thumbs / 無照片 tiles, no horizontal scroll, no JS errors; lint 0 errors.
+- **Follow-up (same day)**: field-mode photo is now a full-width **square** (`aspect-square`), and
+  cards show **both names** — 中文 name_zh (bold) with name_en underneath when it's set and differs
+  (the 地點 list shows name_en too). Card content pinned to the top (`flex flex-col justify-start`;
+  buttons centre content by default, which misaligned photos in a row). Grid widens to 4–5 columns
+  on desktop so squares stay small. Verified at 375px / 1280px, no horizontal scroll, no JS errors.

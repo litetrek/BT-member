@@ -137,6 +137,9 @@ export default function LocationDetail() {
                           <InventoryLanternThumb src={lt.primary_photo_thumb_url} alt={lt.tag_id} />
                           <div className="min-w-0">
                             <p className="font-semibold text-gray-900 text-base truncate">{lt.tag_id} — {lt.name_zh}</p>
+                            {lt.name_en && lt.name_en !== lt.name_zh && (
+                              <p className="text-sm text-gray-600 truncate">{lt.name_en}</p>
+                            )}
                             <p className="text-sm text-gray-400">{lt.condition} · QTY {lt.qty}</p>
                           </div>
                         </div>
