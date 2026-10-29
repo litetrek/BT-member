@@ -10,6 +10,7 @@ import InventoryPhotoLightbox from '@/components/InventoryPhotoLightbox'
 import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
 import ConfirmDialog from '@/components/ConfirmDialog'
+import InventoryLanternThumb from '@/components/InventoryLanternThumb'
 import { UNASSIGNED_LOCATION_CODE, formatLocationCounts, summarizeLanterns } from '@/lib/inventoryConstants'
 
 export default function LocationDetail() {
@@ -132,9 +133,12 @@ export default function LocationDetail() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {location.lanterns.map((lt) => (
                       <Link key={lt.id} href={`/inventory/lanterns/${lt.tag_id}`}>
-                        <div className="bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all">
-                          <p className="font-semibold text-gray-900 text-base">{lt.tag_id} — {lt.name_zh}</p>
-                          <p className="text-sm text-gray-400">{lt.condition} · QTY {lt.qty}</p>
+                        <div className="bg-white rounded-lg border border-gray-200 p-3 flex gap-3 items-center cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all">
+                          <InventoryLanternThumb src={lt.primary_photo_thumb_url} alt={lt.tag_id} />
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 text-base truncate">{lt.tag_id} — {lt.name_zh}</p>
+                            <p className="text-sm text-gray-400">{lt.condition} · QTY {lt.qty}</p>
+                          </div>
                         </div>
                       </Link>
                     ))}

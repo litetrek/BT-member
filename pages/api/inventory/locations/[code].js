@@ -13,7 +13,10 @@ export default async function handler(req, res) {
     // DELETE fall through to the normal 404 since no row has this code.
     if (code === UNASSIGNED_LOCATION_CODE) {
       const { rows: lanterns } = await query(
-        `SELECT l.*, c.name_zh AS category_name_zh, c.name_en AS category_name_en
+        `SELECT l.*, c.name_zh AS category_name_zh, c.name_en AS category_name_en,
+                (SELECT p.thumb_url FROM inv_lantern_photos p
+                 WHERE p.owner_type = 'lantern' AND p.owner_id = l.id
+                 ORDER BY p.is_primary DESC, p.taken_at ASC LIMIT 1) AS primary_photo_thumb_url
          FROM inv_lantern_lanterns l
          LEFT JOIN inv_lantern_categories c ON c.id = l.category_id
          WHERE l.location_id IS NULL
@@ -34,7 +37,10 @@ export default async function handler(req, res) {
     if (!location) return res.status(404).json({ error: 'Location not found' })
 
     const { rows: lanterns } = await query(
-      `SELECT l.*, c.name_zh AS category_name_zh, c.name_en AS category_name_en
+      `SELECT l.*, c.name_zh AS category_name_zh, c.name_en AS category_name_en,
+              (SELECT p.thumb_url FROM inv_lantern_photos p
+               WHERE p.owner_type = 'lantern' AND p.owner_id = l.id
+               ORDER BY p.is_primary DESC, p.taken_at ASC LIMIT 1) AS primary_photo_thumb_url
        FROM inv_lantern_lanterns l
        LEFT JOIN inv_lantern_categories c ON c.id = l.category_id
        WHERE l.location_id = $1

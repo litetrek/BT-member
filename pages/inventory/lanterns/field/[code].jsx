@@ -9,6 +9,7 @@ import { getCheckedIds, clearChecked } from '@/lib/inventoryFieldDraft'
 import InventoryQuickInspectSheet from '@/components/InventoryQuickInspectSheet'
 import InventoryFieldNewLanternSheet from '@/components/InventoryFieldNewLanternSheet'
 import InventoryHeader from '@/components/InventoryHeader'
+import InventoryLanternThumb from '@/components/InventoryLanternThumb'
 import Spinner from '@/components/Spinner'
 import { UNASSIGNED_LOCATION_CODE } from '@/lib/inventoryConstants'
 
@@ -157,8 +158,9 @@ export default function FieldWalkthrough() {
                         onClick={() => setActiveLantern(lt)}
                         className={`relative text-left bg-white rounded-lg border-2 p-3 ${checked ? 'border-green-400' : 'border-gray-200'}`}
                       >
+                        <InventoryLanternThumb src={lt.primary_photo_thumb_url} alt={lt.tag_id} size="w-full h-20 mb-2" />
                         {checked && (
-                          <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 text-white text-xs flex items-center justify-center">✓</span>
+                          <span className="absolute top-4 right-4 w-6 h-6 rounded-full bg-green-500 text-white text-sm flex items-center justify-center ring-2 ring-white">✓</span>
                         )}
                         <p className="font-mono text-sm text-gray-400">{lt.tag_id}</p>
                         <p className="font-semibold text-gray-900 text-base truncate">{lt.name_zh}</p>

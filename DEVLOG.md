@@ -130,3 +130,18 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
 - **Verified** (local Postgres, prod build, 375px): field New saved 蓮花燈 / Lotus Lantern at B4 and
   龍燈 / NULL at B4, each with a `created` event; New and Edit pages show both fields; no
   horizontal scroll, no JS errors; lint 0 errors, `npm test` 33/33, `next build` clean.
+
+---
+
+## 2026-10-29 — Photo thumbnails on lantern cards (現場模式 + 地點)
+
+- **Requested** from the Cabin field-mode screen on iPhone: show a small picture of each lantern.
+- `GET /api/inventory/locations/[code]` (and the Unassigned bucket) now returns
+  `primary_photo_thumb_url` per lantern — the primary photo, else the first photo taken.
+- **New** `components/InventoryLanternThumb.jsx` — thumbnail or grey 無照片 tile, lazy-loaded.
+- 現場模式 `/inventory/lanterns/field/<地點>`: photo strip (full card width, 80px tall) at the top of
+  each card; text below unchanged; ✓ badge sits on the photo. A side-by-side layout was tried
+  first but wrapped the tag ID and QTY at 375px.
+- 地點 `/inventory/lanterns/locations/<地點>`: 56px thumbnail beside each lantern, like the list page.
+- **Verified** (local Postgres, prod build): Cabin with 8 lanterns (6 with photos, 2 without) at
+  375px and 1280px — correct thumbs / 無照片 tiles, no horizontal scroll, no JS errors; lint 0 errors.
