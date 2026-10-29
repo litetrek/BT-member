@@ -84,7 +84,9 @@ export default async function handler(req, res) {
       label_attached: pick('label_attached'),
     }
 
-    if (!next.name_zh) return res.status(400).json({ error: 'name_zh is required' })
+    next.name_zh = String(next.name_zh ?? '').trim()
+    next.name_en = next.name_en == null ? null : (String(next.name_en).trim() || null)
+    if (!next.name_zh) return res.status(400).json({ error: '請填寫中文名稱 Name (ZH) is required' })
     if (!STATUS_OPTIONS.includes(next.status)) return res.status(400).json({ error: 'Invalid status' })
     if (!CONDITION_OPTIONS.includes(next.condition)) return res.status(400).json({ error: 'Invalid condition' })
     if (next.display_decision !== null && !DISPLAY_DECISION_OPTIONS.includes(next.display_decision)) {

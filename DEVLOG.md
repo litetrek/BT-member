@@ -112,3 +112,21 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
 - The SQL recompute in `PUT /api/inventory/settings` duplicates the eligibility rule; keep it
   in sync with `evaluateDisplayability()` if the rule grows (e.g. status-based reasons).
 - `npm test` relies on Node ≥ 22 auto-detecting ESM (prints a harmless MODULE_TYPELESS warning).
+
+---
+
+## 2026-10-29 — Lantern name fields unified (ZH + EN)
+
+- **Problem**: 現場模式 → 新增燈籠 New → 燈籠資料 Details had a single 「名稱 Name」 input (saved to
+  `name_zh`); there was no way to enter an English name, unlike the New / Edit form.
+- **New** `components/InventoryLanternNameFields.jsx` — 名稱（中文）Name (ZH) (required) +
+  名稱（英文）Name (EN) (optional). Used by all three forms: field-mode New
+  (`InventoryFieldNewLanternSheet`, stacked layout), and New + Edit (`InventoryLanternForm`).
+  Saves to the same columns `name_zh` / `name_en`.
+- **Location**: field-mode New already saved `location_id` = the location being walked; the
+  details step now shows it (地點 Location: B4) so it's visible before saving.
+- **Names trimmed** client- and server-side; a blank English name is stored as NULL; POST and PUT
+  reject a Chinese name that's empty or only spaces.
+- **Verified** (local Postgres, prod build, 375px): field New saved 蓮花燈 / Lotus Lantern at B4 and
+  龍燈 / NULL at B4, each with a `created` event; New and Edit pages show both fields; no
+  horizontal scroll, no JS errors; lint 0 errors, `npm test` 33/33, `next build` clean.

@@ -5,6 +5,7 @@ import { getInventoryRole } from '@/lib/inventory'
 import { uploadInventoryPhoto } from '@/lib/inventoryPhoto'
 import { VOLTAGE_OPTIONS, CONDITION_OPTIONS, STATUS_OPTIONS, DISPLAY_DECISION_OPTIONS } from '@/lib/inventoryConstants'
 import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
+import InventoryLanternNameFields from '@/components/InventoryLanternNameFields'
 
 const STATUS_LABELS = { Active: '使用中 Active', Retired: '退役 Retired', Missing: '遺失 Missing' }
 
@@ -94,6 +95,8 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
 
     const body = {
       ...form,
+      name_zh: form.name_zh.trim(),
+      name_en: form.name_en.trim() || null,
       category_id: form.category_id || null,
       location_id: form.location_id || null,
       voltage: form.voltage || null,
@@ -145,16 +148,13 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 space-y-5 max-w-2xl">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className={labelCls}>名稱（中文）Name (ZH)</label>
-          <input required value={form.name_zh} onChange={(e) => update('name_zh', e.target.value)} className={inputCls} />
-        </div>
-        <div>
-          <label className={labelCls}>名稱（英文）Name (EN)</label>
-          <input value={form.name_en} onChange={(e) => update('name_en', e.target.value)} className={inputCls} />
-        </div>
-      </div>
+      <InventoryLanternNameFields
+        nameZh={form.name_zh}
+        nameEn={form.name_en}
+        onChange={update}
+        inputCls={inputCls}
+        labelCls={labelCls}
+      />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div>

@@ -3,6 +3,7 @@ import { uploadInventoryPhoto } from '@/lib/inventoryPhoto'
 import { saveDraft, loadDraft, clearDraft, markChecked } from '@/lib/inventoryFieldDraft'
 import { CONDITION_OPTIONS, VOLTAGE_OPTIONS } from '@/lib/inventoryConstants'
 import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
+import InventoryLanternNameFields from '@/components/InventoryLanternNameFields'
 
 // Field mode's "+ New lantern" flow: photo first (per spec), then fields, then the
 // auto-assigned tag ID shown large so it can go straight on a temporary label.
@@ -53,6 +54,8 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
     try {
       const body = {
         ...form,
+        name_zh: form.name_zh.trim(),
+        name_en: form.name_en.trim() || null,
         category_id: form.category_id || null,
         voltage: form.voltage || null,
         power_w: form.power_w === '' ? null : form.power_w,
@@ -128,10 +131,18 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
         {step === 'details' && (
           <>
             <h2 className="font-semibold text-gray-900 text-lg">燈籠資料 Details</h2>
-            <div>
-              <label className="block text-sm text-gray-500 mb-1">名稱 Name</label>
-              <input required value={form.name_zh} onChange={(e) => update('name_zh', e.target.value)} className={inputCls} />
+            <div className="flex items-center justify-between rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
+              <span className="text-sm text-gray-500">地點 Location</span>
+              <span className="text-base font-semibold text-blue-800">{locationCode}</span>
             </div>
+            <InventoryLanternNameFields
+              nameZh={form.name_zh}
+              nameEn={form.name_en}
+              onChange={update}
+              inputCls={inputCls}
+              labelCls="block text-sm text-gray-500 mb-1"
+              stacked
+            />
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm text-gray-500 mb-1">類別 Category</label>
@@ -210,7 +221,7 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
               <button onClick={() => setStep('photo')} className="flex-1 py-3 text-base text-gray-600 border border-gray-200 rounded-lg">返回</button>
               <button
                 onClick={handleSubmit}
-                disabled={saving || !form.name_zh || !form.condition}
+                disabled={saving || !form.name_zh.trim() || !form.condition}
                 className="flex-1 py-3 text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {saving ? '儲存中…' : '儲存'}

@@ -45,7 +45,9 @@ export default async function handler(req, res) {
       condition, cloth_damage_pct, frame_damage_pct, notes,
     } = req.body
 
-    if (!name_zh) return res.status(400).json({ error: 'name_zh is required' })
+    const nameZh = String(name_zh ?? '').trim()
+    const nameEn = String(name_en ?? '').trim() || null
+    if (!nameZh) return res.status(400).json({ error: '請填寫中文名稱 Name (ZH) is required' })
     if (!CONDITION_OPTIONS.includes(condition)) {
       return res.status(400).json({ error: '請選擇狀況 Condition is required' })
     }
@@ -66,7 +68,7 @@ export default async function handler(req, res) {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16)
        RETURNING *`,
       [
-        name_zh, name_en || null, category_id || null, qty || 1, voltage || null, power_w || null,
+        nameZh, nameEn, category_id || null, qty || 1, voltage || null, power_w || null,
         height_ft || null, width_ft || null, depth_ft || null,
         location_id || null, condition, cloth, frame, displayable, notes || null,
         email,
