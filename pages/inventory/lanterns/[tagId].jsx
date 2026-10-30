@@ -164,26 +164,47 @@ export default function LanternDetail() {
                 {lantern.photos.length === 0 ? (
                   <p className="text-base text-gray-400">尚無照片。</p>
                 ) : (
-                  <div className="flex flex-wrap gap-3">
-                    {lantern.photos.map((p, i) => (
-                      <div key={p.id} className="relative">
+                  // Main (主要) photo large — full-size image for sharpness — with the other photos
+                  // as equal-size squares beside it (below it on phones). The API returns photos
+                  // primary-first, so index 0 is the main one; lightbox indexes stay in that order.
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="sm:w-80 shrink-0">
+                      <div className="relative">
                         <img
-                          src={p.thumb_url}
-                          alt=""
-                          onClick={() => setLightboxIndex(i)}
-                          className={`w-24 h-24 rounded object-cover border-2 cursor-pointer ${p.is_primary ? 'border-blue-500' : 'border-transparent'}`}
+                          src={lantern.photos[0].url}
+                          alt={lantern.name_zh}
+                          onClick={() => setLightboxIndex(0)}
+                          className="w-full aspect-square rounded-lg object-cover border-2 border-blue-500 cursor-pointer bg-gray-100"
                         />
-                        {p.is_primary && <span className="absolute top-1 left-1 text-xs bg-blue-600 text-white px-1 rounded">主要</span>}
-                        {canEdit && (
-                          <div className="flex gap-1 mt-1">
-                            {!p.is_primary && (
-                              <button onClick={() => handleSetPrimary(p.id)} className="text-xs text-gray-400 hover:text-blue-600">設為主要</button>
-                            )}
-                            <button onClick={() => handleDeletePhoto(p.id)} className="text-xs text-gray-400 hover:text-red-600">刪除</button>
-                          </div>
-                        )}
+                        <span className="absolute top-2 left-2 text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded">主要</span>
                       </div>
-                    ))}
+                      {canEdit && (
+                        <div className="flex gap-2 mt-1">
+                          <button onClick={() => handleDeletePhoto(lantern.photos[0].id)} className="text-xs text-gray-400 hover:text-red-600">刪除</button>
+                        </div>
+                      )}
+                    </div>
+                    {lantern.photos.length > 1 && (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 content-start flex-1">
+                        {lantern.photos.slice(1).map((p, j) => (
+                          <div key={p.id}>
+                            <img
+                              src={p.thumb_url}
+                              alt=""
+                              loading="lazy"
+                              onClick={() => setLightboxIndex(j + 1)}
+                              className="w-full aspect-square rounded object-cover border-2 border-transparent hover:border-gray-300 cursor-pointer bg-gray-100"
+                            />
+                            {canEdit && (
+                              <div className="flex flex-wrap gap-x-2 mt-1">
+                                <button onClick={() => handleSetPrimary(p.id)} className="text-xs text-gray-400 hover:text-blue-600">設為主要</button>
+                                <button onClick={() => handleDeletePhoto(p.id)} className="text-xs text-gray-400 hover:text-red-600">刪除</button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

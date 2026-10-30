@@ -170,3 +170,13 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
 - **Verified** (local Postgres, prod build): 恐龍區 + 地點 sort kept after opening a lantern and
   pressing Back, and after switching tabs; deep link to Unassigned overrides; 375px no horizontal
   scroll; no JS errors; `npm test` 37/37, lint 0 errors, build clean.
+
+---
+
+## 2026-10-30 — Lantern detail: big main photo, equal-size others
+
+- `pages/inventory/lanterns/[tagId].jsx` Photos card: the 主要 (main) photo is shown large — 320px
+  square on desktop, full width on phones — using the full-size image; the other photos are
+  equal-size squares beside it (3–5 per row; below it on phones), each with 設為主要 / 刪除.
+- Verified with 5 photos: desktop 320 + 4×136px, 375px 292 + 4×88px; 設為主要 swaps the big photo;
+  no horizontal scroll, no JS errors; lint 0 errors, build clean.
