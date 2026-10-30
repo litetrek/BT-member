@@ -150,3 +150,23 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
   (the 地點 list shows name_en too). Card content pinned to the top (`flex flex-col justify-start`;
   buttons centre content by default, which misaligned photos in a row). Grid widens to 4–5 columns
   on desktop so squares stay small. Verified at 375px / 1280px, no horizontal scroll, no JS errors.
+
+---
+
+## 2026-10-30 — Lantern list: remembered filters + sort options
+
+- **Filters remembered**: 燈籠列表 saves its filters and sort in this browser (localStorage
+  `inv_lantern_list_view`), so going to a lantern and back, switching tabs, or reopening the app
+  shows the same view. Deep links (e.g. `?location_id=none`) replace the saved filters. A saved
+  category/location that no longer exists is dropped. 清除篩選 clears filters, keeps the sort.
+- **Sort** (new `lib/inventoryLanternSort.js` + `tests/inventoryLanternSort.test.mjs`), dropdown
+  after the filters:
+  - 類別 Category (default) — category order from 管理, then English title (name_en, or
+    name_zh when there is no English name), case-insensitive; uncategorized last
+  - 地點 Location — natural order (A1…A11, then Cabin), unassigned last
+  - 狀況 Condition — Good → OK → Fair → Bad
+  - ties fall back to category → English title → tag ID
+- List cards also show name_en under name_zh (when set and different), so the English sort is visible.
+- **Verified** (local Postgres, prod build): 恐龍區 + 地點 sort kept after opening a lantern and
+  pressing Back, and after switching tabs; deep link to Unassigned overrides; 375px no horizontal
+  scroll; no JS errors; `npm test` 37/37, lint 0 errors, build clean.

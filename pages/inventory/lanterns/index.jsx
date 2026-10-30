@@ -6,11 +6,30 @@ import Link from 'next/link'
 import { getInventoryRole } from '@/lib/inventory'
 import { CONDITION_OPTIONS, VOLTAGE_OPTIONS, STATUS_OPTIONS, UNASSIGNED_FILTER_VALUE, UNASSIGNED_LABEL } from '@/lib/inventoryConstants'
 import InventoryDisplayableBadge from '@/components/InventoryDisplayableBadge'
+import { sortLanterns, LANTERN_SORT_OPTIONS, DEFAULT_LANTERN_SORT } from '@/lib/inventoryLanternSort'
 import InventoryLanternNav from '@/components/InventoryLanternNav'
 import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
 
 const EMPTY_FILTERS = { q: '', category_id: '', location_id: '', voltage: '', condition: '', status: '', displayable: '' }
+
+// Filters + sort are remembered in this browser, so coming back to the list (from a
+// lantern page, another tab, or reopening the app) shows the same view. try/catch:
+// localStorage can throw in private browsing.
+const VIEW_KEY = 'inv_lantern_list_view'
+function loadView() {
+  try {
+    const v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null')
+    if (!v || typeof v !== 'object') return null
+    const filters = { ...EMPTY_FILTERS }
+    for (const k of Object.keys(EMPTY_FILTERS)) if (typeof v.filters?.[k] === 'string') filters[k] = v.filters[k]
+    const sort = LANTERN_SORT_OPTIONS.some((o) => o.value === v.sort) ? v.sort : DEFAULT_LANTERN_SORT
+    return { filters, sort }
+  } catch { return null }
+}
+function saveView(filters, sort) {
+  try { localStorage.setItem(VIEW_KEY, JSON.stringify({ filters, sort })) } catch {}
+}
 
 function LanternCard({ lantern }) {
   return (
@@ -30,6 +49,9 @@ function LanternCard({ lantern }) {
             )}
           </div>
           <p className="font-semibold text-gray-900 text-base truncate">{lantern.name_zh}</p>
+          {lantern.name_en && lantern.name_en !== lantern.name_zh && (
+            <p className="text-sm text-gray-600 truncate">{lantern.name_en}</p>
+          )}
           <p className="text-sm text-gray-400 truncate">
             {lantern.category_name_zh ?? '—'} · QTY {lantern.qty} · {lantern.location_code ?? '未指定地點'}
           </p>
@@ -50,14 +72,25 @@ export default function LanternList() {
   const [locations, setLocations] = useState([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState(EMPTY_FILTERS)
+  const [sort, setSort] = useState(DEFAULT_LANTERN_SORT)
+  const [viewReady, setViewReady] = useState(false) // don't fetch until the saved view is restored
 
-  // Deep links such as /inventory/lanterns?location_id=none (Unassigned) prefill filters.
+  // Restore the saved filters/sort; deep links such as /inventory/lanterns?location_id=none
+  // (Unassigned) replace the saved filters instead of being mixed with them.
   useEffect(() => {
     if (!router.isReady) return
+    const saved = loadView()
     const fromUrl = Object.fromEntries(Object.keys(EMPTY_FILTERS).filter((k) => typeof router.query[k] === 'string').map((k) => [k, router.query[k]]))
-    if (Object.keys(fromUrl).length) setFilters((f) => ({ ...f, ...fromUrl }))
+    if (Object.keys(fromUrl).length) setFilters({ ...EMPTY_FILTERS, ...fromUrl })
+    else if (saved) setFilters(saved.filters)
+    if (saved) setSort(saved.sort)
+    setViewReady(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady])
+
+  useEffect(() => {
+    if (viewReady) saveView(filters, sort)
+  }, [viewReady, filters, sort])
 
   useEffect(() => {
     if (status === 'unauthenticated') router.replace('/inventory')
@@ -70,15 +103,32 @@ export default function LanternList() {
     fetch('/api/inventory/locations').then((r) => r.json()).then((d) => setLocations(Array.isArray(d) ? d : []))
   }, [status, role])
 
+  // A remembered category/location that has since been deleted would filter silently
+  // while the dropdown shows something else — drop it once the options are known.
   useEffect(() => {
-    if (status !== 'authenticated' || !role) return
+    if (!viewReady) return
+    setFilters((f) => {
+      let next = f
+      if (f.category_id && categories.length && !categories.some((c) => String(c.id) === f.category_id)) next = { ...next, category_id: '' }
+      if (f.location_id && f.location_id !== UNASSIGNED_FILTER_VALUE && locations.length && !locations.some((l) => String(l.id) === f.location_id)) next = { ...next, location_id: '' }
+      return next
+    })
+  }, [viewReady, categories, locations])
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !role || !viewReady) return
     setLoading(true)
     const params = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== ''))
     fetch(`/api/inventory/lanterns?${params.toString()}`)
       .then((r) => r.json())
       .then((d) => { setLanterns(Array.isArray(d) ? d : []); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [status, role, filters])
+  }, [status, role, filters, viewReady])
+
+  const sortedLanterns = useMemo(
+    () => sortLanterns(lanterns, sort, categories.map((c) => c.id)),
+    [lanterns, sort, categories]
+  )
 
   const summary = useMemo(() => {
     const totalQty = lanterns.reduce((sum, l) => sum + (l.qty ?? 0), 0)
@@ -157,6 +207,9 @@ export default function LanternList() {
               <option value="true">可展示</option>
               <option value="false">不可展示</option>
             </select>
+            <select aria-label="排序 Sort" value={sort} onChange={(e) => setSort(e.target.value)} className={`${selectCls} bg-blue-50 border-blue-200`}>
+              {LANTERN_SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
             {JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS) && (
               <button onClick={() => setFilters(EMPTY_FILTERS)} className="text-sm text-gray-400 hover:text-gray-700 px-2">
                 清除篩選
@@ -170,7 +223,7 @@ export default function LanternList() {
             <p className="text-base text-gray-400">尚無燈籠記錄。</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {lanterns.map((l) => <LanternCard key={l.id} lantern={l} />)}
+              {sortedLanterns.map((l) => <LanternCard key={l.id} lantern={l} />)}
             </div>
           )}
         </main>
