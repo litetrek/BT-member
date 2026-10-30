@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
@@ -11,6 +11,8 @@ import InventoryQuickInspectSheet from '@/components/InventoryQuickInspectSheet'
 import InventoryPhotoLightbox from '@/components/InventoryPhotoLightbox'
 import InventoryHeader from '@/components/InventoryHeader'
 import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
+import { sortLanterns } from '@/lib/inventoryLanternSort'
+import { loadListView, filtersToQuery, hasActiveFilters } from '@/lib/inventoryListView'
 
 function Field({ label, value }) {
   return (
@@ -36,6 +38,9 @@ export default function LanternDetail() {
   const [uploading, setUploading] = useState(false)
   const [showInspect, setShowInspect] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(null)
+  // Prev/next lantern: tag IDs in the same order (and with the same filters) as 燈籠列表.
+  const [order, setOrder] = useState(null) // { tags: string[], filtered: boolean }
+  const touch = useRef(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.replace('/inventory')
@@ -57,6 +62,77 @@ export default function LanternDetail() {
   useEffect(() => {
     if (status === 'authenticated' && role) load()
   }, [status, role, tagId])
+
+  // Build the prev/next order once per visit (the page stays mounted while stepping between
+  // lanterns). Uses the list's saved filters + sort; if this lantern isn't in that filtered
+  // list (e.g. opened from 現場模式 or a QR scan), falls back to all lanterns, same sort.
+  useEffect(() => {
+    if (status !== 'authenticated' || !role || !tagId || order) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const view = loadListView()
+        const sort = view?.sort
+        const cats = await fetch('/api/inventory/categories').then((r) => r.json())
+        const catIds = Array.isArray(cats) ? cats.map((c) => c.id) : []
+        const fetchTags = async (filters) => {
+          const rows = await fetch(`/api/inventory/lanterns?${filtersToQuery(filters)}`).then((r) => r.json())
+          return sortLanterns(Array.isArray(rows) ? rows : [], sort, catIds).map((l) => l.tag_id)
+        }
+        let tags = await fetchTags(view?.filters)
+        let filtered = hasActiveFilters(view?.filters)
+        if (filtered && !tags.includes(tagId)) { tags = await fetchTags(null); filtered = false }
+        if (!cancelled) setOrder({ tags, filtered })
+      } catch { /* navigation is optional — the page works without it */ }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, role, tagId])
+
+  // Moving to another lantern: close anything that belongs to the previous one.
+  useEffect(() => {
+    setLightboxIndex(null); setShowInspect(false); setConfirmDelete(false); setNotFound(false)
+  }, [tagId])
+
+  const pos = order ? order.tags.indexOf(tagId) : -1
+  const prevTag = pos > 0 ? order.tags[pos - 1] : null
+  const nextTag = pos >= 0 && pos < order.tags.length - 1 ? order.tags[pos + 1] : null
+  const overlayOpen = lightboxIndex !== null || showInspect || confirmDelete
+
+  // replace (not push): the browser's Back still returns to the list in one step.
+  function goTo(tag) {
+    if (tag) router.replace(`/inventory/lanterns/${tag}`, undefined, { scroll: true })
+  }
+
+  useEffect(() => {
+    function onKey(e) {
+      if (overlayOpen || e.altKey || e.ctrlKey || e.metaKey) return
+      if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName)) return
+      if (e.key === 'ArrowLeft') goTo(prevTag)
+      if (e.key === 'ArrowRight') goTo(nextTag)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prevTag, nextTag, overlayOpen])
+
+  // Swipe left = next lantern, swipe right = previous. Only a clearly horizontal, fairly
+  // quick swipe counts, so normal scrolling never changes lanterns.
+  function onTouchStart(e) {
+    if (overlayOpen || e.touches.length !== 1) { touch.current = null; return }
+    const t = e.touches[0]
+    touch.current = { x: t.clientX, y: t.clientY, at: Date.now() }
+  }
+  function onTouchEnd(e) {
+    const start = touch.current
+    touch.current = null
+    if (!start || overlayOpen) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - start.x
+    const dy = t.clientY - start.y
+    if (Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.6 || Date.now() - start.at > 800) return
+    goTo(dx < 0 ? nextTag : prevTag)
+  }
 
   useEffect(() => {
     if (status !== 'authenticated' || !role) return
@@ -131,7 +207,53 @@ export default function LanternDetail() {
           )}
         />
 
-        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        {order && pos >= 0 && order.tags.length > 1 && (
+          <>
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-16 pt-4 flex items-center justify-between gap-2 text-sm">
+              <button
+                onClick={() => goTo(prevTag)}
+                disabled={!prevTag}
+                className="shrink-0 whitespace-nowrap px-3 py-1.5 rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-30"
+              >
+                ‹ 上一個
+              </button>
+              <span className="text-gray-500 text-center min-w-0">
+                第 {pos + 1} / {order.tags.length} 筆{order.filtered ? ' · 已篩選' : ''}
+                <span className="block text-xs text-gray-400 sm:hidden">← 左右滑動 Swipe →</span>
+              </span>
+              <button
+                onClick={() => goTo(nextTag)}
+                disabled={!nextTag}
+                className="shrink-0 whitespace-nowrap px-3 py-1.5 rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-30"
+              >
+                下一個 ›
+              </button>
+            </div>
+            {/* Side arrows on larger screens (PC / tablet); phones use swipe. */}
+            {prevTag && (
+              <button
+                onClick={() => goTo(prevTag)}
+                aria-label={`上一個 Previous: ${prevTag}`}
+                title={prevTag}
+                className="hidden md:flex fixed left-3 top-1/2 -translate-y-1/2 z-40 w-12 h-12 items-center justify-center rounded-full bg-white/90 border border-gray-200 shadow-md text-3xl text-gray-600 hover:bg-white hover:text-blue-600"
+              >
+                ‹
+              </button>
+            )}
+            {nextTag && (
+              <button
+                onClick={() => goTo(nextTag)}
+                aria-label={`下一個 Next: ${nextTag}`}
+                title={nextTag}
+                className="hidden md:flex fixed right-3 top-1/2 -translate-y-1/2 z-40 w-12 h-12 items-center justify-center rounded-full bg-white/90 border border-gray-200 shadow-md text-3xl text-gray-600 hover:bg-white hover:text-blue-600"
+              >
+                ›
+              </button>
+            )}
+          </>
+        )}
+
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:px-16" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
           {loading ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : notFound ? (

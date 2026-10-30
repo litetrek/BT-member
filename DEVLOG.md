@@ -180,3 +180,23 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
   equal-size squares beside it (3–5 per row; below it on phones), each with 設為主要 / 刪除.
 - Verified with 5 photos: desktop 320 + 4×136px, 375px 292 + 4×88px; 設為主要 swaps the big photo;
   no horizontal scroll, no JS errors; lint 0 errors, build clean.
+
+---
+
+## 2026-10-30 — Lantern detail: previous / next lantern (swipe + arrows)
+
+- `pages/inventory/lanterns/[tagId].jsx`: step through lanterns in the **same order and filters as
+  燈籠列表** (saved view from `lib/inventoryListView.js`, sorted with `sortLanterns`).
+  - Phones: swipe left = next, swipe right = previous (≥70px, mostly horizontal, < 0.8s, so
+    scrolling never triggers it). PC/tablet (md+): round ‹ › arrows fixed on both sides; ← → keys.
+  - Bar under the header on all sizes: ‹ 上一個 · 第 N / M 筆 (· 已篩選) · 下一個 ›.
+  - Opened from outside the filtered list (field mode, QR): falls back to all lanterns, same sort.
+  - Uses `router.replace`, so the browser's Back still returns straight to the list.
+  - Disabled while the photo viewer, Quick Inspect or delete dialog is open.
+- **New** `lib/inventoryListView.js` — saved filters/sort shared by the list and detail pages
+  (moved out of `pages/inventory/lanterns/index.jsx`).
+- `components/InventoryHeader.jsx`: right-side buttons wrap onto their own row when they don't
+  fit, instead of covering the title (記錄檢查 / 編輯 / 刪除 hid the tag ID on phones).
+- Verified (local Postgres, prod build): 恐龍區 + 地點 sort → 2/5, swipe left → 3/5, swipe right ×2
+  → 1/5 and stops; tiny or diagonal swipes ignored; Back → list with filter kept; desktop arrow and
+  ← key work; 375px no horizontal scroll; no JS errors; lint 0 errors; `npm test` 37/37.

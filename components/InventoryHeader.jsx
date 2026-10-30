@@ -56,8 +56,10 @@ function SectionIcon({ name }) {
 export default function InventoryHeader({ icon, backHref, backLabel, title, titleMono, subtitle, right, printHidden }) {
   return (
     <header className={`bg-white border-b border-gray-200 px-4 sm:px-6 py-4 ${printHidden ? 'print:hidden' : ''}`}>
-      <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+      {/* flex-wrap: when the right-side buttons don't fit beside the title (e.g. 記錄檢查 /
+          編輯 / 刪除 on a phone) they drop to their own row instead of covering it. */}
+      <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1 basis-60">
           <Link href={backHref} className="flex items-center gap-0.5 text-gray-400 hover:text-gray-700 text-base shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
               <polyline points="15 18 9 12 15 6" />
@@ -75,7 +77,7 @@ export default function InventoryHeader({ icon, backHref, backLabel, title, titl
             {subtitle && <p className="text-sm text-gray-500 truncate">{subtitle}</p>}
           </div>
         </div>
-        {right && <div className="flex items-center gap-2 shrink-0">{right}</div>}
+        {right && <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 ml-auto">{right}</div>}
       </div>
     </header>
   )

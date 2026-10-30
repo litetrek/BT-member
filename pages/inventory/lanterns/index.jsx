@@ -7,29 +7,10 @@ import { getInventoryRole } from '@/lib/inventory'
 import { CONDITION_OPTIONS, VOLTAGE_OPTIONS, STATUS_OPTIONS, UNASSIGNED_FILTER_VALUE, UNASSIGNED_LABEL } from '@/lib/inventoryConstants'
 import InventoryDisplayableBadge from '@/components/InventoryDisplayableBadge'
 import { sortLanterns, LANTERN_SORT_OPTIONS, DEFAULT_LANTERN_SORT } from '@/lib/inventoryLanternSort'
+import { EMPTY_FILTERS, loadListView as loadView, saveListView as saveView, filtersToQuery } from '@/lib/inventoryListView'
 import InventoryLanternNav from '@/components/InventoryLanternNav'
 import InventoryHeader from '@/components/InventoryHeader'
 import Spinner from '@/components/Spinner'
-
-const EMPTY_FILTERS = { q: '', category_id: '', location_id: '', voltage: '', condition: '', status: '', displayable: '' }
-
-// Filters + sort are remembered in this browser, so coming back to the list (from a
-// lantern page, another tab, or reopening the app) shows the same view. try/catch:
-// localStorage can throw in private browsing.
-const VIEW_KEY = 'inv_lantern_list_view'
-function loadView() {
-  try {
-    const v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null')
-    if (!v || typeof v !== 'object') return null
-    const filters = { ...EMPTY_FILTERS }
-    for (const k of Object.keys(EMPTY_FILTERS)) if (typeof v.filters?.[k] === 'string') filters[k] = v.filters[k]
-    const sort = LANTERN_SORT_OPTIONS.some((o) => o.value === v.sort) ? v.sort : DEFAULT_LANTERN_SORT
-    return { filters, sort }
-  } catch { return null }
-}
-function saveView(filters, sort) {
-  try { localStorage.setItem(VIEW_KEY, JSON.stringify({ filters, sort })) } catch {}
-}
 
 function LanternCard({ lantern }) {
   return (
@@ -118,8 +99,7 @@ export default function LanternList() {
   useEffect(() => {
     if (status !== 'authenticated' || !role || !viewReady) return
     setLoading(true)
-    const params = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== ''))
-    fetch(`/api/inventory/lanterns?${params.toString()}`)
+    fetch(`/api/inventory/lanterns?${filtersToQuery(filters)}`)
       .then((r) => r.json())
       .then((d) => { setLanterns(Array.isArray(d) ? d : []); setLoading(false) })
       .catch(() => setLoading(false))
