@@ -4,7 +4,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import Link from 'next/link'
 import { getInventoryRole } from '@/lib/inventory'
-import { CONDITION_OPTIONS, VOLTAGE_OPTIONS, STATUS_OPTIONS, UNASSIGNED_FILTER_VALUE, UNASSIGNED_LABEL } from '@/lib/inventoryConstants'
+import { CONDITION_OPTIONS, VOLTAGE_OPTIONS, STATUS_OPTIONS, UNASSIGNED_FILTER_VALUE, UNASSIGNED_LABEL, LANTERN_WHATS_NEW_URL } from '@/lib/inventoryConstants'
 import InventoryDisplayableBadge from '@/components/InventoryDisplayableBadge'
 import { sortLanterns, LANTERN_SORT_OPTIONS, DEFAULT_LANTERN_SORT } from '@/lib/inventoryLanternSort'
 import { EMPTY_FILTERS, loadListView as loadView, saveListView as saveView, filtersToQuery } from '@/lib/inventoryListView'
@@ -133,10 +133,22 @@ export default function LanternList() {
           backLabel="庫存管理"
           title="燈籠庫存"
           subtitle="Lantern Inventory"
-          right={['admin', 'editor'].includes(role) && (
-            <Link href="/inventory/lanterns/new" className="text-base bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">
-              + 新增燈籠
-            </Link>
+          right={(
+            <>
+              <a
+                href={LANTERN_WHATS_NEW_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-base bg-amber-50 border border-amber-300 text-amber-800 px-3 py-1.5 rounded hover:bg-amber-100 whitespace-nowrap"
+              >
+                新功能說明
+              </a>
+              {['admin', 'editor'].includes(role) && (
+                <Link href="/inventory/lanterns/new" className="text-base bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 whitespace-nowrap">
+                  + 新增燈籠
+                </Link>
+              )}
+            </>
           )}
         />
 
