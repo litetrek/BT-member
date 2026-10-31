@@ -132,7 +132,7 @@ export default function LanternList() {
           backHref="/inventory"
           backLabel="庫存管理"
           title="燈籠庫存"
-          subtitle="Lantern Inventory"
+          subtitle="Glowfest Lantern Inventory"
           right={(
             <>
               <a

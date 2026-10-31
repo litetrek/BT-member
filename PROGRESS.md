@@ -1,5 +1,14 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Lantern Inventory Renamed "Glowfest Lantern Inventory"
+
+The English name of the lantern module is now **Glowfest Lantern Inventory**: the
+`nameEn` in `lib/inventory.js` (shown on the /inventory module list) and the subtitle
+under 燈籠庫存 on `/inventory/lanterns`. The Chinese name 燈籠庫存, page titles, and the
+Field mode app name are unchanged.
+
+---
+
 ## New Lantern — Condition Must Be Chosen (No Default "Good")
 
 Requested: a new lantern's Condition should start empty and be set before the record
