@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>燈籠庫存新功能</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout: one reading column; a "where to find it" chip per feature, grouped by screen. */
+  --paper: #fbf8f4;
+  --ink: #2a2420;
+  --muted: #74685e;
+  --line: #e7ded3;
+  --lantern: #b8322a;
+  --glow: #f3c34a;
+  --card: #ffffff;
+  --chip: #f6ece2;
+  --display: "Noto Serif TC", "Songti TC", serif;
+  --body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1b1714; --ink: #f1e9df; --muted: #b3a597; --line: #3a312a;
+    --lantern: #e8665a; --glow: #f3c34a; --card: #241f1b; --chip: #33291f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #1b1714; --ink: #f1e9df; --muted: #b3a597; --line: #3a312a;
+  --lantern: #e8665a; --glow: #f3c34a; --card: #241f1b; --chip: #33291f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); line-height: 1.7; font-size: 16px; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 40px 20px 64px; display: grid; gap: 36px; }
+header { display: grid; gap: 10px; border-bottom: 2px solid var(--lantern); padding-bottom: 20px; }
+.eyebrow { font-size: 13px; letter-spacing: .08em; color: var(--lantern); font-weight: 700; }
+h1 { font-family: var(--display); font-size: clamp(28px, 6vw, 38px); line-height: 1.25; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); margin: 0; max-width: 60ch; }
+h2 { font-family: var(--display); font-size: 22px; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; text-wrap: balance; }
+h2 .tab { font-family: var(--body); font-size: 13px; font-weight: 500; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 10px; }
+section { display: grid; gap: 14px; }
+.item { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--glow); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; }
+.item h3 { margin: 0; font-size: 17px; font-weight: 700; }
+.item p { margin: 0; max-width: 65ch; }
+.where { justify-self: start; font-size: 13px; background: var(--chip); color: var(--muted); border-radius: 4px; padding: 1px 8px; }
+.en { color: var(--muted); font-size: 14px; }
+code, .ui { font-family: var(--body); font-weight: 700; color: var(--lantern); }
+.tip { background: var(--chip); border-radius: 8px; padding: 16px 18px; display: grid; gap: 8px; }
+.tip h2 { font-size: 19px; }
+.tip ol { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; }
+.count { font-variant-numeric: tabular-nums; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 14px; }
+.back { justify-self: start; color: var(--muted); text-decoration: none; font-size: 15px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 0; }
+.back:hover { color: var(--lantern); }
+a:focus-visible { outline: 2px solid var(--lantern); outline-offset: 2px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <!-- Served by the BT-Member site from public/lantern-guide/index.html (also at /lantern-guide).
+       Linked from the 新功能說明 button on /inventory/lanterns. Plain HTML: edit and push to update. -->
+  <a class="back" href="/inventory/lanterns">‹ 回到燈籠庫存</a>
+  <header>
+    <span class="eyebrow">BT 燈籠庫存 · 2026 年 10 月 28–30 日更新</span>
+    <h1>燈籠庫存新功能說明</h1>
+    <p class="lede">為三月燈會挑選展示燈籠做準備，這幾天在 bt.cyber-tech.com 加了以下功能。手機和電腦都能用。</p>
+  </header>
+
+  <section>
+    <h2>現場模式 <span class="tab">Field Mode</span></h2>
+    <div class="item">
+      <h3>每盞燈籠都有照片</h3>
+      <p>地點裡的每張卡片上方有正方形照片，中文名稱下面顯示英文名稱。已檢查的燈籠在照片右上角有綠色 ✓。</p>
+      <span class="where">現場模式 → 選一個地點</span>
+    </div>
+    <div class="item">
+      <h3>筆數和盞數分開顯示</h3>
+      <p>地點卡片顯示 <span class="count">「8 筆 · 29 盞」</span>：8 筆是紀錄數，29 盞是全部數量（QTY）加起來。</p>
+      <span class="where">現場模式、地點、儀表板</span>
+    </div>
+    <div class="item">
+      <h3>未指定地點</h3>
+      <p>還沒有地點的燈籠集中在黃色的「未指定地點」卡片裡。在那裡做快速檢查時可以直接選地點。</p>
+      <span class="where">現場模式、地點頁最下面</span>
+    </div>
+    <div class="item">
+      <h3>新增燈籠：中文和英文名稱</h3>
+      <p>現場新增燈籠時，有「名稱（中文）」（必填）和「名稱（英文）」（選填）兩欄。地點自動是你目前所在的地點，畫面上方會顯示。</p>
+      <span class="where">現場模式 → 地點 → + 新增燈籠 New</span>
+    </div>
+    <div class="item">
+      <h3>快速檢查可標記遺失</h3>
+      <p>找不到燈籠時，在快速檢查選 <span class="ui">遺失 Missing</span>。找到後再選 <span class="ui">在場 Present</span> 改回來。</p>
+      <span class="where">點一盞燈籠 → 快速檢查</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>燈籠列表 <span class="tab">Lantern List</span></h2>
+    <div class="item">
+      <h3>篩選會記住</h3>
+      <p>選好類別、地點等篩選後，進入某盞燈籠再回來，篩選和排序都還在。每支手機或電腦各自記住。按 <span class="ui">清除篩選</span> 重設。</p>
+      <span class="where">燈籠列表</span>
+    </div>
+    <div class="item">
+      <h3>三種排序</h3>
+      <p>預設按類別、再按英文名稱排序。也可以選按地點（A1、A2 … A10、A11、Cabin）或按狀況（Good → OK → Fair → Bad）。</p>
+      <span class="where">燈籠列表 → 篩選列最後的「排序」</span>
+    </div>
+    <div class="item">
+      <h3>不可展示的原因</h3>
+      <p>點紅色的 <span class="ui">不可展示 ⓘ</span>，會顯示原因，例如「布面損壞 45% ≥ 門檻 30%」。</p>
+      <span class="where">燈籠列表、燈籠頁</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>燈籠頁 <span class="tab">Lantern Detail</span></h2>
+    <div class="item">
+      <h3>主要照片放大</h3>
+      <p>主要照片顯示成大圖，其他照片一樣大小排在旁邊。按 <span class="ui">設為主要</span> 可以換主要照片。</p>
+      <span class="where">點任何一盞燈籠</span>
+    </div>
+    <div class="item">
+      <h3>上一個、下一個</h3>
+      <p>手機上左右滑動切換燈籠；電腦上點兩邊的 ‹ › 箭頭或按鍵盤 ← →。順序和燈籠列表的篩選、排序一樣。按瀏覽器的返回鍵直接回到列表。</p>
+      <span class="where">燈籠頁上方「第 N / M 筆」</span>
+    </div>
+    <div class="item">
+      <h3>編輯狀態和展示決定</h3>
+      <p>編輯頁可以改 <span class="ui">狀態</span>（使用中、退役、遺失）和 <span class="ui">展示決定</span>。地點選「未指定地點」現在可以正確存檔。</p>
+      <span class="where">燈籠頁 → 編輯</span>
+    </div>
+  </section>
+
+  <div class="tip">
+    <h2>請大家幫忙整理名稱</h2>
+    <p>有些燈籠把英文打在中文欄位裡（例如 Seaweed、Flying fish），所以只顯示一行，排序也不準。有空時請：</p>
+    <ol>
+      <li>打開那盞燈籠，按 <span class="ui">編輯</span>。</li>
+      <li>「名稱（中文）」填中文，例如 海草。</li>
+      <li>「名稱（英文）」填英文，例如 Seaweed，然後儲存。</li>
+    </ol>
+  </div>
+
+  <footer>管理員專用：不可展示的損壞門檻（目前布面 30%、骨架 30%）可以在「管理」頁修改，存檔後所有燈籠會自動重新判斷。</footer>
+</main>
+</body>
+</html>

@@ -137,8 +137,6 @@ export default function LanternList() {
             <>
               <a
                 href={LANTERN_WHATS_NEW_URL}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="text-base bg-amber-50 border border-amber-300 text-amber-800 px-3 py-1.5 rounded hover:bg-amber-100 whitespace-nowrap"
               >
                 新功能說明
