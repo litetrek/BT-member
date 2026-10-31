@@ -56,6 +56,23 @@ code, .ui { font-family: var(--body); font-weight: 700; color: var(--lantern); }
 .tip ol { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; }
 .count { font-variant-numeric: tabular-nums; }
 footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 14px; }
+.part { font-family: var(--display); font-size: 26px; margin: 8px 0 0; padding-top: 18px; border-top: 1px solid var(--line); text-wrap: balance; }
+header + .part { border-top: 0; padding-top: 0; }
+.part small { display: block; font-family: var(--body); font-size: 14px; font-weight: 400; color: var(--muted); }
+.terms { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.terms dt { font-weight: 700; color: var(--lantern); white-space: nowrap; }
+.terms dd { margin: 0; max-width: 60ch; }
+.screens { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.screen { background: var(--card); border: 1px solid var(--line); border-top: 3px solid var(--lantern); border-radius: 8px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; }
+.screen b { font-size: 16px; }
+.screen span { color: var(--muted); font-size: 14px; line-height: 1.6; }
+.steps { margin: 0; padding-left: 1.4em; display: grid; gap: 6px; max-width: 65ch; }
+table.roles { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-size: 15px; }
+.roles th, .roles td { text-align: left; padding: 8px 12px; border-top: 1px solid var(--line); vertical-align: top; }
+.roles thead th { border-top: 0; background: var(--chip); font-weight: 700; }
+.roles td:first-child { font-weight: 700; white-space: nowrap; }
+.table-wrap { overflow-x: auto; }
+@media (max-width: 420px) { .terms { grid-template-columns: 1fr; gap: 2px 0; } .terms dd { margin-bottom: 8px; } }
 .back { justify-self: start; color: var(--muted); text-decoration: none; font-size: 15px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 0; }
 .back:hover { color: var(--lantern); }
 a:focus-visible { outline: 2px solid var(--lantern); outline-offset: 2px; border-radius: 4px; }
@@ -67,10 +84,63 @@ a:focus-visible { outline: 2px solid var(--lantern); outline-offset: 2px; border
        Linked from the 新功能說明 button on /inventory/lanterns. Plain HTML: edit and push to update. -->
   <a class="back" href="/inventory/lanterns">‹ 回到燈籠庫存</a>
   <header>
-    <span class="eyebrow">BT 燈籠庫存 · 2026 年 10 月 28–30 日更新</span>
-    <h1>燈籠庫存新功能說明</h1>
-    <p class="lede">為三月燈會挑選展示燈籠做準備，這幾天在 bt.cyber-tech.com 加了以下功能。手機和電腦都能用。</p>
+    <span class="eyebrow">BT 燈籠庫存 · 最後更新 2026 年 10 月 30 日</span>
+    <h1>燈籠庫存功能說明</h1>
+    <p class="lede">燈籠庫存記錄 BT 每一組燈籠的照片、尺寸、電壓、存放地點和損壞狀況，讓管理團隊為 2027 年三月燈會挑選要展示的燈籠。手機和電腦都能用。前半頁是系統概覽，後半頁是最新更新。</p>
   </header>
+
+  <h2 class="part">系統概覽<small>System overview</small></h2>
+
+  <section>
+    <h2>基本概念</h2>
+    <dl class="terms">
+      <dt>一筆紀錄</dt><dd>一組相同的燈籠記成一筆，用「數量 QTY」記有幾盞，不會拆成一盞一盞。畫面上的「8 筆 · 29 盞」就是 8 筆紀錄、共 29 盞。</dd>
+      <dt>標籤編號</dt><dd>每筆自動得到 LT-0001 這樣的編號，印成 QR 標籤貼在燈籠上，現場掃描就能找到。</dd>
+      <dt>地點</dt><dd>倉庫分 A–E 區（A1、A2 … A11）和 Cabin 等地點。還沒有地點的燈籠歸在「未指定地點」。</dd>
+      <dt>狀況</dt><dd>Good、OK、Fair、Bad 四級，另外記布面損壞 % 和骨架損壞 %（以整組最差的一盞為準）。</dd>
+      <dt>可 / 不可展示</dt><dd>布面或骨架損壞達到門檻（目前都是 30%）就是「不可展示」，不會出現在燈會候選清單。點紅色標記可看原因。</dd>
+      <dt>狀態</dt><dd>使用中 Active、退役 Retired、遺失 Missing。</dd>
+      <dt>展示決定</dt><dd>Candidate 候選、Selected 選用、Needs repair 需修理、Not this year 今年不用，由管理團隊在儀表板決定。</dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>六個畫面</h2>
+    <div class="screens">
+      <div class="screen"><b>燈籠列表</b><span>全部燈籠，可搜尋、按類別／地點／狀況等篩選和排序。點一筆看詳細資料、照片和檢查紀錄。</span></div>
+      <div class="screen"><b>地點</b><span>按區域列出每個地點和裡面的燈籠，地點有照片和說明。</span></div>
+      <div class="screen"><b>現場模式</b><span>在倉庫用手機逐一地點清點：掃 QR、快速檢查、現場新增燈籠，完成後標記地點已走完。</span></div>
+      <div class="screen"><b>儀表板</b><span>總數、按類別／電壓／地點統計，以及「展覽候選清單」，可在這裡做展示決定並匯出 CSV。</span></div>
+      <div class="screen"><b>標籤</b><span>列印燈籠的 QR 標籤，並標記哪些已經貼上。</span></div>
+      <div class="screen"><b>管理</b><span>管理員專用：類別、地點、展示門檻和使用者權限。</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>誰可以做什麼</h2>
+    <div class="table-wrap">
+      <table class="roles">
+        <thead><tr><th>角色</th><th>可以做的事</th></tr></thead>
+        <tbody>
+          <tr><td>檢視者 Viewer</td><td>查看所有燈籠、地點和儀表板；在儀表板做展示決定。</td></tr>
+          <tr><td>編輯者 Editor</td><td>以上全部，加上新增和編輯燈籠、拍照、記錄檢查、使用現場模式和標籤。</td></tr>
+          <tr><td>管理員 Admin</td><td>以上全部，加上刪除燈籠、管理類別和地點、修改展示門檻、設定使用者權限。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>一般流程</h2>
+    <ol class="steps">
+      <li><b>建檔：</b>在現場模式選地點，按「+ 新增燈籠」，先拍照，再填名稱、類別、數量、尺寸和狀況。系統給一個 LT 編號。</li>
+      <li><b>貼標籤：</b>在「標籤」頁列印 QR 標籤，貼好後標記「已貼標籤」。</li>
+      <li><b>檢查：</b>之後清點時掃 QR 或點燈籠，做「快速檢查」更新狀況和損壞 %；找不到就標「遺失」。</li>
+      <li><b>挑選：</b>管理團隊在儀表板的「展覽候選清單」看可展示的燈籠，做展示決定，需要時匯出 CSV。</li>
+    </ol>
+  </section>
+
+  <h2 class="part">最新更新<small>2026 年 10 月 28–30 日</small></h2>
 
   <section>
     <h2>現場模式 <span class="tab">Field Mode</span></h2>
@@ -149,7 +219,7 @@ a:focus-visible { outline: 2px solid var(--lantern); outline-offset: 2px; border
     </ol>
   </div>
 
-  <footer>管理員專用：不可展示的損壞門檻（目前布面 30%、骨架 30%）可以在「管理」頁修改，存檔後所有燈籠會自動重新判斷。</footer>
+  <footer>本頁會在系統有重大更新時同步更新。管理員專用：不可展示的損壞門檻（目前布面 30%、骨架 30%）可以在「管理」頁修改，存檔後所有燈籠會自動重新判斷。</footer>
 </main>
 </body>
 </html>

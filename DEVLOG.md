@@ -3,6 +3,12 @@
 Session log for the Lantern Inventory roadmap (Phases 1–7). Older history lives in
 `PROGRESS.md`.
 
+> **Standing rule (Vincent, 2026-10-30):** whenever there is a big change to the Lantern
+> Inventory system, also update the user guide `public/lantern-guide/index.html`
+> (served at bt.cyber-tech.com/lantern-guide, linked from the 新功能說明 button) — the
+> 系統概覽 overview if behaviour changed, and a dated entry under 最新更新, plus the
+> 最後更新 date in the header.
+
 ---
 
 ## 2026-10-28 — Lantern Inventory Phase 1: Plan
@@ -200,3 +206,13 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
 - Verified (local Postgres, prod build): 恐龍區 + 地點 sort → 2/5, swipe left → 3/5, swipe right ×2
   → 1/5 and stops; tiny or diagonal swipes ignored; Back → list with filter kept; desktop arrow and
   ← key work; 375px no horizontal scroll; no JS errors; lint 0 errors; `npm test` 37/37.
+
+---
+
+## 2026-10-30 — User guide page: system overview added
+
+- `public/lantern-guide/index.html` (bt.cyber-tech.com/lantern-guide) now opens with a 系統概覽
+  section — basic concepts (筆 vs 盞, LT tag IDs, locations, condition, displayable threshold,
+  status, display decision), the six screens, roles (Viewer / Editor / Admin) and the normal
+  workflow — followed by 最新更新 (the Oct 28–30 changes). Title now 燈籠庫存功能說明.
+- Standing rule added at the top of this file: update the guide on every big change.
