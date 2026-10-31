@@ -96,7 +96,7 @@ export default function FieldWalkthrough() {
   return (
     <>
       <Head>
-        <title>{isUnassigned ? '未指定地點' : (code ?? '現場模式')} · 燈籠庫存</title>
+        <title>{isUnassigned ? '未指定地點' : (code ?? '現場模式')} · GlowFest</title>
         <link rel="manifest" href="/inventory-field-manifest.json" />
         <link rel="apple-touch-icon" href="/icons/lantern-180.png" />
         <meta name="theme-color" content="#dc2626" />

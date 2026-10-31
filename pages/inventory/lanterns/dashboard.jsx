@@ -93,7 +93,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <Head><title>儀表板 · 燈籠庫存</title></Head>
+      <Head><title>儀表板 · GlowFest</title></Head>
       <div className="min-h-screen bg-gray-50">
         <InventoryHeader icon="chart" backHref="/inventory/lanterns" backLabel="燈籠列表" title="儀表板" subtitle="Dashboard" />
 

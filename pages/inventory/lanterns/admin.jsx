@@ -180,7 +180,7 @@ export default function LanternAdmin() {
 
   return (
     <>
-      <Head><title>管理 · 燈籠庫存</title></Head>
+      <Head><title>管理 · GlowFest</title></Head>
       <div className="min-h-screen bg-gray-50">
         <InventoryHeader icon="settings" backHref="/inventory/lanterns" backLabel="燈籠列表" title="管理" subtitle="Admin" />
         <InventoryLanternNav active="admin" />

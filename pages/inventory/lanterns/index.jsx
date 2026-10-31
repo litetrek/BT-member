@@ -125,14 +125,14 @@ export default function LanternList() {
 
   return (
     <>
-      <Head><title>燈籠列表 · 燈籠庫存</title></Head>
+      <Head><title>燈籠列表 · GlowFest</title></Head>
       <div className="min-h-screen bg-gray-50">
         <InventoryHeader
           icon="lantern"
           backHref="/inventory"
           backLabel="庫存管理"
-          title="燈籠庫存"
-          subtitle="Lantern Inventory"
+          title="GlowFest 燈籠庫存"
+          subtitle="GlowFest Lantern Inventory"
           right={(
             <>
               <a

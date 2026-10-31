@@ -69,12 +69,12 @@ export default function LocationsList() {
 
   return (
     <>
-      <Head><title>地點 · 燈籠庫存</title></Head>
+      <Head><title>地點 · GlowFest</title></Head>
       <div className="min-h-screen bg-gray-50">
         <InventoryHeader
           icon="pin"
           backHref="/inventory/lanterns"
-          backLabel="燈籠庫存"
+          backLabel="GlowFest"
           title="地點"
           subtitle="Locations"
           right={role === 'admin' && (

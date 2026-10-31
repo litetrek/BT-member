@@ -1,6 +1,6 @@
 {
-  "name": "燈籠現場模式 Lantern Field Mode",
-  "short_name": "燈籠現場",
+  "name": "GlowFest 現場模式 Field Mode",
+  "short_name": "GlowFest 現場",
   "start_url": "/inventory/lanterns/field",
   "scope": "/inventory/lanterns/field",
   "display": "standalone",

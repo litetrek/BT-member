@@ -64,7 +64,7 @@ export default function LocationDetail() {
 
   return (
     <>
-      <Head><title>{isUnassigned ? '未指定地點' : (code ?? '地點')} · 燈籠庫存</title></Head>
+      <Head><title>{isUnassigned ? '未指定地點' : (code ?? '地點')} · GlowFest</title></Head>
       <div className="min-h-screen bg-gray-50">
         <InventoryHeader
           icon="pin"

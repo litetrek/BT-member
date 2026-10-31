@@ -181,7 +181,7 @@ export default function LanternDetail() {
 
   return (
     <>
-      <Head><title>{tagId ?? '燈籠'} · 燈籠庫存</title></Head>
+      <Head><title>{tagId ?? '燈籠'} · GlowFest</title></Head>
       <div className="min-h-screen bg-blue-50">
         <InventoryHeader
           icon="lantern"

@@ -43,11 +43,12 @@ export default function FieldLocationPicker() {
   return (
     <>
       <Head>
-        <title>現場模式 · 燈籠庫存</title>
+        <title>現場模式 · GlowFest</title>
         <link rel="manifest" href="/inventory-field-manifest.json" />
         <link rel="apple-touch-icon" href="/icons/lantern-180.png" />
         <meta name="theme-color" content="#dc2626" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="GlowFest 現場" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </Head>
       <div className="min-h-screen bg-gray-50">

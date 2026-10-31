@@ -35,7 +35,7 @@ export default function EditLantern() {
 
   return (
     <>
-      <Head><title>編輯 {tagId} · 燈籠庫存</title></Head>
+      <Head><title>編輯 {tagId} · GlowFest</title></Head>
       <div className="min-h-screen bg-gray-50">
         <InventoryHeader icon="lantern" backHref={`/inventory/lanterns/${tagId}`} backLabel={tagId} title="編輯燈籠" subtitle="Edit Lantern" />
 

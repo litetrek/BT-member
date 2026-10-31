@@ -95,7 +95,7 @@ export default function Labels() {
 
   return (
     <>
-      <Head><title>標籤 · 燈籠庫存</title></Head>
+      <Head><title>標籤 · GlowFest</title></Head>
       <div className="min-h-screen bg-gray-50 print:bg-white">
         <InventoryHeader icon="tag" backHref="/inventory/lanterns" backLabel="燈籠列表" title="標籤" subtitle="Labels — QR + Tag ID" printHidden />
 
