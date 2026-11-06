@@ -11,7 +11,7 @@ import InventoryQuickInspectSheet from '@/components/InventoryQuickInspectSheet'
 import InventoryPhotoLightbox from '@/components/InventoryPhotoLightbox'
 import InventoryHeader from '@/components/InventoryHeader'
 import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
-import { formatRepairEase } from '@/lib/inventoryConstants'
+import { formatRepairEase, formatBaseType } from '@/lib/inventoryConstants'
 import { sortLanterns } from '@/lib/inventoryLanternSort'
 import { loadListView, filtersToQuery, hasActiveFilters } from '@/lib/inventoryListView'
 
@@ -339,6 +339,7 @@ export default function LanternDetail() {
                 <Field label="地點 Location" value={lantern.location_code ?? '未指定地點 Unassigned'} />
                 <Field label="電壓 Voltage" value={lantern.voltage} />
                 <Field label="功率 Power" value={lantern.power_w ? `${lantern.power_w} W` : null} />
+                <Field label="底座 Base" value={formatBaseType(lantern.base_type)} />
                 <Field label="尺寸 Dimensions (ft)" value={[lantern.height_ft, lantern.width_ft, lantern.depth_ft].some(Boolean) ? `${lantern.height_ft ?? '—'} × ${lantern.width_ft ?? '—'} × ${lantern.depth_ft ?? '—'}` : null} />
                 <Field label="狀況 Condition" value={lantern.condition} />
                 <Field label="布面損壞 Cloth damage" value={`${lantern.cloth_damage_pct}%`} />

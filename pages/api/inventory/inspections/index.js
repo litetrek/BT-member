@@ -44,7 +44,7 @@ export default async function handler(req, res) {
     ? normalizeRepairEase(req.body.repair_ease)
     : lantern.repair_ease ?? null
   if (repairEase === undefined) return res.status(400).json({ error: '維修容易程度須為 0–5 Repair ease must be 0–5' })
-  const withRepair = await hasRepairEaseColumn() // false until scripts/migrate-repair-ease.js runs
+  const withRepair = await hasRepairEaseColumn() // false until scripts/migrate-lantern-fields.js runs
   const email = req.inventoryEmail
 
   const { rows: [inspection] } = await query(

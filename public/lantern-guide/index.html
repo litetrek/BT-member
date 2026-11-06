@@ -98,6 +98,7 @@ a:focus-visible { outline: 2px solid var(--lantern); outline-offset: 2px; border
       <dt>標籤編號</dt><dd>每筆自動得到 LT-0001 這樣的編號，印成 QR 標籤貼在燈籠上，現場掃描就能找到。</dd>
       <dt>地點</dt><dd>倉庫分 A–E 區（A1、A2 … A11）和 Cabin 等地點。還沒有地點的燈籠歸在「未指定地點」。</dd>
       <dt>狀況</dt><dd>Good、OK、Fair、Bad 四級，另外記布面損壞 % 和骨架損壞 %（以整組最差的一盞為準）。</dd>
+      <dt>底座</dt><dd>燈籠怎麼立起來：底盤式 Metal base frame（自己有金屬底盤），或插槽式 Socket mount（用插槽插在其他底座上固定）。</dd>
       <dt>維修容易程度</dt><dd>0 到 5 分，評估需要多少修補：0 不需修補、1 稍微修補、2 小修、3 中度修補、4 大修、5 需大幅修補。還沒評分的顯示「未評估」。</dd>
       <dt>可 / 不可展示</dt><dd>布面或骨架損壞達到門檻（目前都是 30%）就是「不可展示」，不會出現在燈會候選清單。點紅色標記可看原因。</dd>
       <dt>狀態</dt><dd>使用中 Active、退役 Retired、遺失 Missing。</dd>
@@ -145,6 +146,11 @@ a:focus-visible { outline: 2px solid var(--lantern); outline-offset: 2px; border
 
   <section>
     <h2>2026 年 11 月 6 日</h2>
+    <div class="item">
+      <h3>新增「底座」欄位</h3>
+      <p>登記燈籠時，尺寸下面可以選底座：底盤式 Metal base frame 或插槽式 Socket mount。再按一次已選的就會清除。燈籠頁和匯出的 CSV 都會顯示。</p>
+      <span class="where">現場新增燈籠、新增／編輯燈籠</span>
+    </div>
     <div class="item">
       <h3>現場新增燈籠可以拍多張照片</h3>
       <p>拍照步驟可以連續按「拍照」拍好幾張，或從相簿一次選多張；第一張是主要照片，按 × 可以移除。填資料時也能再加照片。儲存後出現標籤編號的畫面上，還可以繼續補拍，照片會直接加到這盞燈籠。</p>

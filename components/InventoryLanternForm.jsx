@@ -7,6 +7,7 @@ import { VOLTAGE_OPTIONS, CONDITION_OPTIONS, STATUS_OPTIONS, DISPLAY_DECISION_OP
 import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
 import InventoryLanternNameFields from '@/components/InventoryLanternNameFields'
 import InventoryRepairEaseSlider from '@/components/InventoryRepairEaseSlider'
+import InventoryBaseTypePicker from '@/components/InventoryBaseTypePicker'
 
 const STATUS_LABELS = { Active: '使用中 Active', Retired: '退役 Retired', Missing: '遺失 Missing' }
 
@@ -26,6 +27,7 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
     height_ft: lantern?.height_ft ?? '',
     width_ft: lantern?.width_ft ?? '',
     depth_ft: lantern?.depth_ft ?? '',
+    base_type: lantern?.base_type ?? null, // 底座; null = 未填
     location_id: lantern?.location_id ?? '',
     condition: lantern?.condition ?? '', // new lanterns: must be chosen before saving
     cloth_damage_pct: lantern?.cloth_damage_pct ?? 0,
@@ -234,6 +236,10 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
           <label className={labelCls}>深 Depth (ft)</label>
           <input type="number" step="0.01" value={form.depth_ft} onChange={(e) => update('depth_ft', e.target.value)} className={inputCls} />
         </div>
+      </div>
+
+      <div className="max-w-md">
+        <InventoryBaseTypePicker value={form.base_type} onChange={(v) => update('base_type', v)} labelCls={labelCls} />
       </div>
 
       <div>

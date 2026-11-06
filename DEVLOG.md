@@ -260,3 +260,22 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
 - Verified (local Postgres, prod build, 375px): 2 camera + 2 library photos, 1 removed, 1 added
   on details, 2 more after saving → one lantern with 6 photos, only the first primary; no
   horizontal scroll, no JS errors; lint 0 errors.
+
+---
+
+## 2026-11-06 — 底座 Base field
+
+- **Requested** (by voice): a 底座 field on the lantern registration screen with two options —
+  底盤式 **Metal base frame** (its own metal base) and 插槽式 **Socket mount** (slots onto
+  another base). Stored as the English value in `base_type text` (NULL = 未填), CHECK-limited
+  to those two; `BASE_TYPE_OPTIONS` in `lib/inventoryConstants.js`.
+- **New** `components/InventoryBaseTypePicker.jsx` (two tap buttons, tap again to clear), under
+  the dimensions in field-mode New and in New/Edit. Shown on the detail page; in CSV export;
+  tracked in `inv_lantern_events`.
+- **Migration**: `scripts/migrate-lantern-fields.js` now adds both `repair_ease` and
+  `base_type` (one command); `scripts/migrate-repair-ease.js` just runs it. Deploy-safe:
+  `lib/inventorySchema.js` (`hasRepairEaseColumn`, `hasBaseTypeColumn`) skips the columns
+  until the migration has run.
+- **Verified** against a DB without the new columns (create/edit/inspect/export all OK) and
+  with them (Socket mount saved, edited to Metal base frame, invalid value → 400); 375px
+  screenshot; `npm test` 41/41, lint 0 errors, build clean.
