@@ -11,31 +11,33 @@ import InventoryBaseTypePicker from '@/components/InventoryBaseTypePicker'
 
 const STATUS_LABELS = { Active: '使用中 Active', Retired: '退役 Retired', Missing: '遺失 Missing' }
 
-export default function InventoryLanternForm({ lantern, onCancel }) {
+export default function InventoryLanternForm({ lantern, initial, onCancel }) {
   const router = useRouter()
   const { data: session } = useSession()
   const isAdmin = getInventoryRole(session) === 'admin'
   const isEdit = !!lantern
+  // Edit uses the lantern itself; 複製 (new?copy=TAG) pre-fills a NEW lantern from `initial`.
+  const src = lantern ?? initial
 
   const [form, setForm] = useState({
-    name_zh: lantern?.name_zh ?? '',
-    name_en: lantern?.name_en ?? '',
-    category_id: lantern?.category_id ?? '',
-    qty: lantern?.qty ?? 1,
-    voltage: lantern?.voltage ?? '',
-    power_w: lantern?.power_w ?? '',
-    height_ft: lantern?.height_ft ?? '',
-    width_ft: lantern?.width_ft ?? '',
-    depth_ft: lantern?.depth_ft ?? '',
-    base_type: lantern?.base_type ?? null, // 底座; null = 未填
-    location_id: lantern?.location_id ?? '',
-    condition: lantern?.condition ?? '', // new lanterns: must be chosen before saving
-    cloth_damage_pct: lantern?.cloth_damage_pct ?? 0,
-    frame_damage_pct: lantern?.frame_damage_pct ?? 0,
-    repair_ease: lantern?.repair_ease ?? null, // 0–5; null = 未評估
-    notes: lantern?.notes ?? '',
-    status: lantern?.status ?? 'Active',
-    display_decision: lantern?.display_decision ?? '',
+    name_zh: src?.name_zh ?? '',
+    name_en: src?.name_en ?? '',
+    category_id: src?.category_id ?? '',
+    qty: src?.qty ?? 1,
+    voltage: src?.voltage ?? '',
+    power_w: src?.power_w ?? '',
+    height_ft: src?.height_ft ?? '',
+    width_ft: src?.width_ft ?? '',
+    depth_ft: src?.depth_ft ?? '',
+    base_type: src?.base_type ?? null, // 底座; null = 未填
+    location_id: src?.location_id ?? '',
+    condition: src?.condition ?? '', // new lanterns: must be chosen before saving
+    cloth_damage_pct: src?.cloth_damage_pct ?? 0,
+    frame_damage_pct: src?.frame_damage_pct ?? 0,
+    repair_ease: src?.repair_ease ?? null, // 0–5; null = 未評估
+    notes: src?.notes ?? '',
+    status: src?.status ?? 'Active',
+    display_decision: src?.display_decision ?? '',
   })
   const [categories, setCategories] = useState([])
   const [locations, setLocations] = useState([])

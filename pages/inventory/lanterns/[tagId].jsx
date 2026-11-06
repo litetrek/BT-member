@@ -199,6 +199,9 @@ export default function LanternDetail() {
               <Link href={`/inventory/lanterns/${tagId}/edit`} className="text-base bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50">
                 編輯
               </Link>
+              <Link href={`/inventory/lanterns/new?copy=${encodeURIComponent(tagId)}`} className="text-base bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50">
+                複製
+              </Link>
               {role === 'admin' && (
                 <button onClick={() => setConfirmDelete(true)} className="text-base bg-white border border-red-300 text-red-600 px-3 py-1.5 rounded hover:bg-red-50">
                   刪除
