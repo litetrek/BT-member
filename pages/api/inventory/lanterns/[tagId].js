@@ -1,16 +1,17 @@
 import { query, insertInventoryLog } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
-import { STATUS_OPTIONS, DISPLAY_DECISION_OPTIONS, CONDITION_OPTIONS } from '@/lib/inventoryConstants'
+import { STATUS_OPTIONS, DISPLAY_DECISION_OPTIONS, CONDITION_OPTIONS, normalizeRepairEase } from '@/lib/inventoryConstants'
 import { evaluateDisplayability } from '@/lib/inventoryEligibility'
 import { getDisplayThresholds } from '@/lib/inventorySettings'
 import { insertLanternEvent, diffLanternFields, pickEventType } from '@/lib/inventoryEvents'
+import { hasRepairEaseColumn } from '@/lib/inventorySchema'
 
 // Nullable columns where an explicit '' / null in the body means "clear it". Before
 // Phase 1 the PUT used `body.x ?? existing.x`, so choosing "—" (e.g. no location) in the
 // edit form was silently ignored. A field absent from the body still keeps its value.
 const NULLABLE_FIELDS = [
   'name_en', 'category_id', 'voltage', 'power_w', 'height_ft', 'width_ft', 'depth_ft',
-  'location_id', 'notes', 'display_decision',
+  'location_id', 'notes', 'display_decision', 'repair_ease',
 ]
 
 export default async function handler(req, res) {
@@ -80,6 +81,7 @@ export default async function handler(req, res) {
       height_ft: pick('height_ft'), width_ft: pick('width_ft'), depth_ft: pick('depth_ft'),
       location_id: pick('location_id'), condition: pick('condition'),
       cloth_damage_pct: pick('cloth_damage_pct'), frame_damage_pct: pick('frame_damage_pct'),
+      repair_ease: pick('repair_ease'),
       notes: pick('notes'), status: pick('status'), display_decision: pick('display_decision'),
       label_attached: pick('label_attached'),
     }
@@ -92,9 +94,12 @@ export default async function handler(req, res) {
     if (next.display_decision !== null && !DISPLAY_DECISION_OPTIONS.includes(next.display_decision)) {
       return res.status(400).json({ error: 'Invalid display_decision' })
     }
+    next.repair_ease = normalizeRepairEase(next.repair_ease)
+    if (next.repair_ease === undefined) return res.status(400).json({ error: '維修容易程度須為 0–5 Repair ease must be 0–5' })
 
     const { displayable } = evaluateDisplayability(next, await getDisplayThresholds())
     const email = req.inventoryEmail
+    const withRepair = await hasRepairEaseColumn() // false until scripts/migrate-repair-ease.js runs
 
     // Only block a *new* Selected on a non-displayable lantern; a lantern that was already
     // Selected (e.g. before an admin tightened the thresholds) can still be edited.
@@ -108,7 +113,7 @@ export default async function handler(req, res) {
          height_ft = $7, width_ft = $8, depth_ft = $9, location_id = $10,
          condition = $11, cloth_damage_pct = $12, frame_damage_pct = $13, displayable = $14,
          notes = $15, status = $16, display_decision = $17, label_attached = $18,
-         updated_at = now(), updated_by = $19
+         updated_at = now(), updated_by = $19${withRepair ? ', repair_ease = $21' : ''}
        WHERE tag_id = $20
        RETURNING *`,
       [
@@ -116,7 +121,7 @@ export default async function handler(req, res) {
         next.height_ft, next.width_ft, next.depth_ft, next.location_id,
         next.condition, next.cloth_damage_pct, next.frame_damage_pct, displayable,
         next.notes, next.status, next.display_decision, next.label_attached,
-        email, tagId,
+        email, tagId, ...(withRepair ? [next.repair_ease] : []),
       ]
     )
 

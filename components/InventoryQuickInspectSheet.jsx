@@ -3,6 +3,7 @@ import { uploadInventoryPhoto } from '@/lib/inventoryPhoto'
 import { saveDraft, loadDraft, clearDraft, markChecked } from '@/lib/inventoryFieldDraft'
 import { CONDITION_OPTIONS } from '@/lib/inventoryConstants'
 import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
+import InventoryRepairEaseSlider from '@/components/InventoryRepairEaseSlider'
 
 // Used both from Field mode (fixedLocationId + locationCode set, no location picker shown —
 // the lantern is simply recorded as being wherever the recorder is standing) and from the
@@ -16,6 +17,7 @@ export default function InventoryQuickInspectSheet({ lantern, fixedLocationId, l
     condition: draft?.condition ?? lantern.condition ?? 'Good',
     cloth_damage_pct: draft?.cloth_damage_pct ?? lantern.cloth_damage_pct ?? 0,
     frame_damage_pct: draft?.frame_damage_pct ?? lantern.frame_damage_pct ?? 0,
+    repair_ease: draft && 'repair_ease' in draft ? draft.repair_ease : (lantern.repair_ease ?? null),
     notes: draft?.notes ?? '',
     location_id: draft?.location_id ?? fixedLocationId ?? lantern.location_id ?? '',
     // Phase 1.4: Quick Inspect can mark a lantern Missing (or back to Active once found).
@@ -48,6 +50,7 @@ export default function InventoryQuickInspectSheet({ lantern, fixedLocationId, l
           condition: form.condition,
           cloth_damage_pct: Number(form.cloth_damage_pct),
           frame_damage_pct: Number(form.frame_damage_pct),
+          repair_ease: form.repair_ease,
           notes: form.notes || null,
           ...(form.status !== (lantern.status ?? 'Active') ? { status: form.status } : {}),
         }),
@@ -139,6 +142,7 @@ export default function InventoryQuickInspectSheet({ lantern, fixedLocationId, l
 
         {sliderRow('布面損壞 Cloth damage', 'cloth_damage_pct')}
         {sliderRow('骨架損壞 Frame damage', 'frame_damage_pct')}
+        <InventoryRepairEaseSlider value={form.repair_ease} onChange={(v) => update('repair_ease', v)} />
 
         {!fixedLocationId && (
           <div>

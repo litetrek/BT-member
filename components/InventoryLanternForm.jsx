@@ -6,6 +6,7 @@ import { uploadInventoryPhoto } from '@/lib/inventoryPhoto'
 import { VOLTAGE_OPTIONS, CONDITION_OPTIONS, STATUS_OPTIONS, DISPLAY_DECISION_OPTIONS } from '@/lib/inventoryConstants'
 import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
 import InventoryLanternNameFields from '@/components/InventoryLanternNameFields'
+import InventoryRepairEaseSlider from '@/components/InventoryRepairEaseSlider'
 
 const STATUS_LABELS = { Active: '使用中 Active', Retired: '退役 Retired', Missing: '遺失 Missing' }
 
@@ -29,6 +30,7 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
     condition: lantern?.condition ?? '', // new lanterns: must be chosen before saving
     cloth_damage_pct: lantern?.cloth_damage_pct ?? 0,
     frame_damage_pct: lantern?.frame_damage_pct ?? 0,
+    repair_ease: lantern?.repair_ease ?? null, // 0–5; null = 未評估
     notes: lantern?.notes ?? '',
     status: lantern?.status ?? 'Active',
     display_decision: lantern?.display_decision ?? '',
@@ -108,6 +110,7 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
       qty: Number(form.qty) || 1,
       cloth_damage_pct: Number(form.cloth_damage_pct),
       frame_damage_pct: Number(form.frame_damage_pct),
+      repair_ease: form.repair_ease,
     }
 
     if (!isEdit) { delete body.status; delete body.display_decision }
@@ -279,6 +282,10 @@ export default function InventoryLanternForm({ lantern, onCancel }) {
           <label className={labelCls}>骨架損壞 Frame damage (%)</label>
           <input type="number" min="0" max="100" step="5" value={form.frame_damage_pct} onChange={(e) => update('frame_damage_pct', e.target.value)} className={inputCls} />
         </div>
+      </div>
+
+      <div className="max-w-md">
+        <InventoryRepairEaseSlider value={form.repair_ease} onChange={(v) => update('repair_ease', v)} />
       </div>
 
       <div>

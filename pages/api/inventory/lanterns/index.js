@@ -1,10 +1,11 @@
 import { query, insertInventoryLog } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
-import { CONDITION_OPTIONS } from '@/lib/inventoryConstants'
+import { CONDITION_OPTIONS, normalizeRepairEase } from '@/lib/inventoryConstants'
 import { buildLanternWhere } from '@/lib/inventoryLanternFilters'
 import { evaluateDisplayability } from '@/lib/inventoryEligibility'
 import { getDisplayThresholds } from '@/lib/inventorySettings'
 import { logLanternChange } from '@/lib/inventoryEvents'
+import { hasRepairEaseColumn } from '@/lib/inventorySchema'
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -42,7 +43,7 @@ export default async function handler(req, res) {
     const {
       name_zh, name_en, category_id, qty, voltage, power_w,
       height_ft, width_ft, depth_ft, location_id,
-      condition, cloth_damage_pct, frame_damage_pct, notes,
+      condition, cloth_damage_pct, frame_damage_pct, repair_ease, notes,
     } = req.body
 
     const nameZh = String(name_zh ?? '').trim()
@@ -52,6 +53,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: '請選擇狀況 Condition is required' })
     }
 
+    const repairEase = normalizeRepairEase(repair_ease)
+    if (repairEase === undefined) return res.status(400).json({ error: '維修容易程度須為 0–5 Repair ease must be 0–5' })
+
     const cloth = cloth_damage_pct ?? 0
     const frame = frame_damage_pct ?? 0
     const { displayable } = evaluateDisplayability(
@@ -59,19 +63,20 @@ export default async function handler(req, res) {
       await getDisplayThresholds()
     )
     const email = req.inventoryEmail
+    const withRepair = await hasRepairEaseColumn() // false until scripts/migrate-repair-ease.js runs
 
     const { rows: [data] } = await query(
       `INSERT INTO inv_lantern_lanterns
          (name_zh, name_en, category_id, qty, voltage, power_w, height_ft, width_ft, depth_ft,
           location_id, condition, cloth_damage_pct, frame_damage_pct, displayable, notes,
-          created_by, updated_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16)
+          created_by, updated_by${withRepair ? ', repair_ease' : ''})
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16${withRepair ? ',$17' : ''})
        RETURNING *`,
       [
         nameZh, nameEn, category_id || null, qty || 1, voltage || null, power_w || null,
         height_ft || null, width_ft || null, depth_ft || null,
         location_id || null, condition, cloth, frame, displayable, notes || null,
-        email,
+        email, ...(withRepair ? [repairEase] : []),
       ]
     )
 

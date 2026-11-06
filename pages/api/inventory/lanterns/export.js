@@ -1,11 +1,12 @@
 import { query } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
 import { buildLanternWhere } from '@/lib/inventoryLanternFilters'
+import { hasRepairEaseColumn } from '@/lib/inventorySchema'
 
 const BASE_COLUMNS = [
   'tag_id', 'name_zh', 'name_en', 'category', 'qty', 'voltage', 'power_w',
   'height_ft', 'width_ft', 'depth_ft', 'location', 'condition',
-  'cloth_damage_pct', 'frame_damage_pct', 'displayable', 'status',
+  'cloth_damage_pct', 'frame_damage_pct', 'repair_ease', 'displayable', 'status',
   'display_decision', 'notes',
 ]
 
@@ -37,7 +38,7 @@ export default async function handler(req, res) {
   const { rows } = await query(
     `SELECT l.tag_id, l.name_zh, l.name_en, c.name_zh AS category, l.qty, l.voltage, l.power_w,
             l.height_ft, l.width_ft, l.depth_ft, loc.code AS location, l.condition,
-            l.cloth_damage_pct, l.frame_damage_pct, l.displayable, l.status,
+            l.cloth_damage_pct, l.frame_damage_pct, ${(await hasRepairEaseColumn()) ? 'l.repair_ease' : 'NULL AS repair_ease'}, l.displayable, l.status,
             l.display_decision, l.notes,
             (SELECT p.url FROM inv_lantern_photos p
              WHERE p.owner_type = 'lantern' AND p.owner_id = l.id AND p.is_primary = true

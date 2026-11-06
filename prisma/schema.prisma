@@ -277,6 +277,7 @@ model InventoryLantern {
   condition        String   @default("Good") // Good | OK | Fair | Bad — copied from latest inspection
   cloth_damage_pct Int      @default(0)
   frame_damage_pct Int      @default(0)
+  repair_ease      Int?     @db.SmallInt // 維修容易程度 0 不需修補 … 5 需大幅修補; NULL = 未評估 (scripts/migrate-repair-ease.js)
   displayable      Boolean  @default(true) // false when cloth OR frame damage >= NOT_DISPLAYABLE_DAMAGE_PCT (lib/inventoryConstants.js); computed in app code on every save
   status           String   @default("Active") // Active | Retired | Missing
   display_decision String?  // Stage 4: Candidate | Selected | Needs repair | Not this year
@@ -304,6 +305,7 @@ model InventoryInspection {
   condition        String
   cloth_damage_pct Int
   frame_damage_pct Int
+  repair_ease      Int?     @db.SmallInt // rating saved with this inspection
   location_id      String?  @db.Uuid
   notes            String?
 
