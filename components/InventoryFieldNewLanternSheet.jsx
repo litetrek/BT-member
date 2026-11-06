@@ -6,15 +6,21 @@ import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
 import InventoryLanternNameFields from '@/components/InventoryLanternNameFields'
 import InventoryRepairEaseSlider from '@/components/InventoryRepairEaseSlider'
 
-// Field mode's "+ New lantern" flow: photo first (per spec), then fields, then the
+// Field mode's "+ New lantern" flow: photos first (per spec), then fields, then the
 // auto-assigned tag ID shown large so it can go straight on a temporary label.
+// Several photos can be taken: on the photo step (拍照 again for each), added while
+// filling in the details, and added after saving on the tag-ID screen (uploaded right
+// away to the new lantern). The first photo becomes the 主要 (primary) photo.
 export default function InventoryFieldNewLanternSheet({ fixedLocationId, locationCode, categories, onClose, onSaved }) {
   const draftKey = `newlantern:${locationCode}`
   const draft = loadDraft(draftKey)
 
   const [step, setStep] = useState('photo') // photo | details | done
-  const [photoFile, setPhotoFile] = useState(null)
-  const [photoPreview, setPhotoPreview] = useState(null)
+  const [photos, setPhotos] = useState([]) // [{ file, preview }] — not uploaded yet; [0] = primary
+  const [created, setCreated] = useState(null) // the saved lantern, once POST succeeds
+  const [uploaded, setUploaded] = useState([]) // preview URLs of photos already on the lantern
+  const [uploadingMore, setUploadingMore] = useState(false)
+  const [photoWarning, setPhotoWarning] = useState('')
   const [form, setForm] = useState({
     name_zh: draft?.name_zh ?? '',
     name_en: draft?.name_en ?? '',
@@ -43,11 +49,46 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
     setForm((f) => ({ ...f, [field]: value }))
   }
 
-  function handlePhotoChange(files) {
-    const file = files[0]
-    if (!file) return
-    setPhotoFile(file)
-    setPhotoPreview(URL.createObjectURL(file))
+  function addPhotos(files) {
+    setPhotos((prev) => [...prev, ...files.map((file) => ({ file, preview: URL.createObjectURL(file) }))])
+  }
+
+  function removePhoto(i) {
+    setPhotos((prev) => prev.filter((_, j) => j !== i))
+  }
+
+  // Uploads files to the saved lantern one by one; returns the ones that failed.
+  async function uploadToLantern(lanternId, items, firstIsPrimary) {
+    const failed = []
+    for (let i = 0; i < items.length; i++) {
+      try {
+        const { url, thumbUrl } = await uploadInventoryPhoto(items[i].file, 'lantern', lanternId)
+        const res = await fetch('/api/inventory/photos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            owner_type: 'lantern', owner_id: lanternId, url, thumb_url: thumbUrl,
+            is_primary: firstIsPrimary && i === 0,
+          }),
+        })
+        if (!res.ok) throw new Error('save failed')
+        setUploaded((prev) => [...prev, items[i].preview])
+      } catch {
+        failed.push(items[i])
+      }
+    }
+    return failed
+  }
+
+  // On the tag-ID screen: more photos go straight onto the saved lantern.
+  async function handleAddAfterSave(files) {
+    if (!created || !files.length) return
+    setUploadingMore(true)
+    setPhotoWarning('')
+    const items = files.map((file) => ({ file, preview: URL.createObjectURL(file) }))
+    const failed = await uploadToLantern(created.id, items, uploaded.length === 0)
+    if (failed.length) setPhotoWarning(`${failed.length} 張照片上傳失敗，請再試一次 Upload failed — try again`)
+    setUploadingMore(false)
   }
 
   async function handleSubmit() {
@@ -78,19 +119,18 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
       if (!res.ok) throw new Error((await res.json()).error || '儲存失敗')
       const lantern = await res.json()
 
-      if (photoFile) {
-        const { url, thumbUrl } = await uploadInventoryPhoto(photoFile, 'lantern', lantern.id)
-        await fetch('/api/inventory/photos', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ owner_type: 'lantern', owner_id: lantern.id, url, thumb_url: thumbUrl, is_primary: true }),
-        })
-      }
-
+      // The lantern exists from here on: always move to the tag-ID screen, even if some
+      // photos fail (retrying 儲存 would create a duplicate lantern). Failed photos can be
+      // added again on that screen.
       clearDraft(draftKey)
       markChecked(locationCode, lantern.id)
+      setCreated(lantern)
       setCreatedTag(lantern.tag_id)
       setStep('done')
+      const failed = await uploadToLantern(lantern.id, photos, true)
+      if (failed.length) setPhotoWarning(`${failed.length} 張照片上傳失敗，請用下面的按鈕再加 Some photos failed — add them again below`)
+      setPhotos([])
+      setSaving(false)
     } catch (err) {
       setError(err.message)
       setSaving(false)
@@ -109,20 +149,21 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
         {step === 'photo' && (
           <>
             <h2 className="font-semibold text-gray-900 text-lg">新增燈籠 New Lantern</h2>
-            <p className="text-sm text-gray-500">先拍照 Take a photo first</p>
-            {photoPreview ? (
-              <img src={photoPreview} alt="" className="w-full rounded-lg object-cover max-h-64" />
+            <p className="text-sm text-gray-500">先拍照，可以拍多張 Take one or more photos first</p>
+            {photos.length ? (
+              <PhotoGrid photos={photos} onRemove={removePhoto} large />
             ) : (
               <div className="w-full h-48 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300 text-sm">
                 尚未拍照
               </div>
             )}
-            <InventoryPhotoPicker onFiles={handlePhotoChange} />
+            {photos.length > 0 && <p className="text-sm text-gray-500">已選 {photos.length} 張 · 第一張為主要照片。再按「拍照」可繼續加。</p>}
+            <InventoryPhotoPicker multiple onFiles={addPhotos} />
             <div className="sticky bottom-0 bg-white pt-2 flex gap-2">
               <button onClick={onClose} className="flex-1 py-3 text-base text-gray-600 border border-gray-200 rounded-lg">取消</button>
               <button
                 onClick={() => setStep('details')}
-                disabled={!photoFile}
+                disabled={!photos.length}
                 className="flex-1 py-3 text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 繼續 Continue
@@ -137,6 +178,13 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
             <div className="flex items-center justify-between rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
               <span className="text-sm text-gray-500">地點 Location</span>
               <span className="text-base font-semibold text-blue-800">{locationCode}</span>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-500">照片 Photos（{photos.length}）</span>
+                <InventoryPhotoPicker compact multiple onFiles={addPhotos} />
+              </div>
+              <PhotoGrid photos={photos} onRemove={removePhoto} />
             </div>
             <InventoryLanternNameFields
               nameZh={form.name_zh}
@@ -239,12 +287,54 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
             <p className="text-sm text-gray-500">標籤編號 Tag ID</p>
             <p className="text-5xl font-bold text-blue-700 font-mono">{createdTag}</p>
             <p className="text-sm text-gray-500">請立即寫在臨時標籤上<br />Write this on a temporary label now</p>
-            <button onClick={handleDone} className="w-full py-3 text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              完成 Done
+
+            <div className="text-left border-t border-gray-100 pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">
+                  照片 Photos（{uploaded.length}）{(saving || uploadingMore) && <span className="text-blue-600"> 上傳中…</span>}
+                </span>
+              </div>
+              {uploaded.length > 0 && <PhotoGrid photos={uploaded.map((preview) => ({ preview }))} />}
+              <p className="text-sm text-gray-500">還要補拍嗎？照片會直接加到 {createdTag}。<span className="block text-xs text-gray-400">Need more photos? They are added to this lantern right away.</span></p>
+              <InventoryPhotoPicker multiple onFiles={handleAddAfterSave} disabled={saving || uploadingMore} />
+              {photoWarning && <p className="text-sm text-red-500">{photoWarning}</p>}
+            </div>
+
+            <button onClick={handleDone} disabled={saving || uploadingMore} className="w-full py-3 text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              {saving || uploadingMore ? '照片上傳中…' : '完成 Done'}
             </button>
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// Thumbnails of photos picked in this sheet. [0] gets the 主要 badge; × removes one
+// (only before saving — after saving, photos are managed on the lantern's page).
+function PhotoGrid({ photos, onRemove, large = false }) {
+  return (
+    <div className={`grid gap-2 ${large ? 'grid-cols-3' : 'grid-cols-4'}`}>
+      {photos.map((p, i) => (
+        <div key={p.preview} className={`relative ${large && i === 0 ? 'col-span-3' : ''}`}>
+          <img
+            src={p.preview}
+            alt=""
+            className={`w-full rounded-lg object-cover bg-gray-100 ${large && i === 0 ? 'max-h-64' : 'aspect-square'}`}
+          />
+          {i === 0 && <span className="absolute top-1 left-1 text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded">主要</span>}
+          {onRemove && (
+            <button
+              type="button"
+              onClick={() => onRemove(i)}
+              aria-label="移除這張照片 Remove photo"
+              className="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/60 text-white text-base leading-none flex items-center justify-center"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      ))}
     </div>
   )
 }

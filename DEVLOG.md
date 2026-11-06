@@ -242,3 +242,21 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
 - **Verified** (local Postgres, prod build, 375px): field New saved 2, Edit changed to 4, Quick
   Inspect changed to 1; inspection row has 1; events `created [null,2]`, `updated [2,4]`,
   `inspected [4,1]`; no horizontal scroll, no JS errors; `npm test` 40/40, lint 0 errors.
+
+---
+
+## 2026-11-06 — Field-mode New: multiple photos, before and after saving
+
+- `components/InventoryFieldNewLanternSheet.jsx`: photos are a list instead of one file.
+  - Photo step: 拍照 can be pressed repeatedly, 相簿 picks several at once; thumbnails with ×
+    to remove; the first is 主要 (primary).
+  - Details step: 照片（N）strip with a compact 拍照 / 相簿 picker to add more before saving.
+  - Tag-ID screen after saving: 照片（N）grid plus 拍照 / 相簿 — new photos upload straight to
+    the saved lantern (primary only if it has none yet). 完成 waits while uploads run.
+  - Once the lantern is created the sheet always moves to the tag-ID screen, even if a photo
+    upload fails (retrying 儲存 used to risk a duplicate lantern); failures show a message and
+    can be re-added there.
+- Guide page: 2026-11-06 entry. No migration.
+- Verified (local Postgres, prod build, 375px): 2 camera + 2 library photos, 1 removed, 1 added
+  on details, 2 more after saving → one lantern with 6 photos, only the first primary; no
+  horizontal scroll, no JS errors; lint 0 errors.
