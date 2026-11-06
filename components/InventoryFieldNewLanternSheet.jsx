@@ -4,6 +4,7 @@ import { saveDraft, loadDraft, clearDraft, markChecked } from '@/lib/inventoryFi
 import { CONDITION_OPTIONS, VOLTAGE_OPTIONS } from '@/lib/inventoryConstants'
 import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
 import InventoryLanternNameFields from '@/components/InventoryLanternNameFields'
+import InventoryRepairEaseSlider from '@/components/InventoryRepairEaseSlider'
 
 // Field mode's "+ New lantern" flow: photo first (per spec), then fields, then the
 // auto-assigned tag ID shown large so it can go straight on a temporary label.
@@ -27,6 +28,7 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
     condition: draft?.condition ?? '', // must be chosen before saving
     cloth_damage_pct: draft?.cloth_damage_pct ?? 0,
     frame_damage_pct: draft?.frame_damage_pct ?? 0,
+    repair_ease: draft?.repair_ease ?? null, // 0–5; null = 未評估
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -65,6 +67,7 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
         qty: Number(form.qty) || 1,
         cloth_damage_pct: Number(form.cloth_damage_pct),
         frame_damage_pct: Number(form.frame_damage_pct),
+        repair_ease: form.repair_ease,
         location_id: fixedLocationId,
       }
       const res = await fetch('/api/inventory/lanterns', {
@@ -214,6 +217,7 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
               </div>
               <input type="range" min="0" max="100" step="5" value={form.frame_damage_pct} onChange={(e) => update('frame_damage_pct', e.target.value)} className="w-full" />
             </div>
+            <InventoryRepairEaseSlider value={form.repair_ease} onChange={(v) => update('repair_ease', v)} />
 
             {error && <p className="text-sm text-red-500">{error}</p>}
 

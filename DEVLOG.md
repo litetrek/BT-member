@@ -216,3 +216,26 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
   status, display decision), the six screens, roles (Viewer / Editor / Admin) and the normal
   workflow — followed by 最新更新 (the Oct 28–30 changes). Title now 燈籠庫存功能說明.
 - Standing rule added at the top of this file: update the guide on every big change.
+
+---
+
+## 2026-11-06 — 維修容易程度 Repair ease (0–5)
+
+- **Requested**: in the add-lantern screen, under the damage sliders, a 0–5 slider rating how
+  much repair a lantern group needs (quick touch-up vs major repair).
+- **Scale** (higher = more work, `REPAIR_EASE_LEVELS` in `lib/inventoryConstants.js`):
+  0 不需修補 · 1 稍微修補 · 2 小修 · 3 中度修補 · 4 大修 · 5 需大幅修補; NULL = 未評估.
+- **Migration** `scripts/migrate-repair-ease.js` (idempotent): `repair_ease smallint` with a
+  0–5 CHECK on `inv_lantern_lanterns` and on `inv_lantern_inspections` (each inspection keeps
+  the rating it was saved with). Prisma fields added. **Run it before deploying** — the
+  INSERT/UPDATE statements reference the column.
+- **New** `components/InventoryRepairEaseSlider.jsx` — used in field-mode New, New/Edit
+  (`InventoryLanternForm`) and Quick Inspect. Starts at 未評估; moving it sets a value; 清除
+  resets to NULL.
+- **APIs**: POST lanterns, PUT lanterns/[tagId] (nullable, validated 0–5), POST inspections
+  (absent = keep current rating). Tracked in `inv_lantern_events` diffs; included in CSV export;
+  shown on the detail page and in each inspection line (`維修 N/5`).
+- **Guide** `public/lantern-guide/index.html`: new 基本概念 entry + 2026-11-06 update.
+- **Verified** (local Postgres, prod build, 375px): field New saved 2, Edit changed to 4, Quick
+  Inspect changed to 1; inspection row has 1; events `created [null,2]`, `updated [2,4]`,
+  `inspected [4,1]`; no horizontal scroll, no JS errors; `npm test` 40/40, lint 0 errors.

@@ -11,6 +11,7 @@ import InventoryQuickInspectSheet from '@/components/InventoryQuickInspectSheet'
 import InventoryPhotoLightbox from '@/components/InventoryPhotoLightbox'
 import InventoryHeader from '@/components/InventoryHeader'
 import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
+import { formatRepairEase } from '@/lib/inventoryConstants'
 import { sortLanterns } from '@/lib/inventoryLanternSort'
 import { loadListView, filtersToQuery, hasActiveFilters } from '@/lib/inventoryListView'
 
@@ -342,6 +343,7 @@ export default function LanternDetail() {
                 <Field label="狀況 Condition" value={lantern.condition} />
                 <Field label="布面損壞 Cloth damage" value={`${lantern.cloth_damage_pct}%`} />
                 <Field label="骨架損壞 Frame damage" value={`${lantern.frame_damage_pct}%`} />
+                <Field label="維修容易程度 Repair ease" value={formatRepairEase(lantern.repair_ease)} />
                 <Field label="狀態 Status" value={lantern.status} />
                 <Field label="展示決定 Display decision" value={lantern.display_decision} />
               </div>
@@ -363,7 +365,7 @@ export default function LanternDetail() {
                           {new Date(insp.inspected_at).toLocaleString('zh-TW')} · {insp.inspected_by ?? '—'}
                         </p>
                         <p className="text-gray-500">
-                          {insp.condition} · 布面 {insp.cloth_damage_pct}% · 骨架 {insp.frame_damage_pct}%
+                          {insp.condition} · 布面 {insp.cloth_damage_pct}% · 骨架 {insp.frame_damage_pct}%{insp.repair_ease != null ? ` · 維修 ${insp.repair_ease}/5` : ''}
                           {insp.location_code ? ` · ${insp.location_code}` : ''}
                         </p>
                         {insp.notes && <p className="text-gray-400">{insp.notes}</p>}
