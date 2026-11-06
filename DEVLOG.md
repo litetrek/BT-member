@@ -279,3 +279,7 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
 - **Verified** against a DB without the new columns (create/edit/inspect/export all OK) and
   with them (Socket mount saved, edited to Metal base frame, invalid value → 400); 375px
   screenshot; `npm test` 41/41, lint 0 errors, build clean.
+- **Follow-up (same day)**: 底座 also in Quick Inspect (`InventoryQuickInspectSheet`, under the
+  repair-ease slider). The sheet only sends `base_type` when it was changed there; the
+  inspections API updates the lantern's `base_type` when present (skipped before the
+  migration), so an inspection never clears it. Verified on DBs with and without the column.

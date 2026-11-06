@@ -1,10 +1,10 @@
 import { query, insertInventoryLog } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
-import { CONDITION_OPTIONS, STATUS_OPTIONS, normalizeRepairEase } from '@/lib/inventoryConstants'
+import { CONDITION_OPTIONS, STATUS_OPTIONS, normalizeRepairEase, normalizeBaseType } from '@/lib/inventoryConstants'
 import { evaluateDisplayability } from '@/lib/inventoryEligibility'
 import { getDisplayThresholds } from '@/lib/inventorySettings'
 import { logLanternChange } from '@/lib/inventoryEvents'
-import { hasRepairEaseColumn } from '@/lib/inventorySchema'
+import { hasRepairEaseColumn, hasBaseTypeColumn } from '@/lib/inventorySchema'
 
 // Saving an inspection updates the lantern's current condition, damage % and
 // location in the same flow. If location_id differs from the lantern's existing
@@ -45,6 +45,15 @@ export default async function handler(req, res) {
     : lantern.repair_ease ?? null
   if (repairEase === undefined) return res.status(400).json({ error: '維修容易程度須為 0–5 Repair ease must be 0–5' })
   const withRepair = await hasRepairEaseColumn() // false until scripts/migrate-lantern-fields.js runs
+  // 底座 can be filled in or corrected during Quick Inspect; absent from the body = unchanged.
+  const hasBase = Object.prototype.hasOwnProperty.call(req.body, 'base_type')
+  const baseType = hasBase ? normalizeBaseType(req.body.base_type) : null
+  if (baseType === undefined) return res.status(400).json({ error: '底座選項無效 Invalid base type' })
+  const withBase = hasBase && (await hasBaseTypeColumn())
+  const extra = [
+    ...(withRepair ? [['repair_ease', repairEase]] : []),
+    ...(withBase ? [['base_type', baseType]] : []),
+  ]
   const email = req.inventoryEmail
 
   const { rows: [inspection] } = await query(
@@ -58,10 +67,10 @@ export default async function handler(req, res) {
   const { rows: [updatedLantern] } = await query(
     `UPDATE inv_lantern_lanterns
      SET condition = $1, cloth_damage_pct = $2, frame_damage_pct = $3, displayable = $4,
-         location_id = $5, status = $6, updated_at = now(), updated_by = $7${withRepair ? ', repair_ease = $9' : ''}
+         location_id = $5, status = $6, updated_at = now(), updated_by = $7${extra.map(([c], i) => `, ${c} = $${9 + i}`).join('')}
      WHERE id = $8
      RETURNING *`,
-    [condition, cloth, frame, displayable, newLocationId || null, newStatus, email, lantern_id, ...(withRepair ? [repairEase] : [])]
+    [condition, cloth, frame, displayable, newLocationId || null, newStatus, email, lantern_id, ...extra.map(([, v]) => v)]
   )
 
   await insertInventoryLog({
