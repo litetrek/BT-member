@@ -4,6 +4,7 @@ import { STATUS_OPTIONS, DISPLAY_DECISION_OPTIONS, CONDITION_OPTIONS, normalizeR
 import { evaluateDisplayability } from '@/lib/inventoryEligibility'
 import { getDisplayThresholds } from '@/lib/inventorySettings'
 import { insertLanternEvent, diffLanternFields, pickEventType } from '@/lib/inventoryEvents'
+import { hasRepairEaseColumn } from '@/lib/inventorySchema'
 
 // Nullable columns where an explicit '' / null in the body means "clear it". Before
 // Phase 1 the PUT used `body.x ?? existing.x`, so choosing "—" (e.g. no location) in the
@@ -98,6 +99,7 @@ export default async function handler(req, res) {
 
     const { displayable } = evaluateDisplayability(next, await getDisplayThresholds())
     const email = req.inventoryEmail
+    const withRepair = await hasRepairEaseColumn() // false until scripts/migrate-repair-ease.js runs
 
     // Only block a *new* Selected on a non-displayable lantern; a lantern that was already
     // Selected (e.g. before an admin tightened the thresholds) can still be edited.
@@ -111,7 +113,7 @@ export default async function handler(req, res) {
          height_ft = $7, width_ft = $8, depth_ft = $9, location_id = $10,
          condition = $11, cloth_damage_pct = $12, frame_damage_pct = $13, displayable = $14,
          notes = $15, status = $16, display_decision = $17, label_attached = $18,
-         updated_at = now(), updated_by = $19, repair_ease = $21
+         updated_at = now(), updated_by = $19${withRepair ? ', repair_ease = $21' : ''}
        WHERE tag_id = $20
        RETURNING *`,
       [
@@ -119,7 +121,7 @@ export default async function handler(req, res) {
         next.height_ft, next.width_ft, next.depth_ft, next.location_id,
         next.condition, next.cloth_damage_pct, next.frame_damage_pct, displayable,
         next.notes, next.status, next.display_decision, next.label_attached,
-        email, tagId, next.repair_ease,
+        email, tagId, ...(withRepair ? [next.repair_ease] : []),
       ]
     )
 

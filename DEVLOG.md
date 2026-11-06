@@ -227,8 +227,11 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
   0 不需修補 · 1 稍微修補 · 2 小修 · 3 中度修補 · 4 大修 · 5 需大幅修補; NULL = 未評估.
 - **Migration** `scripts/migrate-repair-ease.js` (idempotent): `repair_ease smallint` with a
   0–5 CHECK on `inv_lantern_lanterns` and on `inv_lantern_inspections` (each inspection keeps
-  the rating it was saved with). Prisma fields added. **Run it before deploying** — the
-  INSERT/UPDATE statements reference the column.
+  the rating it was saved with). Prisma fields added. Deployed before the migration ran:
+  `lib/inventorySchema.js` `hasRepairEaseColumn()` checks for the columns (re-checks every
+  minute while missing), so saves keep working and the rating is simply not stored until
+  `node scripts/migrate-repair-ease.js` is run on Neon. Verified against a DB without the
+  column (create / edit / inspect / export all 200/201).
 - **New** `components/InventoryRepairEaseSlider.jsx` — used in field-mode New, New/Edit
   (`InventoryLanternForm`) and Quick Inspect. Starts at 未評估; moving it sets a value; 清除
   resets to NULL.

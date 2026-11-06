@@ -4,6 +4,7 @@ import { CONDITION_OPTIONS, STATUS_OPTIONS, normalizeRepairEase } from '@/lib/in
 import { evaluateDisplayability } from '@/lib/inventoryEligibility'
 import { getDisplayThresholds } from '@/lib/inventorySettings'
 import { logLanternChange } from '@/lib/inventoryEvents'
+import { hasRepairEaseColumn } from '@/lib/inventorySchema'
 
 // Saving an inspection updates the lantern's current condition, damage % and
 // location in the same flow. If location_id differs from the lantern's existing
@@ -43,23 +44,24 @@ export default async function handler(req, res) {
     ? normalizeRepairEase(req.body.repair_ease)
     : lantern.repair_ease ?? null
   if (repairEase === undefined) return res.status(400).json({ error: '維修容易程度須為 0–5 Repair ease must be 0–5' })
+  const withRepair = await hasRepairEaseColumn() // false until scripts/migrate-repair-ease.js runs
   const email = req.inventoryEmail
 
   const { rows: [inspection] } = await query(
     `INSERT INTO inv_lantern_inspections
-       (lantern_id, inspected_by, condition, cloth_damage_pct, frame_damage_pct, location_id, notes, repair_ease)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       (lantern_id, inspected_by, condition, cloth_damage_pct, frame_damage_pct, location_id, notes${withRepair ? ', repair_ease' : ''})
+     VALUES ($1,$2,$3,$4,$5,$6,$7${withRepair ? ',$8' : ''})
      RETURNING *`,
-    [lantern_id, email, condition, cloth, frame, newLocationId || null, notes || null, repairEase]
+    [lantern_id, email, condition, cloth, frame, newLocationId || null, notes || null, ...(withRepair ? [repairEase] : [])]
   )
 
   const { rows: [updatedLantern] } = await query(
     `UPDATE inv_lantern_lanterns
      SET condition = $1, cloth_damage_pct = $2, frame_damage_pct = $3, displayable = $4,
-         location_id = $5, status = $6, updated_at = now(), updated_by = $7, repair_ease = $9
+         location_id = $5, status = $6, updated_at = now(), updated_by = $7${withRepair ? ', repair_ease = $9' : ''}
      WHERE id = $8
      RETURNING *`,
-    [condition, cloth, frame, displayable, newLocationId || null, newStatus, email, lantern_id, repairEase]
+    [condition, cloth, frame, displayable, newLocationId || null, newStatus, email, lantern_id, ...(withRepair ? [repairEase] : [])]
   )
 
   await insertInventoryLog({
