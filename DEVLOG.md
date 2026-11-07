@@ -283,3 +283,19 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
   repair-ease slider). The sheet only sends `base_type` when it was changed there; the
   inspections API updates the lantern's `base_type` when present (skipped before the
   migration), so an inspection never clears it. Verified on DBs with and without the column.
+
+---
+
+## 2026-11-06 — 尺寸大小 Size field
+
+- **Requested**: under 底座, a size field with 小 / 中 / 大 / 超大. Stored in `size_class text`
+  ('Small' | 'Medium' | 'Large' | 'Extra large', NULL = 未填, CHECK-limited);
+  `SIZE_CLASS_OPTIONS` in `lib/inventoryConstants.js` (超大 shows as "X-Large" so it fits).
+- **New** `components/InventoryOptionPicker.jsx` (generic tap-button choice row);
+  `InventoryBaseTypePicker` now wraps it, and new `InventorySizePicker` (4 columns) sits under
+  底座 in field-mode New, New/Edit (incl. 複製 copy) and Quick Inspect (sent only when changed).
+- APIs: POST / PUT lanterns, POST inspections (absent = unchanged); detail page, CSV export,
+  event diffs. `scripts/migrate-lantern-fields.js` now also adds `size_class`; deploy-safe via
+  `hasSizeClassColumn()`.
+- Verified on DBs with and without the column (create Large → edit Extra large → inspect Small;
+  inspection without size keeps it; invalid → 400; export 200); 375px; `npm test` 42/42.

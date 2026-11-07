@@ -11,3 +11,14 @@ test('base type: two options, blank = 未填, anything else rejected', () => {
   assert.equal(formatBaseType('Metal base frame'), '底盤式 Metal base frame')
   assert.equal(formatBaseType(null), null)
 })
+
+import { normalizeSizeClass, formatSizeClass, SIZE_CLASS_OPTIONS } from '../lib/inventoryConstants.js'
+
+test('size: 小 / 中 / 大 / 超大, blank = 未填, anything else rejected', () => {
+  assert.deepEqual(SIZE_CLASS_OPTIONS.map((o) => o.zh), ['小', '中', '大', '超大'])
+  assert.equal(normalizeSizeClass('Extra large'), 'Extra large')
+  assert.equal(normalizeSizeClass(''), null)
+  assert.equal(normalizeSizeClass('XL'), undefined)
+  assert.equal(formatSizeClass('Medium'), '中 Medium')
+  assert.equal(formatSizeClass('Extra large'), '超大 X-Large')
+})

@@ -8,6 +8,7 @@ import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
 import InventoryLanternNameFields from '@/components/InventoryLanternNameFields'
 import InventoryRepairEaseSlider from '@/components/InventoryRepairEaseSlider'
 import InventoryBaseTypePicker from '@/components/InventoryBaseTypePicker'
+import InventorySizePicker from '@/components/InventorySizePicker'
 
 const STATUS_LABELS = { Active: '使用中 Active', Retired: '退役 Retired', Missing: '遺失 Missing' }
 
@@ -30,6 +31,7 @@ export default function InventoryLanternForm({ lantern, initial, onCancel }) {
     width_ft: src?.width_ft ?? '',
     depth_ft: src?.depth_ft ?? '',
     base_type: src?.base_type ?? null, // 底座; null = 未填
+    size_class: src?.size_class ?? null, // 尺寸大小; null = 未填
     location_id: src?.location_id ?? '',
     condition: src?.condition ?? '', // new lanterns: must be chosen before saving
     cloth_damage_pct: src?.cloth_damage_pct ?? 0,
@@ -242,6 +244,9 @@ export default function InventoryLanternForm({ lantern, initial, onCancel }) {
 
       <div className="max-w-md">
         <InventoryBaseTypePicker value={form.base_type} onChange={(v) => update('base_type', v)} labelCls={labelCls} />
+        <div className="mt-4">
+          <InventorySizePicker value={form.size_class} onChange={(v) => update('size_class', v)} labelCls={labelCls} />
+        </div>
       </div>
 
       <div>

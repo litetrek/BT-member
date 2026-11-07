@@ -6,6 +6,7 @@ import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
 import InventoryLanternNameFields from '@/components/InventoryLanternNameFields'
 import InventoryRepairEaseSlider from '@/components/InventoryRepairEaseSlider'
 import InventoryBaseTypePicker from '@/components/InventoryBaseTypePicker'
+import InventorySizePicker from '@/components/InventorySizePicker'
 
 // Field mode's "+ New lantern" flow: photos first (per spec), then fields, then the
 // auto-assigned tag ID shown large so it can go straight on a temporary label.
@@ -33,6 +34,7 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
     width_ft: draft?.width_ft ?? '',
     depth_ft: draft?.depth_ft ?? '',
     base_type: draft?.base_type ?? null, // 底座; null = 未填
+    size_class: draft?.size_class ?? null, // 尺寸大小; null = 未填
     condition: draft?.condition ?? '', // must be chosen before saving
     cloth_damage_pct: draft?.cloth_damage_pct ?? 0,
     frame_damage_pct: draft?.frame_damage_pct ?? 0,
@@ -237,6 +239,7 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
               </div>
             </div>
             <InventoryBaseTypePicker value={form.base_type} onChange={(v) => update('base_type', v)} />
+            <InventorySizePicker value={form.size_class} onChange={(v) => update('size_class', v)} />
 
             <div>
               <p className="text-sm text-gray-500 mb-2">狀況 Condition {!form.condition && <span className="text-red-500">（請選擇）</span>}</p>

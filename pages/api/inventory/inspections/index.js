@@ -1,10 +1,10 @@
 import { query, insertInventoryLog } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
-import { CONDITION_OPTIONS, STATUS_OPTIONS, normalizeRepairEase, normalizeBaseType } from '@/lib/inventoryConstants'
+import { CONDITION_OPTIONS, STATUS_OPTIONS, normalizeRepairEase, normalizeBaseType, normalizeSizeClass } from '@/lib/inventoryConstants'
 import { evaluateDisplayability } from '@/lib/inventoryEligibility'
 import { getDisplayThresholds } from '@/lib/inventorySettings'
 import { logLanternChange } from '@/lib/inventoryEvents'
-import { hasRepairEaseColumn, hasBaseTypeColumn } from '@/lib/inventorySchema'
+import { hasRepairEaseColumn, hasBaseTypeColumn, hasSizeClassColumn } from '@/lib/inventorySchema'
 
 // Saving an inspection updates the lantern's current condition, damage % and
 // location in the same flow. If location_id differs from the lantern's existing
@@ -50,9 +50,15 @@ export default async function handler(req, res) {
   const baseType = hasBase ? normalizeBaseType(req.body.base_type) : null
   if (baseType === undefined) return res.status(400).json({ error: '底座選項無效 Invalid base type' })
   const withBase = hasBase && (await hasBaseTypeColumn())
+  // 尺寸大小: same rule — absent = unchanged.
+  const hasSize = Object.prototype.hasOwnProperty.call(req.body, 'size_class')
+  const sizeClass = hasSize ? normalizeSizeClass(req.body.size_class) : null
+  if (sizeClass === undefined) return res.status(400).json({ error: '尺寸大小選項無效 Invalid size' })
+  const withSize = hasSize && (await hasSizeClassColumn())
   const extra = [
     ...(withRepair ? [['repair_ease', repairEase]] : []),
     ...(withBase ? [['base_type', baseType]] : []),
+    ...(withSize ? [['size_class', sizeClass]] : []),
   ]
   const email = req.inventoryEmail
 

@@ -1,11 +1,11 @@
 import { query, insertInventoryLog } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
-import { CONDITION_OPTIONS, normalizeRepairEase, normalizeBaseType } from '@/lib/inventoryConstants'
+import { CONDITION_OPTIONS, normalizeRepairEase, normalizeBaseType, normalizeSizeClass } from '@/lib/inventoryConstants'
 import { buildLanternWhere } from '@/lib/inventoryLanternFilters'
 import { evaluateDisplayability } from '@/lib/inventoryEligibility'
 import { getDisplayThresholds } from '@/lib/inventorySettings'
 import { logLanternChange } from '@/lib/inventoryEvents'
-import { hasRepairEaseColumn, hasBaseTypeColumn } from '@/lib/inventorySchema'
+import { hasRepairEaseColumn, hasBaseTypeColumn, hasSizeClassColumn } from '@/lib/inventorySchema'
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
     const {
       name_zh, name_en, category_id, qty, voltage, power_w,
-      height_ft, width_ft, depth_ft, location_id, base_type,
+      height_ft, width_ft, depth_ft, location_id, base_type, size_class,
       condition, cloth_damage_pct, frame_damage_pct, repair_ease, notes,
     } = req.body
 
@@ -57,6 +57,8 @@ export default async function handler(req, res) {
     if (repairEase === undefined) return res.status(400).json({ error: '維修容易程度須為 0–5 Repair ease must be 0–5' })
     const baseType = normalizeBaseType(base_type)
     if (baseType === undefined) return res.status(400).json({ error: '底座選項無效 Invalid base type' })
+    const sizeClass = normalizeSizeClass(size_class)
+    if (sizeClass === undefined) return res.status(400).json({ error: '尺寸大小選項無效 Invalid size' })
 
     const cloth = cloth_damage_pct ?? 0
     const frame = frame_damage_pct ?? 0
@@ -69,6 +71,7 @@ export default async function handler(req, res) {
     const optional = [
       ...((await hasRepairEaseColumn()) ? [['repair_ease', repairEase]] : []),
       ...((await hasBaseTypeColumn()) ? [['base_type', baseType]] : []),
+      ...((await hasSizeClassColumn()) ? [['size_class', sizeClass]] : []),
     ]
 
     const { rows: [data] } = await query(

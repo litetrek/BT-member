@@ -1,17 +1,17 @@
 import { query, insertInventoryLog } from '@/lib/db'
 import { requireInventoryRole } from '@/lib/auth'
-import { STATUS_OPTIONS, DISPLAY_DECISION_OPTIONS, CONDITION_OPTIONS, normalizeRepairEase, normalizeBaseType } from '@/lib/inventoryConstants'
+import { STATUS_OPTIONS, DISPLAY_DECISION_OPTIONS, CONDITION_OPTIONS, normalizeRepairEase, normalizeBaseType, normalizeSizeClass } from '@/lib/inventoryConstants'
 import { evaluateDisplayability } from '@/lib/inventoryEligibility'
 import { getDisplayThresholds } from '@/lib/inventorySettings'
 import { insertLanternEvent, diffLanternFields, pickEventType } from '@/lib/inventoryEvents'
-import { hasRepairEaseColumn, hasBaseTypeColumn } from '@/lib/inventorySchema'
+import { hasRepairEaseColumn, hasBaseTypeColumn, hasSizeClassColumn } from '@/lib/inventorySchema'
 
 // Nullable columns where an explicit '' / null in the body means "clear it". Before
 // Phase 1 the PUT used `body.x ?? existing.x`, so choosing "—" (e.g. no location) in the
 // edit form was silently ignored. A field absent from the body still keeps its value.
 const NULLABLE_FIELDS = [
   'name_en', 'category_id', 'voltage', 'power_w', 'height_ft', 'width_ft', 'depth_ft',
-  'location_id', 'notes', 'display_decision', 'repair_ease', 'base_type',
+  'location_id', 'notes', 'display_decision', 'repair_ease', 'base_type', 'size_class',
 ]
 
 export default async function handler(req, res) {
@@ -81,7 +81,7 @@ export default async function handler(req, res) {
       height_ft: pick('height_ft'), width_ft: pick('width_ft'), depth_ft: pick('depth_ft'),
       location_id: pick('location_id'), condition: pick('condition'),
       cloth_damage_pct: pick('cloth_damage_pct'), frame_damage_pct: pick('frame_damage_pct'),
-      repair_ease: pick('repair_ease'), base_type: pick('base_type'),
+      repair_ease: pick('repair_ease'), base_type: pick('base_type'), size_class: pick('size_class'),
       notes: pick('notes'), status: pick('status'), display_decision: pick('display_decision'),
       label_attached: pick('label_attached'),
     }
@@ -98,6 +98,8 @@ export default async function handler(req, res) {
     if (next.repair_ease === undefined) return res.status(400).json({ error: '維修容易程度須為 0–5 Repair ease must be 0–5' })
     next.base_type = normalizeBaseType(next.base_type)
     if (next.base_type === undefined) return res.status(400).json({ error: '底座選項無效 Invalid base type' })
+    next.size_class = normalizeSizeClass(next.size_class)
+    if (next.size_class === undefined) return res.status(400).json({ error: '尺寸大小選項無效 Invalid size' })
 
     const { displayable } = evaluateDisplayability(next, await getDisplayThresholds())
     const email = req.inventoryEmail
@@ -105,6 +107,7 @@ export default async function handler(req, res) {
     const optional = [
       ...((await hasRepairEaseColumn()) ? [['repair_ease', next.repair_ease]] : []),
       ...((await hasBaseTypeColumn()) ? [['base_type', next.base_type]] : []),
+      ...((await hasSizeClassColumn()) ? [['size_class', next.size_class]] : []),
     ]
 
     // Only block a *new* Selected on a non-displayable lantern; a lantern that was already

@@ -3,6 +3,8 @@
 //   • 維修容易程度 Repair ease (repair_ease) — see below
 //   • 底座 Base (base_type) — 'Metal base frame' (底盤式) | 'Socket mount' (插槽式), NULL = 未填;
 //     labels in lib/inventoryConstants.js BASE_TYPE_OPTIONS
+//   • 尺寸大小 Size (size_class) — 'Small' 小 | 'Medium' 中 | 'Large' 大 | 'Extra large' 超大,
+//     NULL = 未填; labels in SIZE_CLASS_OPTIONS
 // The app checks for these columns (lib/inventorySchema.js), so it works before this runs —
 // the new values just aren't stored until then.
 //
@@ -32,6 +34,12 @@ function loadEnv() {
 }
 
 const STEPS = [
+  ['inv_lantern_lanterns.size_class', `ALTER TABLE inv_lantern_lanterns ADD COLUMN IF NOT EXISTS size_class text`],
+  ['inv_lantern_lanterns size_class check', `
+    DO $$ BEGIN
+      ALTER TABLE inv_lantern_lanterns ADD CONSTRAINT inv_lantern_lanterns_size_class_check
+        CHECK (size_class IS NULL OR size_class IN ('Small', 'Medium', 'Large', 'Extra large'));
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$`],
   ['inv_lantern_lanterns.base_type', `ALTER TABLE inv_lantern_lanterns ADD COLUMN IF NOT EXISTS base_type text`],
   ['inv_lantern_lanterns base_type check', `
     DO $$ BEGIN
@@ -72,7 +80,7 @@ async function run() {
   } finally {
     await client.end()
   }
-  if (!process.exitCode) console.log('\nLantern fields migration complete (repair_ease, base_type).')
+  if (!process.exitCode) console.log('\nLantern fields migration complete (repair_ease, base_type, size_class).')
 }
 
 run().catch((err) => {
