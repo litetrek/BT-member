@@ -10,7 +10,24 @@ import { sortLanterns, LANTERN_SORT_OPTIONS, DEFAULT_LANTERN_SORT } from '@/lib/
 import { EMPTY_FILTERS, loadListView as loadView, saveListView as saveView, filtersToQuery } from '@/lib/inventoryListView'
 import InventoryLanternNav from '@/components/InventoryLanternNav'
 import InventoryHeader from '@/components/InventoryHeader'
+import InventoryLanternTable from '@/components/InventoryLanternTable'
 import Spinner from '@/components/Spinner'
+
+// 卡片 Cards or 表格 Table — remembered per browser (storage can throw, so guard it).
+const MODE_KEY = 'inv_lantern_list_mode'
+function loadMode() {
+  try { return localStorage.getItem(MODE_KEY) === 'table' ? 'table' : 'cards' } catch { return 'cards' }
+}
+function saveMode(mode) {
+  try { localStorage.setItem(MODE_KEY, mode) } catch {}
+}
+
+// True from the first time the table view is shown.
+function useTableMounted(mode) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { if (mode === 'table') setMounted(true) }, [mode])
+  return mounted || mode === 'table'
+}
 
 function LanternCard({ lantern }) {
   return (
@@ -55,6 +72,9 @@ export default function LanternList() {
   const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [sort, setSort] = useState(DEFAULT_LANTERN_SORT)
   const [viewReady, setViewReady] = useState(false) // don't fetch until the saved view is restored
+  const [mode, setMode] = useState('cards')
+  const [reloadKey, setReloadKey] = useState(0) // bump to refetch after a table save
+  const tableMounted = useTableMounted(mode)
 
   // Restore the saved filters/sort; deep links such as /inventory/lanterns?location_id=none
   // (Unassigned) replace the saved filters instead of being mixed with them.
@@ -65,6 +85,7 @@ export default function LanternList() {
     if (Object.keys(fromUrl).length) setFilters({ ...EMPTY_FILTERS, ...fromUrl })
     else if (saved) setFilters(saved.filters)
     if (saved) setSort(saved.sort)
+    setMode(loadMode())
     setViewReady(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady])
@@ -103,7 +124,7 @@ export default function LanternList() {
       .then((r) => r.json())
       .then((d) => { setLanterns(Array.isArray(d) ? d : []); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [status, role, filters, viewReady])
+  }, [status, role, filters, viewReady, reloadKey])
 
   const sortedLanterns = useMemo(
     () => sortLanterns(lanterns, sort, categories.map((c) => c.id)),
@@ -152,7 +173,7 @@ export default function LanternList() {
 
         <InventoryLanternNav active="list" />
 
-        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+        <main className={`${mode === 'table' ? 'max-w-[110rem]' : 'max-w-6xl'} mx-auto px-4 sm:px-6 py-8 space-y-6`}>
           <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-wrap gap-3 items-center text-sm text-gray-600">
             <span>總記錄 {summary.totalRecords}</span>
             <span className="text-gray-300">|</span>
@@ -161,6 +182,18 @@ export default function LanternList() {
             {CONDITION_OPTIONS.map((c) => (
               <span key={c}>{c} {summary.byCondition[c]}</span>
             ))}
+            <div className="ml-auto flex rounded border border-gray-200 overflow-hidden" role="group" aria-label="顯示方式 View">
+              {[['cards', '卡片 Cards'], ['table', '表格 Table']].map(([m, label]) => (
+                <button
+                  key={m}
+                  onClick={() => { setMode(m); saveMode(m) }}
+                  aria-pressed={mode === m}
+                  className={`px-3 py-1 text-sm ${mode === m ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -207,7 +240,21 @@ export default function LanternList() {
             )}
           </div>
 
-          {loading ? (
+          {/* The table stays mounted (hidden in card mode) once opened, so unsaved table
+              edits survive filter changes, refetches and switching to cards and back. */}
+          {tableMounted && (
+            <div className={mode === 'table' ? '' : 'hidden'}>
+              <InventoryLanternTable
+                lanterns={sortedLanterns}
+                loading={loading}
+                categories={categories}
+                locations={locations}
+                canEdit={role === 'admin'}
+                onSaved={() => setReloadKey((k) => k + 1)}
+              />
+            </div>
+          )}
+          {mode === 'cards' && (loading ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : lanterns.length === 0 ? (
             <p className="text-base text-gray-400">尚無燈籠記錄。</p>
@@ -215,7 +262,7 @@ export default function LanternList() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {sortedLanterns.map((l) => <LanternCard key={l.id} lantern={l} />)}
             </div>
-          )}
+          ))}
         </main>
       </div>
     </>
