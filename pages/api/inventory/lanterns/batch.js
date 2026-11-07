@@ -14,6 +14,7 @@ import { requireInventoryRole } from '@/lib/auth'
 import { getDisplayThresholds } from '@/lib/inventorySettings'
 import { buildLanternUpdate, EDITABLE_FIELDS } from '@/lib/inventoryLanternUpdate'
 import { saveLanternUpdate } from '@/lib/inventoryLanternSave'
+import { missingColumnError } from '@/lib/inventorySchema'
 
 const MAX_ROWS = 500
 
@@ -61,6 +62,8 @@ export default async function handler(req, res) {
     )
     const result = buildLanternUpdate(existing, changes, thresholds)
     if (result.error) { errors.push({ tag_id, error: result.error }); continue }
+    const columnError = await missingColumnError(result.next)
+    if (columnError) { errors.push({ tag_id, error: columnError }); continue }
     planned.push({ existing, ...result })
   }
   if (errors.length) return res.status(400).json({ errors })

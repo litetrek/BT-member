@@ -299,3 +299,20 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
   `hasSizeClassColumn()`.
 - Verified on DBs with and without the column (create Large → edit Extra large → inspect Small;
   inspection without size keeps it; invalid → 400; export 200); 375px; `npm test` 42/42.
+
+---
+
+## 2026-11-07 — Table save "didn't save" 底座: missing migration on Neon
+
+- **Reported**: in 表格 Table, batch-setting 底座 then 儲存修改 → 確認儲存 showed the old value.
+- **Cause**: `scripts/migrate-lantern-fields.js` has not been run on production Neon, so
+  `base_type` / `size_class` / `repair_ease` don't exist. The deploy-safe code skipped those
+  columns *silently* — the save returned 200 ("已儲存") but dropped the value. Reproduced on a
+  local Postgres without the columns; with them (and after running the script, no redeploy)
+  the same batch save stores 底座.
+- **Fix**: `missingColumnError()` in `lib/inventorySchema.js`; the lantern PUT and
+  `/api/inventory/lanterns/batch` now return 400 with "資料庫還沒有「底座」欄位… run
+  node scripts/migrate-lantern-fields.js" instead of pretending to save. The table shows those
+  columns as ⚠ 未啟用 (read-only, batch cell disabled) while the database lacks them.
+- **Still needed**: run `node scripts/migrate-lantern-fields.js` against Neon (needs
+  `DATABASE_URL` in `.env.local`).

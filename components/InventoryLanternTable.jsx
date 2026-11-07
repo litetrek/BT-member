@@ -60,6 +60,15 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
     }
   }
 
+  // Columns the database doesn't have yet (scripts/migrate-lantern-fields.js not run):
+  // the list API simply leaves them out of each row. Show them as unavailable rather than
+  // let edits be made that the server can't store.
+  const unavailable = useMemo(() => {
+    if (!lanterns.length) return new Set()
+    return new Set(['repair_ease', 'base_type', 'size_class'].filter((f) => !(f in lanterns[0])))
+  }, [lanterns])
+  const UNAVAILABLE_TITLE = '資料庫尚未更新，這一欄還不能儲存：請管理員執行 node scripts/migrate-lantern-fields.js'
+
   const byTag = useMemo(() => new Map(lanterns.map((l) => [l.tag_id, l])), [lanterns])
 
   // Only rows that are on screen can stay ticked (filters may hide some).
@@ -264,6 +273,8 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                       />
                       {c.label}
                     </label>
+                  ) : unavailable.has(c.key) ? (
+                    <span title={UNAVAILABLE_TITLE} className="text-gray-400">{c.label} <span className="text-xs text-amber-700">⚠ 未啟用</span></span>
                   ) : c.label}
                 </th>
               ))}
@@ -271,7 +282,7 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
             {canEdit && (
               <tr className="bg-blue-50 text-blue-900">
                 {columns.map((c, i) => {
-                  const disabled = selected.size === 0
+                  const disabled = selected.size === 0 || unavailable.has(c.key)
                   const bv = Object.prototype.hasOwnProperty.call(batchValues, c.key) ? batchValues[c.key] : undefined
                   const cls = `w-full px-1.5 py-1 text-sm rounded border focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed ${bv !== undefined ? 'bg-blue-100 border-blue-400 font-medium' : 'bg-white border-blue-200'}`
                   if (i === 0) {
@@ -281,7 +292,11 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                       </th>
                     )
                   }
-                  const label = { 'aria-label': `批次 ${c.label}`, disabled, title: disabled ? '先勾選燈籠 Tick lanterns first' : `套用到 ${selected.size} 筆勾選的燈籠` }
+                  const label = {
+                    'aria-label': `批次 ${c.label}`,
+                    disabled,
+                    title: unavailable.has(c.key) ? UNAVAILABLE_TITLE : disabled ? '先勾選燈籠 Tick lanterns first' : `套用到 ${selected.size} 筆勾選的燈籠`,
+                  }
                   return (
                     <th key={c.key} className={`px-1 py-1 font-normal border-b border-blue-200 ${FROZEN[c.key] ? `${FROZEN[c.key].cls} z-20 bg-blue-50` : c.width ?? ''}`}>
                       {c.type === 'select' ? (
@@ -346,6 +361,9 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                           {err && <p className="text-xs text-red-700 whitespace-normal max-w-[14rem] mt-0.5">{err}</p>}
                         </td>
                       )
+                    }
+                    if (unavailable.has(c.key)) {
+                      return <td key={c.key} title={UNAVAILABLE_TITLE} className={`${cellCls} px-2 py-1.5 whitespace-nowrap text-gray-300`}>—</td>
                     }
                     if (!canEdit) {
                       return <td key={c.key} {...hover} className={`${cellCls} px-2 py-1.5 whitespace-nowrap`}>{optionLabel(c, cellText(c.key, l[c.key])) || <span className="text-gray-300">—</span>}</td>

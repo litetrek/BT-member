@@ -4,6 +4,7 @@ import { evaluateDisplayability } from '@/lib/inventoryEligibility'
 import { getDisplayThresholds } from '@/lib/inventorySettings'
 import { buildLanternUpdate } from '@/lib/inventoryLanternUpdate'
 import { saveLanternUpdate } from '@/lib/inventoryLanternSave'
+import { missingColumnError } from '@/lib/inventorySchema'
 
 export default async function handler(req, res) {
   const { tagId } = req.query
@@ -60,6 +61,8 @@ export default async function handler(req, res) {
 
     const result = buildLanternUpdate(existing, req.body ?? {}, await getDisplayThresholds())
     if (result.error) return res.status(400).json({ error: result.error })
+    const columnError = await missingColumnError(result.next)
+    if (columnError) return res.status(400).json({ error: columnError })
     const data = await saveLanternUpdate({ existing, ...result, email: req.inventoryEmail })
 
     return res.status(200).json(data)
