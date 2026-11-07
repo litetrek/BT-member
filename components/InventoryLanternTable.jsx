@@ -12,6 +12,8 @@ import {
 import InventoryDisplayableBadge from '@/components/InventoryDisplayableBadge'
 import Spinner from '@/components/Spinner'
 
+const KEEP = '__keep__' // 批次 row: leave this column unchanged
+
 export default function InventoryLanternTable({ lanterns, loading, categories, locations, canEdit, onSaved }) {
   const columns = useMemo(() => buildTableColumns({ categories, locations }), [categories, locations])
 
@@ -21,17 +23,36 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
   const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null) // { type: 'ok' | 'error', text }
-  const [bulkField, setBulkField] = useState('')
-  const [bulkValue, setBulkValue] = useState('')
+  // Batch update: tick rows, then fill a cell in the blue 批次 row at the top. Those
+  // values apply to every ticked row (shown in blue) and are saved with the other edits.
+  const [selected, setSelected] = useState(() => new Set()) // tag_ids
+  const [batchValues, setBatchValues] = useState({}) // { field: value } — only fields being set
+
+  const byTag = useMemo(() => new Map(lanterns.map((l) => [l.tag_id, l])), [lanterns])
+
+  // Only rows that are on screen can stay ticked (filters may hide some).
+  useEffect(() => {
+    setSelected((prev) => {
+      const next = new Set([...prev].filter((t) => byTag.has(t)))
+      return next.size === prev.size ? prev : next
+    })
+  }, [byTag])
+
+  const hasBatch = (tag, field) => selected.has(tag) && Object.prototype.hasOwnProperty.call(batchValues, field)
 
   const changeList = useMemo(() => {
     const list = []
-    for (const [tag_id, e] of Object.entries(edits)) {
-      const fields = Object.entries(e.values).filter(([f, v]) => !cellsEqual(f, e.base[f], v))
-      if (fields.length) list.push({ tag_id, base: e.base, fields })
+    const tags = new Set([...Object.keys(edits), ...(Object.keys(batchValues).length ? selected : [])])
+    for (const tag_id of tags) {
+      const e = edits[tag_id]
+      const base = e?.base ?? byTag.get(tag_id)
+      if (!base) continue
+      const values = { ...(e?.values ?? {}), ...(selected.has(tag_id) ? batchValues : {}) }
+      const fields = Object.entries(values).filter(([f, v]) => !cellsEqual(f, base[f], v))
+      if (fields.length) list.push({ tag_id, base, fields })
     }
     return list
-  }, [edits])
+  }, [edits, batchValues, selected, byTag])
   const changedCellCount = changeList.reduce((n, c) => n + c.fields.length, 0)
   const dirty = changedCellCount > 0
 
@@ -65,12 +86,14 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
   }
 
   function valueOf(lantern, field) {
+    if (hasBatch(lantern.tag_id, field)) return batchValues[field]
     const e = edits[lantern.tag_id]
     if (e && Object.prototype.hasOwnProperty.call(e.values, field)) return e.values[field]
     return cellText(field, lantern[field])
   }
 
   function isChanged(lantern, field) {
+    if (hasBatch(lantern.tag_id, field)) return !cellsEqual(field, lantern[field], batchValues[field])
     const e = edits[lantern.tag_id]
     if (!e || !Object.prototype.hasOwnProperty.call(e.values, field)) return false
     return !cellsEqual(field, e.base[field], e.values[field])
@@ -78,14 +101,31 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
 
   function discardAll() {
     if (!window.confirm(`放棄 ${changedCellCount} 項未儲存的修改？ Discard all unsaved changes?`)) return
-    setEdits({}); setRowErrors({}); setMessage(null)
+    setEdits({}); setBatchValues({}); setRowErrors({}); setMessage(null)
   }
 
-  function applyBulk() {
-    const col = columns.find((c) => c.key === bulkField)
-    if (!col) return
-    for (const l of lanterns) setCell(l, col.key, col.type === 'checkbox' ? bulkValue === 'true' : bulkValue)
-    setMessage({ type: 'ok', text: `已將 ${lanterns.length} 筆的「${col.label}」設為新值，按「儲存修改」才會存檔。` })
+  // Top-row value for a column. KEEP (or an empty text/number box) = leave that column alone.
+  function setBatch(field, value) {
+    setMessage(null)
+    setBatchValues((prev) => {
+      const next = { ...prev }
+      if (value === KEEP || value === '') delete next[field]
+      else next[field] = value
+      return next
+    })
+  }
+
+  function toggleRow(tag) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(tag)) next.delete(tag); else next.add(tag)
+      return next
+    })
+  }
+  const allSelected = lanterns.length > 0 && lanterns.every((l) => selected.has(l.tag_id))
+  const someSelected = selected.size > 0 && !allSelected
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(lanterns.map((l) => l.tag_id)))
   }
 
   async function save() {
@@ -112,6 +152,7 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
       } else {
         const savedTags = new Set((data.saved ?? []).map((r) => r.tag_id))
         setEdits((prev) => Object.fromEntries(Object.entries(prev).filter(([t]) => !savedTags.has(t))))
+        if (!Object.keys(errs).length) { setBatchValues({}); setSelected(new Set()) }
         setRowErrors(errs)
         setMessage(Object.keys(errs).length
           ? { type: 'error', text: `已儲存 ${savedTags.size} 筆，${Object.keys(errs).length} 筆失敗（紅色列）。` }
@@ -141,40 +182,15 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
   return (
     <div className="space-y-3">
       {canEdit && (
-        <div className="bg-white rounded-lg border border-gray-200 p-3 flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-gray-600">批次設定 Set for all {lanterns.length} shown：</span>
-          <select value={bulkField} onChange={(e) => {
-            const col = columns.find((c) => c.key === e.target.value)
-            setBulkField(e.target.value)
-            setBulkValue(col?.type === 'select' ? col.options[0].value : '')
-          }} className="border border-gray-200 rounded px-2 py-1.5">
-            <option value="">選擇欄位…</option>
-            {columns.filter((c) => c.bulk).map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-          </select>
-          {bulkField && (() => {
-            const col = columns.find((c) => c.key === bulkField)
-            if (col.type === 'select') return (
-              <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="border border-gray-200 rounded px-2 py-1.5">
-                {col.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            )
-            if (col.type === 'checkbox') return (
-              <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="border border-gray-200 rounded px-2 py-1.5">
-                <option value="">選擇…</option>
-                <option value="true">是 Yes</option>
-                <option value="false">否 No</option>
-              </select>
-            )
-            return <input type={col.type === 'number' ? 'number' : 'text'} value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="border border-gray-200 rounded px-2 py-1.5 w-32" />
-          })()}
-          <button
-            onClick={applyBulk}
-            disabled={!bulkField || lanterns.length === 0 || (columns.find((c) => c.key === bulkField)?.type === 'checkbox' && bulkValue === '')}
-            className="px-3 py-1.5 rounded border border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
-          >
-            套用 Apply
-          </button>
-          <span className="text-xs text-gray-400">套用後仍需按「儲存修改」</span>
+        <div className="bg-white rounded-lg border border-gray-200 p-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <span className="font-medium text-gray-800">批次修改 Batch update</span>
+          <span className="text-gray-600">
+            ① 勾選左邊的燈籠 → ② 在表格最上面的<span className="text-blue-700 font-medium">藍色列</span>填入新值 → ③ 按「儲存修改」確認。所有勾選的燈籠都會改成那個值。
+          </span>
+          <span className={`ml-auto ${selected.size ? 'text-blue-700 font-medium' : 'text-gray-400'}`}>已勾選 {selected.size} 筆</span>
+          {selected.size > 0 && (
+            <button onClick={() => setSelected(new Set())} className="text-gray-500 hover:text-gray-900 underline">清除勾選</button>
+          )}
         </div>
       )}
 
@@ -204,22 +220,89 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
             <tr>
               {columns.map((c, i) => (
                 <th key={c.key} className={`px-2 py-2 text-left font-medium whitespace-nowrap border-b border-gray-200 ${i === 0 ? 'sticky left-0 z-10 bg-gray-100' : ''}`}>
-                  {c.label}
+                  {i === 0 && canEdit ? (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4"
+                        checked={allSelected}
+                        ref={(el) => { if (el) el.indeterminate = someSelected }}
+                        onChange={toggleAll}
+                        aria-label="全選 Select all shown"
+                      />
+                      {c.label}
+                    </label>
+                  ) : c.label}
                 </th>
               ))}
             </tr>
+            {canEdit && (
+              <tr className="bg-blue-50 text-blue-900">
+                {columns.map((c, i) => {
+                  const disabled = selected.size === 0
+                  const bv = Object.prototype.hasOwnProperty.call(batchValues, c.key) ? batchValues[c.key] : undefined
+                  const cls = `w-full px-1.5 py-1 text-sm rounded border focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed ${bv !== undefined ? 'bg-blue-100 border-blue-400 font-medium' : 'bg-white border-blue-200'}`
+                  if (i === 0) {
+                    return (
+                      <th key={c.key} className="sticky left-0 z-10 bg-blue-50 px-2 py-1.5 text-left font-medium whitespace-nowrap border-b border-blue-200">
+                        批次 → {selected.size} 筆
+                      </th>
+                    )
+                  }
+                  const label = { 'aria-label': `批次 ${c.label}`, disabled, title: disabled ? '先勾選燈籠 Tick lanterns first' : `套用到 ${selected.size} 筆勾選的燈籠` }
+                  return (
+                    <th key={c.key} className={`px-1 py-1 font-normal border-b border-blue-200 ${c.width ?? ''}`}>
+                      {c.type === 'select' ? (
+                        <select {...label} value={bv ?? KEEP} onChange={(e) => setBatch(c.key, e.target.value)} className={cls}>
+                          <option value={KEEP}>（不變）</option>
+                          {c.options.map((o) => <option key={o.value} value={o.value}>{o.value === '' ? `清除 ${o.label}` : o.label}</option>)}
+                        </select>
+                      ) : c.type === 'checkbox' ? (
+                        <select {...label} value={bv === undefined ? KEEP : String(bv)} onChange={(e) => setBatch(c.key, e.target.value === KEEP ? KEEP : e.target.value === 'true')} className={cls}>
+                          <option value={KEEP}>（不變）</option>
+                          <option value="true">✓ 是</option>
+                          <option value="false">否</option>
+                        </select>
+                      ) : (
+                        <input
+                          {...label}
+                          type={c.type === 'number' ? 'number' : 'text'}
+                          min={c.min} max={c.max} step={c.step}
+                          placeholder="（不變）"
+                          value={bv ?? ''}
+                          onChange={(e) => setBatch(c.key, e.target.value)}
+                          className={cls}
+                        />
+                      )}
+                    </th>
+                  )
+                })}
+              </tr>
+            )}
           </thead>
           <tbody>
             {lanterns.map((l, rowIdx) => {
               const err = rowErrors[l.tag_id]
+              const isSel = canEdit && selected.has(l.tag_id)
               return (
-                <tr key={l.id} className={`border-b border-gray-100 ${err ? 'bg-red-50' : 'hover:bg-blue-50/40'}`}>
+                <tr key={l.id} className={`border-b border-gray-100 ${err ? 'bg-red-50' : isSel ? 'bg-blue-50/60' : 'hover:bg-blue-50/40'}`}>
                   {columns.map((c, colIdx) => {
                     const changed = isChanged(l, c.key)
-                    const cellCls = `px-1 py-0.5 align-top ${c.width ?? ''} ${changed ? 'bg-yellow-100' : ''} ${colIdx === 0 ? `sticky left-0 z-[5] ${err ? 'bg-red-50' : changed ? 'bg-yellow-100' : 'bg-white'}` : ''}`
+                    const fromBatch = hasBatch(l.tag_id, c.key)
+                    const tint = fromBatch && changed ? 'bg-blue-100' : changed ? 'bg-yellow-100' : ''
+                    const cellCls = `px-1 py-0.5 align-top ${c.width ?? ''} ${tint} ${colIdx === 0 ? `sticky left-0 z-[5] ${err ? 'bg-red-50' : isSel ? 'bg-blue-50' : 'bg-white'}` : ''}`
                     if (c.key === 'tag_id') {
                       return (
                         <td key={c.key} className={`${cellCls} px-2 py-1.5 whitespace-nowrap`}>
+                          {canEdit && (
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 mr-2 align-middle"
+                              checked={isSel}
+                              onChange={() => toggleRow(l.tag_id)}
+                              aria-label={`勾選 ${l.tag_id}`}
+                            />
+                          )}
                           {/* New tab, so unsaved table edits are not lost. */}
                           <Link href={`/inventory/lanterns/${l.tag_id}`} target="_blank" className="font-mono text-blue-700 hover:underline">{l.tag_id}</Link>
                           {!l.displayable && <span className="ml-1"><InventoryDisplayableBadge reasons={l.displayable_reasons} /></span>}
@@ -232,6 +315,9 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                     }
                     const v = valueOf(l, c.key)
                     const common = {
+                      // A value coming from the 批次 row is changed there, not per cell.
+                      disabled: fromBatch,
+                      title: fromBatch ? '由最上面的批次列設定 Set by the batch row' : undefined,
                       'data-cell': `${rowIdx}-${colIdx}`,
                       'aria-label': `${l.tag_id} ${c.label}`,
                       onKeyDown: (ev) => onKeyDown(ev, rowIdx, colIdx),
