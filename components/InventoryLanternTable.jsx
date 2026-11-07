@@ -3,7 +3,7 @@
 // the admin presses 儲存修改, reviews the list of changes and confirms. The save goes to
 // /api/inventory/lanterns/batch, which checks every row first and saves nothing if any
 // row is invalid or was changed by someone else in the meantime.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import {
@@ -35,6 +35,30 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
   // values apply to every ticked row (shown in blue) and are saved with the other edits.
   const [selected, setSelected] = useState(() => new Set()) // tag_ids
   const [batchValues, setBatchValues] = useState({}) // { field: value } — only fields being set
+
+  // Hover preview: pointing at a lantern's 編號 or 中文名稱 shows its photo next to the
+  // mouse. Position is written straight to the element so moving the mouse doesn't
+  // re-render the whole table.
+  const [preview, setPreview] = useState(null) // the lantern being pointed at
+  const previewRef = useRef(null)
+  function placePreview(ev) {
+    const el = previewRef.current
+    if (!el) return
+    const w = el.offsetWidth || 200, h = el.offsetHeight || 270, gap = 16
+    // Below-right of the pointer; flip left / above when it would leave the window.
+    const x = ev.clientX + gap + w > window.innerWidth ? ev.clientX - gap - w : ev.clientX + gap
+    const y = ev.clientY + gap + h > window.innerHeight ? ev.clientY - gap - h : ev.clientY + gap
+    el.style.transform = `translate(${Math.max(8, x)}px, ${Math.max(8, y)}px)`
+  }
+  const lastPointer = useRef(null)
+  useEffect(() => { if (preview && lastPointer.current) placePreview(lastPointer.current) }, [preview])
+  function previewHandlers(lantern) {
+    return {
+      onMouseEnter: (ev) => { lastPointer.current = { clientX: ev.clientX, clientY: ev.clientY }; setPreview(lantern) },
+      onMouseMove: (ev) => { lastPointer.current = { clientX: ev.clientX, clientY: ev.clientY }; placePreview(ev) },
+      onMouseLeave: () => setPreview(null),
+    }
+  }
 
   const byTag = useMemo(() => new Map(lanterns.map((l) => [l.tag_id, l])), [lanterns])
 
@@ -303,9 +327,10 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                     const cellCls = frozen
                       ? `px-1 py-0.5 align-top ${frozen.cls} z-[5] ${tint || (err ? 'bg-red-50' : isSel ? 'bg-blue-50' : 'bg-white')}`
                       : `px-1 py-0.5 align-top ${c.width ?? ''} ${tint}`
+                    const hover = c.key === 'tag_id' || c.key === 'name_zh' ? previewHandlers(l) : {}
                     if (c.key === 'tag_id') {
                       return (
-                        <td key={c.key} className={`${cellCls} px-2 py-1.5`}>
+                        <td key={c.key} {...hover} className={`${cellCls} px-2 py-1.5`}>
                           {canEdit && (
                             <input
                               type="checkbox"
@@ -323,7 +348,7 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                       )
                     }
                     if (!canEdit) {
-                      return <td key={c.key} className={`${cellCls} px-2 py-1.5 whitespace-nowrap`}>{optionLabel(c, cellText(c.key, l[c.key])) || <span className="text-gray-300">—</span>}</td>
+                      return <td key={c.key} {...hover} className={`${cellCls} px-2 py-1.5 whitespace-nowrap`}>{optionLabel(c, cellText(c.key, l[c.key])) || <span className="text-gray-300">—</span>}</td>
                     }
                     const v = valueOf(l, c.key)
                     const common = {
@@ -335,7 +360,7 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                       onKeyDown: (ev) => onKeyDown(ev, rowIdx, colIdx),
                     }
                     return (
-                      <td key={c.key} className={cellCls}>
+                      <td key={c.key} {...hover} className={cellCls}>
                         {c.type === 'select' ? (
                           <select {...common} value={v} onChange={(e) => setCell(l, c.key, e.target.value)} className={inputBase}>
                             {/* Keep an unknown legacy value visible instead of silently changing it. */}
@@ -372,6 +397,23 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
           </tbody>
         </table>
       </div>
+
+      {preview && (
+        <div
+          ref={previewRef}
+          className="fixed left-0 top-0 z-40 w-[200px] bg-white rounded-lg shadow-lg border border-gray-200 p-2 pointer-events-none"
+          style={{ transform: 'translate(-9999px, -9999px)' }}
+          aria-hidden="true"
+        >
+          {preview.primary_photo_thumb_url ? (
+            <img src={preview.primary_photo_thumb_url} alt="" className="w-full aspect-square object-cover rounded" />
+          ) : (
+            <div className="w-full aspect-square rounded bg-gray-100 flex items-center justify-center text-gray-400 text-sm">無照片 No photo</div>
+          )}
+          <p className="mt-1.5 text-xs font-mono text-gray-400">{preview.tag_id}</p>
+          <p className="text-sm font-medium text-gray-900 truncate">{preview.name_zh}</p>
+        </div>
+      )}
 
       {confirming && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
