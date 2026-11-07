@@ -75,3 +75,33 @@ test('optionLabel shows select labels', () => {
   assert.equal(optionLabel(loc, ''), '')
   assert.equal(optionLabel(cols.find((c) => c.key === 'size_class'), 'Small'), '小 Small')
 })
+
+test('orderColumns keeps 編號 / 中文名稱 first and follows the saved order', async () => {
+  const { orderColumns } = await import('../lib/inventoryLanternTable.js')
+  const cols = buildTableColumns()
+  const movable = cols.map((c) => c.key).filter((k) => k !== 'tag_id' && k !== 'name_zh')
+  const saved = ['notes', 'qty', 'tag_id', 'gone', ...movable.filter((k) => k !== 'notes' && k !== 'qty')]
+  const keys = orderColumns(cols, saved).map((c) => c.key)
+  assert.deepEqual(keys.slice(0, 5), ['tag_id', 'name_zh', 'notes', 'qty', 'name_en'])
+  assert.equal(keys.length, cols.length)
+  assert.ok(!keys.includes('gone'))
+  assert.deepEqual(orderColumns(cols, []).map((c) => c.key), cols.map((c) => c.key))
+})
+
+test('orderColumns puts a column added later after the one it follows by default', async () => {
+  const { orderColumns } = await import('../lib/inventoryLanternTable.js')
+  const cols = buildTableColumns()
+  const saved = cols.map((c) => c.key).filter((k) => k !== 'repair_ease').reverse()
+  const keys = orderColumns(cols, saved).map((c) => c.key)
+  assert.equal(keys[keys.indexOf('frame_damage_pct') + 1], 'repair_ease')
+})
+
+test('moveColumn moves before / after the target and never moves pinned columns', async () => {
+  const { moveColumn } = await import('../lib/inventoryLanternTable.js')
+  const keys = ['tag_id', 'name_zh', 'a', 'b', 'c']
+  assert.deepEqual(moveColumn(keys, 'c', 'a'), ['c', 'a', 'b'])
+  assert.deepEqual(moveColumn(keys, 'a', 'c', true), ['b', 'c', 'a'])
+  assert.deepEqual(moveColumn(keys, 'b', 'name_zh', true), ['b', 'a', 'c'])
+  assert.deepEqual(moveColumn(keys, 'name_zh', 'c'), ['a', 'b', 'c'])
+  assert.deepEqual(moveColumn(keys, 'a', 'a'), ['a', 'b', 'c'])
+})

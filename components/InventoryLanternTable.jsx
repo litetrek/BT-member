@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 import {
   buildTableColumns, cellText, cellsEqual, toPayloadValue, optionLabel,
+  orderColumns, moveColumn, loadTableLayout, saveTableLayout, PINNED_COLUMNS, MIN_COLUMN_WIDTH,
 } from '@/lib/inventoryLanternTable'
 import InventoryDisplayableBadge from '@/components/InventoryDisplayableBadge'
 import Spinner from '@/components/Spinner'
@@ -16,14 +17,123 @@ const KEEP = '__keep__' // 批次 row: leave this column unchanged
 
 // Frozen columns stay put while the table scrolls sideways, so each row's tag and
 // Chinese name are always visible next to the cells being edited. Fixed widths so the
-// second column knows where the first one ends.
+// second column knows where the first one ends; a resized width comes in through the
+// --cw-<key> CSS variable set on the table.
+const fixedWidth = (key, def) => {
+  const w = `var(--cw-${key}, ${def})`
+  return { width: w, minWidth: w, maxWidth: w }
+}
 const FROZEN = {
-  tag_id: { cls: 'sticky left-0 w-[10.5rem] min-w-[10.5rem] max-w-[10.5rem]' },
-  name_zh: { cls: 'sticky left-[10.5rem] w-[11rem] min-w-[11rem] max-w-[11rem] overflow-hidden text-ellipsis shadow-[2px_0_0_0_#d1d5db]' },
+  tag_id: { cls: 'sticky left-0 overflow-hidden', style: fixedWidth('tag_id', '10.5rem') },
+  name_zh: {
+    cls: 'sticky overflow-hidden text-ellipsis shadow-[2px_0_0_0_#d1d5db]',
+    style: { left: 'var(--cw-tag_id, 10.5rem)', ...fixedWidth('name_zh', '11rem') },
+  },
 }
 
 export default function InventoryLanternTable({ lanterns, loading, categories, locations, canEdit, onSaved }) {
-  const columns = useMemo(() => buildTableColumns({ categories, locations }), [categories, locations])
+  const allColumns = useMemo(() => buildTableColumns({ categories, locations }), [categories, locations])
+
+  // Column order and widths chosen by this viewer (drag a header to move it, drag its
+  // right edge to resize). Saved in this browser only.
+  const [layout, setLayout] = useState({ order: [], widths: {} })
+  useEffect(() => { setLayout(loadTableLayout()) }, [])
+  function updateLayout(fn) {
+    setLayout((prev) => { const next = fn(prev); saveTableLayout(next); return next })
+  }
+  const columns = useMemo(() => orderColumns(allColumns, layout.order), [allColumns, layout.order])
+  const customized = layout.order.length > 0 || Object.keys(layout.widths).length > 0
+  const tableVars = Object.fromEntries(Object.entries(layout.widths).map(([k, w]) => [`--cw-${k}`, `${w}px`]))
+  const colStyle = (key) => FROZEN[key]?.style ?? (key in layout.widths ? fixedWidth(key, 'auto') : undefined)
+  // A resized column clips what doesn't fit instead of growing.
+  const widthCls = (c) => (c.key in layout.widths ? 'overflow-hidden text-ellipsis' : c.width ?? '')
+
+  // Resizing writes the CSS variable straight to the table while the mouse moves, so the
+  // (large) table isn't re-rendered on every pixel; the width is stored on release.
+  const tableRef = useRef(null)
+  const resizingRef = useRef(false)
+  function startResize(ev, key) {
+    ev.preventDefault()
+    ev.stopPropagation()
+    const table = tableRef.current
+    const startX = ev.clientX
+    const startW = ev.currentTarget.parentElement.getBoundingClientRect().width
+    let w = Math.round(startW)
+    resizingRef.current = true
+    table.style.setProperty(`--cw-${key}`, `${w}px`)
+    setLayout((prev) => ({ ...prev, widths: { ...prev.widths, [key]: w } }))
+    const move = (e) => {
+      w = Math.max(MIN_COLUMN_WIDTH, Math.round(startW + e.clientX - startX))
+      table.style.setProperty(`--cw-${key}`, `${w}px`)
+    }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+      resizingRef.current = false
+      updateLayout((prev) => ({ ...prev, widths: { ...prev.widths, [key]: w } }))
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+  }
+  function resetWidth(key) {
+    updateLayout((prev) => {
+      const widths = { ...prev.widths }
+      delete widths[key]
+      return { ...prev, widths }
+    })
+  }
+  function resetLayout() {
+    updateLayout(() => ({ order: [], widths: {} }))
+  }
+
+  // Moving: drag a header (not 編號 / 中文名稱) onto another; a blue bar shows where it lands.
+  const [dragKey, setDragKey] = useState(null)
+  const [dropHint, setDropHint] = useState(null) // { key, after }
+  // The header's label is what you pick up; it is kept apart from the resize edge so the
+  // browser's own dragging can't swallow a resize.
+  function gripProps(c) {
+    if (PINNED_COLUMNS.includes(c.key)) return {}
+    return {
+      draggable: true,
+      className: 'block cursor-grab',
+      onDragStart: (e) => {
+        if (resizingRef.current) { e.preventDefault(); return }
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', c.key)
+        setDragKey(c.key)
+      },
+      onDragEnd: () => { setDragKey(null); setDropHint(null) },
+    }
+  }
+  // The header cell is where a dragged column can be dropped.
+  function dropProps(c) {
+    const movable = !PINNED_COLUMNS.includes(c.key)
+    const props = {}
+    if (movable || c.key === 'name_zh') {
+      props.onDragOver = (e) => {
+        if (!dragKey) return
+        e.preventDefault()
+        const r = e.currentTarget.getBoundingClientRect()
+        const after = !movable || e.clientX > r.left + r.width / 2
+        if (dropHint?.key !== c.key || dropHint?.after !== after) setDropHint({ key: c.key, after })
+      }
+      props.onDrop = (e) => {
+        e.preventDefault()
+        if (dragKey && dropHint) {
+          const keys = columns.map((x) => x.key)
+          updateLayout((prev) => ({ ...prev, order: moveColumn(keys, dragKey, dropHint.key, dropHint.after) }))
+        }
+        setDragKey(null); setDropHint(null)
+      }
+    }
+    return props
+  }
+  function dropHintStyle(key) {
+    if (dropHint?.key !== key || dragKey === key) return undefined
+    return { boxShadow: `inset ${dropHint.after ? -3 : 3}px 0 0 0 #3b82f6` }
+  }
 
   // { [tag_id]: { base: <row as loaded>, values: { field: inputValue } } }
   const [edits, setEdits] = useState({})
@@ -255,12 +365,24 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
         </div>
       )}
 
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 px-1">
+        <span>拖曳欄位標題可移動順序；拖曳標題右邊緣可調整欄寬（按兩下還原）。 Drag a header to move it, drag its right edge to resize.</span>
+        {customized && (
+          <button onClick={resetLayout} className="ml-auto text-gray-600 hover:text-gray-900 underline">重設欄位 Reset columns</button>
+        )}
+      </div>
+
       <div className={`overflow-auto max-h-[75vh] bg-white rounded-lg border border-gray-200 transition-opacity ${loading ? 'opacity-50 pointer-events-none' : ''}`} aria-busy={loading}>
-        <table className="text-sm border-collapse min-w-max">
+        <table ref={tableRef} style={tableVars} className="text-sm border-collapse min-w-max">
           <thead className="sticky top-0 z-10 bg-gray-100 text-gray-600">
             <tr>
               {columns.map((c, i) => (
-                <th key={c.key} className={`px-2 py-2 text-left font-medium whitespace-nowrap border-b border-gray-200 ${FROZEN[c.key] ? `${FROZEN[c.key].cls} z-20 bg-gray-100` : ''}`}>
+                <th
+                  key={c.key}
+                  {...dropProps(c)}
+                  style={{ ...colStyle(c.key), ...dropHintStyle(c.key) }}
+                  className={`px-2 py-2 pr-3 text-left font-medium whitespace-nowrap border-b border-gray-200 select-none ${FROZEN[c.key] ? `${FROZEN[c.key].cls} z-20 bg-gray-100` : `relative ${widthCls(c)}`} ${dragKey === c.key ? 'opacity-40' : ''}`}
+                >
                   {i === 0 && canEdit ? (
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -273,9 +395,22 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                       />
                       {c.label}
                     </label>
-                  ) : unavailable.has(c.key) ? (
-                    <span title={UNAVAILABLE_TITLE} className="text-gray-400">{c.label} <span className="text-xs text-amber-700">⚠ 未啟用</span></span>
-                  ) : c.label}
+                  ) : (
+                    <span {...gripProps(c)}>
+                      {unavailable.has(c.key) ? (
+                        <span title={UNAVAILABLE_TITLE} className="text-gray-400">{c.label} <span className="text-xs text-amber-700">⚠ 未啟用</span></span>
+                      ) : c.label}
+                    </span>
+                  )}
+                  <span
+                    role="separator"
+                    aria-orientation="vertical"
+                    title="拖曳調整欄寬，按兩下還原 Drag to resize, double-click to reset"
+                    onPointerDown={(e) => startResize(e, c.key)}
+                    onDoubleClick={() => resetWidth(c.key)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute top-0 right-0 h-full w-2 cursor-col-resize touch-none hover:bg-blue-300/60"
+                  />
                 </th>
               ))}
             </tr>
@@ -287,7 +422,7 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                   const cls = `w-full px-1.5 py-1 text-sm rounded border focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed ${bv !== undefined ? 'bg-blue-100 border-blue-400 font-medium' : 'bg-white border-blue-200'}`
                   if (i === 0) {
                     return (
-                      <th key={c.key} className={`${FROZEN.tag_id.cls} z-20 bg-blue-50 px-2 py-1.5 text-left font-medium whitespace-nowrap border-b border-blue-200`}>
+                      <th key={c.key} style={FROZEN.tag_id.style} className={`${FROZEN.tag_id.cls} z-20 bg-blue-50 px-2 py-1.5 text-left font-medium whitespace-nowrap border-b border-blue-200`}>
                         批次 → {selected.size} 筆
                       </th>
                     )
@@ -298,7 +433,7 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                     title: unavailable.has(c.key) ? UNAVAILABLE_TITLE : disabled ? '先勾選燈籠 Tick lanterns first' : `套用到 ${selected.size} 筆勾選的燈籠`,
                   }
                   return (
-                    <th key={c.key} className={`px-1 py-1 font-normal border-b border-blue-200 ${FROZEN[c.key] ? `${FROZEN[c.key].cls} z-20 bg-blue-50` : c.width ?? ''}`}>
+                    <th key={c.key} style={colStyle(c.key)} className={`px-1 py-1 font-normal border-b border-blue-200 ${FROZEN[c.key] ? `${FROZEN[c.key].cls} z-20 bg-blue-50` : widthCls(c)}`}>
                       {c.type === 'select' ? (
                         <select {...label} value={bv ?? KEEP} onChange={(e) => setBatch(c.key, e.target.value)} className={cls}>
                           <option value={KEEP}>（不變）</option>
@@ -341,11 +476,12 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                     // Frozen cells need an opaque background so scrolled cells don't show through.
                     const cellCls = frozen
                       ? `px-1 py-0.5 align-top ${frozen.cls} z-[5] ${tint || (err ? 'bg-red-50' : isSel ? 'bg-blue-50' : 'bg-white')}`
-                      : `px-1 py-0.5 align-top ${c.width ?? ''} ${tint}`
+                      : `px-1 py-0.5 align-top ${widthCls(c)} ${tint}`
                     const hover = c.key === 'tag_id' || c.key === 'name_zh' ? previewHandlers(l) : {}
+                    const style = colStyle(c.key)
                     if (c.key === 'tag_id') {
                       return (
-                        <td key={c.key} {...hover} className={`${cellCls} px-2 py-1.5`}>
+                        <td key={c.key} {...hover} style={style} className={`${cellCls} px-2 py-1.5`}>
                           {canEdit && (
                             <input
                               type="checkbox"
@@ -363,10 +499,10 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                       )
                     }
                     if (unavailable.has(c.key)) {
-                      return <td key={c.key} title={UNAVAILABLE_TITLE} className={`${cellCls} px-2 py-1.5 whitespace-nowrap text-gray-300`}>—</td>
+                      return <td key={c.key} style={style} title={UNAVAILABLE_TITLE} className={`${cellCls} px-2 py-1.5 whitespace-nowrap text-gray-300`}>—</td>
                     }
                     if (!canEdit) {
-                      return <td key={c.key} {...hover} className={`${cellCls} px-2 py-1.5 whitespace-nowrap`}>{optionLabel(c, cellText(c.key, l[c.key])) || <span className="text-gray-300">—</span>}</td>
+                      return <td key={c.key} {...hover} style={style} className={`${cellCls} px-2 py-1.5 whitespace-nowrap`}>{optionLabel(c, cellText(c.key, l[c.key])) || <span className="text-gray-300">—</span>}</td>
                     }
                     const v = valueOf(l, c.key)
                     const common = {
@@ -378,7 +514,7 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                       onKeyDown: (ev) => onKeyDown(ev, rowIdx, colIdx),
                     }
                     return (
-                      <td key={c.key} {...hover} className={cellCls}>
+                      <td key={c.key} {...hover} style={style} className={cellCls}>
                         {c.type === 'select' ? (
                           <select {...common} value={v} onChange={(e) => setCell(l, c.key, e.target.value)} className={inputBase}>
                             {/* Keep an unknown legacy value visible instead of silently changing it. */}

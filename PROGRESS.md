@@ -1,5 +1,29 @@
 # BT-Member Event Management — Progress Snapshot
 
+## Lantern Table — Resizable and Reorderable Columns
+
+Requested: in the 表格 Table view, users can change column widths and move columns.
+
+- **`components/InventoryLanternTable.jsx`** — drag a header's right edge to resize
+  (double-click it to restore the default width); drag a header's label onto another header
+  to move the column (blue bar shows the drop side). 編號 and 中文名稱 stay frozen first:
+  resizable, not movable; 中文名稱's sticky offset follows 編號's width. Widths are CSS
+  variables (`--cw-<key>`) on the table, written directly during a drag so the table isn't
+  re-rendered per pixel. 重設欄位 Reset columns appears once the layout is changed.
+  Header, 批次 row and body cells all follow the same order.
+- **`lib/inventoryLanternTable.js`** — `orderColumns` (saved order; drops removed keys,
+  re-inserts newly added columns after their default neighbour), `moveColumn`,
+  `loadTableLayout` / `saveTableLayout` (localStorage key `inv_lantern_table_layout`, per
+  browser, for everyone — not only admins).
+- **Tests** — 3 new cases in `tests/inventoryLanternTable.test.mjs` (11 pass).
+- **Guide** — new item in `public/lantern-guide/index.html` (2026-11-07).
+
+**Verified**: on localhost with sample lanterns — real mouse resize, double-click reset,
+column move, layout kept after reload, Reset columns. **Not verified**: the signed-in
+production page (Google sign-in), touch devices (HTML5 drag doesn't work on touch).
+
+---
+
 ## Lantern Inventory Renamed "Glowfest Lantern Inventory"
 
 The English name of the lantern module is now **Glowfest Lantern Inventory**: the
