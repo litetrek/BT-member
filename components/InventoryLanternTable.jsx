@@ -14,6 +14,14 @@ import Spinner from '@/components/Spinner'
 
 const KEEP = '__keep__' // 批次 row: leave this column unchanged
 
+// Frozen columns stay put while the table scrolls sideways, so each row's tag and
+// Chinese name are always visible next to the cells being edited. Fixed widths so the
+// second column knows where the first one ends.
+const FROZEN = {
+  tag_id: { cls: 'sticky left-0 w-[10.5rem] min-w-[10.5rem] max-w-[10.5rem]' },
+  name_zh: { cls: 'sticky left-[10.5rem] w-[11rem] min-w-[11rem] max-w-[11rem] overflow-hidden text-ellipsis shadow-[2px_0_0_0_#d1d5db]' },
+}
+
 export default function InventoryLanternTable({ lanterns, loading, categories, locations, canEdit, onSaved }) {
   const columns = useMemo(() => buildTableColumns({ categories, locations }), [categories, locations])
 
@@ -219,7 +227,7 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
           <thead className="sticky top-0 z-10 bg-gray-100 text-gray-600">
             <tr>
               {columns.map((c, i) => (
-                <th key={c.key} className={`px-2 py-2 text-left font-medium whitespace-nowrap border-b border-gray-200 ${i === 0 ? 'sticky left-0 z-10 bg-gray-100' : ''}`}>
+                <th key={c.key} className={`px-2 py-2 text-left font-medium whitespace-nowrap border-b border-gray-200 ${FROZEN[c.key] ? `${FROZEN[c.key].cls} z-20 bg-gray-100` : ''}`}>
                   {i === 0 && canEdit ? (
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -244,14 +252,14 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                   const cls = `w-full px-1.5 py-1 text-sm rounded border focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed ${bv !== undefined ? 'bg-blue-100 border-blue-400 font-medium' : 'bg-white border-blue-200'}`
                   if (i === 0) {
                     return (
-                      <th key={c.key} className="sticky left-0 z-10 bg-blue-50 px-2 py-1.5 text-left font-medium whitespace-nowrap border-b border-blue-200">
+                      <th key={c.key} className={`${FROZEN.tag_id.cls} z-20 bg-blue-50 px-2 py-1.5 text-left font-medium whitespace-nowrap border-b border-blue-200`}>
                         批次 → {selected.size} 筆
                       </th>
                     )
                   }
                   const label = { 'aria-label': `批次 ${c.label}`, disabled, title: disabled ? '先勾選燈籠 Tick lanterns first' : `套用到 ${selected.size} 筆勾選的燈籠` }
                   return (
-                    <th key={c.key} className={`px-1 py-1 font-normal border-b border-blue-200 ${c.width ?? ''}`}>
+                    <th key={c.key} className={`px-1 py-1 font-normal border-b border-blue-200 ${FROZEN[c.key] ? `${FROZEN[c.key].cls} z-20 bg-blue-50` : c.width ?? ''}`}>
                       {c.type === 'select' ? (
                         <select {...label} value={bv ?? KEEP} onChange={(e) => setBatch(c.key, e.target.value)} className={cls}>
                           <option value={KEEP}>（不變）</option>
@@ -290,10 +298,14 @@ export default function InventoryLanternTable({ lanterns, loading, categories, l
                     const changed = isChanged(l, c.key)
                     const fromBatch = hasBatch(l.tag_id, c.key)
                     const tint = fromBatch && changed ? 'bg-blue-100' : changed ? 'bg-yellow-100' : ''
-                    const cellCls = `px-1 py-0.5 align-top ${c.width ?? ''} ${tint} ${colIdx === 0 ? `sticky left-0 z-[5] ${err ? 'bg-red-50' : isSel ? 'bg-blue-50' : 'bg-white'}` : ''}`
+                    const frozen = FROZEN[c.key]
+                    // Frozen cells need an opaque background so scrolled cells don't show through.
+                    const cellCls = frozen
+                      ? `px-1 py-0.5 align-top ${frozen.cls} z-[5] ${tint || (err ? 'bg-red-50' : isSel ? 'bg-blue-50' : 'bg-white')}`
+                      : `px-1 py-0.5 align-top ${c.width ?? ''} ${tint}`
                     if (c.key === 'tag_id') {
                       return (
-                        <td key={c.key} className={`${cellCls} px-2 py-1.5 whitespace-nowrap`}>
+                        <td key={c.key} className={`${cellCls} px-2 py-1.5`}>
                           {canEdit && (
                             <input
                               type="checkbox"
