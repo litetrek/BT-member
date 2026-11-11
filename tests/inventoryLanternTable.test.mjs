@@ -33,7 +33,7 @@ test('buildLanternUpdate rejects bad values', () => {
   assert.match(buildLanternUpdate(base, { qty: 1.5 }).error, /QTY/)
   assert.match(buildLanternUpdate(base, { cloth_damage_pct: 120 }).error, /Damage/)
   assert.match(buildLanternUpdate(base, { condition: 'Great' }).error, /condition/)
-  assert.match(buildLanternUpdate(base, { name_zh: ' ' }).error, /Name/)
+  assert.match(buildLanternUpdate(base, { name_zh: ' ', name_en: '' }).error, /name/)
   assert.match(buildLanternUpdate(base, { height_ft: 'abc' }).error, /height_ft/)
   assert.match(buildLanternUpdate(base, { voltage: '220V' }).error, /voltage/)
   assert.match(buildLanternUpdate(base, { repair_ease: 9 }).error, /Repair/)

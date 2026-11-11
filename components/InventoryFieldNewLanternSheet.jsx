@@ -3,7 +3,7 @@ import { uploadInventoryPhoto } from '@/lib/inventoryPhoto'
 import { saveDraft, loadDraft, clearDraft, markChecked } from '@/lib/inventoryFieldDraft'
 import { CONDITION_OPTIONS, VOLTAGE_OPTIONS } from '@/lib/inventoryConstants'
 import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
-import InventoryLanternNameFields from '@/components/InventoryLanternNameFields'
+import InventoryLanternNameFields, { hasLanternName } from '@/components/InventoryLanternNameFields'
 import InventoryRepairEaseSlider from '@/components/InventoryRepairEaseSlider'
 import InventoryBaseTypePicker from '@/components/InventoryBaseTypePicker'
 import InventorySizePicker from '@/components/InventorySizePicker'
@@ -279,7 +279,7 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
               <button onClick={() => setStep('photo')} className="flex-1 py-3 text-base text-gray-600 border border-gray-200 rounded-lg">返回</button>
               <button
                 onClick={handleSubmit}
-                disabled={saving || !form.name_zh.trim() || !form.condition}
+                disabled={saving || !hasLanternName(form.name_zh, form.name_en) || !form.condition}
                 className="flex-1 py-3 text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {saving ? '儲存中…' : '儲存'}
@@ -293,6 +293,20 @@ export default function InventoryFieldNewLanternSheet({ fixedLocationId, locatio
             <p className="text-sm text-gray-500">標籤編號 Tag ID</p>
             <p className="text-5xl font-bold text-blue-700 font-mono">{createdTag}</p>
             <p className="text-sm text-gray-500">請立即寫在臨時標籤上<br />Write this on a temporary label now</p>
+            {created && (
+              <div className="text-base">
+                <p className="font-semibold text-gray-900">{created.name_zh}</p>
+                {created.name_en && created.name_en !== created.name_zh && <p className="text-gray-600">{created.name_en}</p>}
+                {created.name_translation?.ok && (
+                  <p className="text-xs text-blue-700 mt-0.5">
+                    {created.name_translation.field === 'zh' ? '中文名稱' : '英文名稱'}由 AI 翻譯，可到燈籠頁修改
+                  </p>
+                )}
+                {created.name_translation && !created.name_translation.ok && (
+                  <p className="text-xs text-amber-700 mt-0.5">AI 翻譯失敗，下次儲存時會再試 AI translation failed — retries on next save</p>
+                )}
+              </div>
+            )}
 
             <div className="text-left border-t border-gray-100 pt-4 space-y-3">
               <div className="flex items-center justify-between">

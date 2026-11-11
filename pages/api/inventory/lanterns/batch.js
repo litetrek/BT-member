@@ -15,6 +15,7 @@ import { getDisplayThresholds } from '@/lib/inventorySettings'
 import { buildLanternUpdate, EDITABLE_FIELDS } from '@/lib/inventoryLanternUpdate'
 import { saveLanternUpdate } from '@/lib/inventoryLanternSave'
 import { missingColumnError } from '@/lib/inventorySchema'
+import { fillMissingLanternName } from '@/lib/inventoryTranslate'
 
 const MAX_ROWS = 500
 
@@ -67,6 +68,9 @@ export default async function handler(req, res) {
     planned.push({ existing, ...result })
   }
   if (errors.length) return res.status(400).json({ errors })
+
+  // Rows whose edit left only one name: AI fills in the other (in parallel; usually few).
+  await Promise.all(planned.map((p) => fillMissingLanternName(p.next, p.nameMissing)))
 
   const saved = []
   const failed = []

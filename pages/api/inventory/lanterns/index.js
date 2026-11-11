@@ -5,6 +5,8 @@ import { buildLanternWhere } from '@/lib/inventoryLanternFilters'
 import { evaluateDisplayability } from '@/lib/inventoryEligibility'
 import { getDisplayThresholds } from '@/lib/inventorySettings'
 import { logLanternChange } from '@/lib/inventoryEvents'
+import { normalizeLanternNames } from '@/lib/inventoryLanternNames'
+import { fillMissingLanternName } from '@/lib/inventoryTranslate'
 import { hasRepairEaseColumn, hasBaseTypeColumn, hasSizeClassColumn } from '@/lib/inventorySchema'
 
 export default async function handler(req, res) {
@@ -46,9 +48,9 @@ export default async function handler(req, res) {
       condition, cloth_damage_pct, frame_damage_pct, repair_ease, notes,
     } = req.body
 
-    const nameZh = String(name_zh ?? '').trim()
-    const nameEn = String(name_en ?? '').trim() || null
-    if (!nameZh) return res.status(400).json({ error: '請填寫中文名稱 Name (ZH) is required' })
+    // At least one name; the missing one is translated by AI (lib/inventoryTranslate.js).
+    const names = normalizeLanternNames(name_zh, name_en)
+    if (names.error) return res.status(400).json({ error: names.error })
     if (!CONDITION_OPTIONS.includes(condition)) {
       return res.status(400).json({ error: '請選擇狀況 Condition is required' })
     }
@@ -74,6 +76,8 @@ export default async function handler(req, res) {
       ...((await hasSizeClassColumn()) ? [['size_class', sizeClass]] : []),
     ]
 
+    const name_translation = await fillMissingLanternName(names, names.missing)
+
     const { rows: [data] } = await query(
       `INSERT INTO inv_lantern_lanterns
          (name_zh, name_en, category_id, qty, voltage, power_w, height_ft, width_ft, depth_ft,
@@ -82,7 +86,7 @@ export default async function handler(req, res) {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16${optional.map((_, i) => `,$${17 + i}`).join('')})
        RETURNING *`,
       [
-        nameZh, nameEn, category_id || null, qty || 1, voltage || null, power_w || null,
+        names.name_zh, names.name_en, category_id || null, qty || 1, voltage || null, power_w || null,
         height_ft || null, width_ft || null, depth_ft || null,
         location_id || null, condition, cloth, frame, displayable, notes || null,
         email, ...optional.map(([, v]) => v),
@@ -98,7 +102,7 @@ export default async function handler(req, res) {
     })
     await logLanternChange({ before: null, after: data, event_type: 'created', actor: email, always: true })
 
-    return res.status(201).json(data)
+    return res.status(201).json({ ...data, name_translation })
   }
 
   res.setHeader('Allow', ['GET', 'POST'])

@@ -84,7 +84,7 @@ a:focus-visible { outline: 2px solid var(--lantern); outline-offset: 2px; border
        Linked from the 新功能說明 button on /inventory/lanterns. Plain HTML: edit and push to update. -->
   <a class="back" href="/inventory/lanterns">‹ 回到燈籠庫存</a>
   <header>
-    <span class="eyebrow">BT 燈籠庫存 · 最後更新 2026 年 11 月 7 日</span>
+    <span class="eyebrow">BT 燈籠庫存 · 最後更新 2026 年 11 月 11 日</span>
     <h1>燈籠庫存功能說明</h1>
     <p class="lede">燈籠庫存記錄 BT 每一組燈籠的照片、尺寸、電壓、存放地點和損壞狀況，讓管理團隊為 2027 年三月燈會挑選要展示的燈籠。手機和電腦都能用。前半頁是系統概覽，後半頁是最新更新。</p>
   </header>
@@ -144,6 +144,16 @@ a:focus-visible { outline: 2px solid var(--lantern); outline-offset: 2px; border
   </section>
 
   <h2 class="part">最新更新<small>由新到舊</small></h2>
+
+  <section>
+    <h2>2026 年 11 月 11 日</h2>
+    <div class="item">
+      <h3>中文、英文名稱只要填一個，AI 自動翻譯另一個</h3>
+      <p>新增或編輯燈籠時，「名稱（中文）」和「名稱（英文）」不必兩個都填，至少填一個就可以儲存。只填中文時，儲存後 AI 會自動翻譯出英文名稱；只填英文時，會自動翻譯出中文名稱（繁體）。翻譯的結果可以再修改。</p>
+      <p>如果 AI 暫時無法翻譯（例如網路問題），燈籠一樣會存好，下次儲存時會再翻譯一次。只修改其他欄位（例如標記已貼標籤）不會觸發翻譯。</p>
+      <span class="where">現場新增燈籠、新增／編輯燈籠、燈籠列表的表格</span>
+    </div>
+  </section>
 
   <section>
     <h2>2026 年 11 月 7 日</h2>
@@ -216,7 +226,7 @@ a:focus-visible { outline: 2px solid var(--lantern); outline-offset: 2px; border
     </div>
     <div class="item">
       <h3>新增燈籠：中文和英文名稱</h3>
-      <p>現場新增燈籠時，有「名稱（中文）」（必填）和「名稱（英文）」（選填）兩欄。地點自動是你目前所在的地點，畫面上方會顯示。</p>
+      <p>現場新增燈籠時，有「名稱（中文）」和「名稱（英文）」兩欄，至少填一個，另一個由 AI 自動翻譯。地點自動是你目前所在的地點，畫面上方會顯示。</p>
       <span class="where">現場模式 → 地點 → + 新增燈籠 New</span>
     </div>
     <div class="item">
@@ -266,12 +276,7 @@ a:focus-visible { outline: 2px solid var(--lantern); outline-offset: 2px; border
 
   <div class="tip">
     <h2>請大家幫忙整理名稱</h2>
-    <p>有些燈籠把英文打在中文欄位裡（例如 Seaweed、Flying fish），所以只顯示一行，排序也不準。有空時請：</p>
-    <ol>
-      <li>打開那盞燈籠，按 <span class="ui">編輯</span>。</li>
-      <li>「名稱（中文）」填中文，例如 海草。</li>
-      <li>「名稱（英文）」填英文，例如 Seaweed，然後儲存。</li>
-    </ol>
+    <p>有些燈籠把英文打在中文欄位裡（例如 Seaweed、Flying fish），所以只顯示一行，排序也不準。現在只要打開那盞燈籠，按 <span class="ui">編輯</span>，直接按 <span class="ui">儲存</span>：系統會把它當成英文名稱，並由 AI 自動翻譯出中文名稱（例如 海草）。翻譯不滿意可以再改。</p>
   </div>
 
   <footer>本頁會在系統有重大更新時同步更新。管理員專用：不可展示的損壞門檻（目前布面 30%、骨架 30%）可以在「管理」頁修改，存檔後所有燈籠會自動重新判斷。</footer>

@@ -5,6 +5,7 @@ import { getDisplayThresholds } from '@/lib/inventorySettings'
 import { buildLanternUpdate } from '@/lib/inventoryLanternUpdate'
 import { saveLanternUpdate } from '@/lib/inventoryLanternSave'
 import { missingColumnError } from '@/lib/inventorySchema'
+import { fillMissingLanternName } from '@/lib/inventoryTranslate'
 
 export default async function handler(req, res) {
   const { tagId } = req.query
@@ -63,9 +64,11 @@ export default async function handler(req, res) {
     if (result.error) return res.status(400).json({ error: result.error })
     const columnError = await missingColumnError(result.next)
     if (columnError) return res.status(400).json({ error: columnError })
+    // Only one name given → AI fills in the other before saving (see lib/inventoryTranslate.js).
+    const name_translation = await fillMissingLanternName(result.next, result.nameMissing)
     const data = await saveLanternUpdate({ existing, ...result, email: req.inventoryEmail })
 
-    return res.status(200).json(data)
+    return res.status(200).json({ ...data, name_translation })
   }
 
   if (req.method === 'DELETE') {

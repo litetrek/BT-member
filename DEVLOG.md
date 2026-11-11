@@ -316,3 +316,25 @@ Vincent on 2026-10-28 (all 5 steps OK); PR #1 merged the same day.
   columns as ⚠ 未啟用 (read-only, batch cell disabled) while the database lacks them.
 - **Still needed**: run `node scripts/migrate-lantern-fields.js` against Neon (needs
   `DATABASE_URL` in `.env.local`).
+
+---
+
+## 2026-11-11 — Lantern names: either one is enough, AI translates the other
+
+- **Requested**: 中文名稱 no longer mandatory — at least one of 中文 / English; when only one is
+  filled in, AI translates the other on save.
+- `lib/inventoryLanternNames.js` (pure rule): both blank → 400; only 中文 → translate to
+  English; only English → translate to 繁體中文. name_zh is NOT NULL and shown everywhere,
+  so it holds the English text until translated; that placeholder (name_zh === name_en, no
+  CJK) is retried on the next save. English typed into the 中文 field on older records
+  ("Seaweed") is treated as the English name.
+- `lib/inventoryTranslate.js`: Claude (`claude-opus-5-5`, effort low, server-side fallback
+  `fallbacks: "default"`), one-line answer, sanity-checked (Chinese answer must contain CJK).
+  Never throws — no key / network / refusal → saved without translation, `name_translation:
+  { field, ok:false }` in the response.
+- Wired into POST / PUT lanterns and the table batch save; PUT and batch only translate when
+  the edit includes a name field (marking a label attached never renames anything).
+- Forms: no `required` on 中文; hint "至少填一個…AI 會自動翻譯"; field-mode Done screen shows
+  the names and "由 AI 翻譯"; edit form alerts if translation failed. Guide updated.
+- Tests: `tests/inventoryLanternNames.test.mjs`; request shape checked against a mock API
+  (model, effort, fallbacks beta) — not yet against the live API (no key in this sandbox).

@@ -5,7 +5,7 @@ import { getInventoryRole } from '@/lib/inventory'
 import { uploadInventoryPhoto } from '@/lib/inventoryPhoto'
 import { VOLTAGE_OPTIONS, CONDITION_OPTIONS, STATUS_OPTIONS, DISPLAY_DECISION_OPTIONS } from '@/lib/inventoryConstants'
 import InventoryPhotoPicker from '@/components/InventoryPhotoPicker'
-import InventoryLanternNameFields from '@/components/InventoryLanternNameFields'
+import InventoryLanternNameFields, { hasLanternName } from '@/components/InventoryLanternNameFields'
 import InventoryRepairEaseSlider from '@/components/InventoryRepairEaseSlider'
 import InventoryBaseTypePicker from '@/components/InventoryBaseTypePicker'
 import InventorySizePicker from '@/components/InventorySizePicker'
@@ -98,6 +98,10 @@ export default function InventoryLanternForm({ lantern, initial, onCancel }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!hasLanternName(form.name_zh, form.name_en)) {
+      setError('請至少填寫一個名稱（中文或英文）Enter a Chinese or English name')
+      return
+    }
     setSaving(true)
     setError('')
 
@@ -145,6 +149,11 @@ export default function InventoryLanternForm({ lantern, initial, onCancel }) {
         hasPrimary = true
       }
 
+      if (data.name_translation && !data.name_translation.ok) {
+        window.alert(data.name_translation.field === 'zh'
+          ? 'AI 翻譯中文名稱失敗，暫時以英文名稱顯示；下次儲存時會再試。\nAI could not translate the Chinese name — it will retry on the next save.'
+          : 'AI 翻譯英文名稱失敗，英文名稱暫時空白；下次儲存時會再試。\nAI could not translate the English name — it will retry on the next save.')
+      }
       router.push(`/inventory/lanterns/${data.tag_id}`)
     } catch (err) {
       setError(err.message)
